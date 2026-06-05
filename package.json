@@ -1,0 +1,25 @@
+{
+  "name": "absen-application",
+  "version": "0.1.0",
+  "private": true,
+  "packageManager": "pnpm@10.0.0",
+  "scripts": {
+    "dev": "turbo dev",
+    "build": "turbo build",
+    "lint": "turbo lint",
+    "web:dev": "pnpm --filter website dev",
+    "web:build": "pnpm --filter website build",
+    "web:start": "pnpm --filter website start",
+    "web:lint": "pnpm --filter website lint",
+    "web:doctor": "pnpm --filter website doctor",
+    "backend:dev": "pnpm --filter backend dev",
+    "backend:start": "pnpm --filter backend start",
+    "mobile:get": "cd Apps/app_flutter && flutter pub get",
+    "mobile:run": "cd Apps/app_flutter && flutter run",
+    "mobile:test": "cd Apps/app_flutter && flutter test",
+    "mobile:build:apk": "cd Apps/app_flutter && flutter build apk"
+  },
+  "devDependencies": {
+    "turbo": "latest"
+  }
+}

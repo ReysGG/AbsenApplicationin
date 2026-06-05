@@ -1,0 +1,4 @@
+packages:
+  - "Apps/website"
+  - "Apps/backend"
+  - "packages/*"
