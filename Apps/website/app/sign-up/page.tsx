@@ -51,8 +51,9 @@ export default function SignUpPage() {
       if (result?.error) {
         setError(result.error.message || "Gagal masuk dengan Google.");
       }
-    } catch (err: any) {
-      setError(err?.message || "Terjadi kesalahan saat masuk dengan Google.");
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : "Terjadi kesalahan saat masuk dengan Google.";
+      setError(errorMessage);
     } finally {
       setPending(false);
     }

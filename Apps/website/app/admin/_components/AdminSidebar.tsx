@@ -14,6 +14,10 @@ import {
   Shield,
   MapPin,
   X,
+  Building2,
+  CreditCard,
+  Ticket,
+  Activity,
 } from "lucide-react";
 import { SignOutButton } from "@/components/sign-out-button";
 import { cn } from "@/lib/utils";
@@ -85,6 +89,40 @@ const navItems: NavItem[] = [
     label: "Pengaturan",
     href: "/admin/settings",
     icon: <Settings size={18} />,
+  },
+];
+
+const platformNavItems: NavItem[] = [
+  {
+    label: "Platform Dashboard",
+    href: "/admin/platform",
+    icon: <LayoutDashboard size={18} />,
+  },
+  {
+    label: "Tenants",
+    href: "/admin/tenants",
+    icon: <Building2 size={18} />,
+  },
+  {
+    label: "Billing",
+    href: "/admin/billing",
+    icon: <CreditCard size={18} />,
+  },
+  {
+    label: "Support Tickets",
+    href: "/admin/tickets",
+    icon: <Ticket size={18} />,
+    badge: "14",
+  },
+  {
+    label: "Admin Users",
+    href: "/admin/users",
+    icon: <Users size={18} />,
+  },
+  {
+    label: "System Health",
+    href: "/admin/system-health",
+    icon: <Activity size={18} />,
   },
 ];
 
@@ -196,8 +234,8 @@ export default function AdminSidebar({
               />
               <defs>
                 <linearGradient id="grad" x1="0" y1="0" x2="32" y2="32">
-                  <stop offset="0%" stopColor="#6366f1" />
-                  <stop offset="100%" stopColor="#8b5cf6" />
+                  <stop offset="0%" stopColor="#022C22" />
+                  <stop offset="100%" stopColor="#34D399" />
                 </linearGradient>
               </defs>
             </svg>
@@ -226,8 +264,15 @@ export default function AdminSidebar({
         {/* Nav */}
         <nav className="admin-nav">
           <p className="admin-nav-section-label">Menu Utama</p>
-          <ul className="admin-nav-list">
+          <ul className="admin-nav-list mb-6">
             {navItems.map((item) => (
+              <NavGroup key={item.label} item={item} />
+            ))}
+          </ul>
+
+          <p className="admin-nav-section-label border-t border-white/5 pt-4 mt-2">Platform Admin</p>
+          <ul className="admin-nav-list">
+            {platformNavItems.map((item) => (
               <NavGroup key={item.label} item={item} />
             ))}
           </ul>

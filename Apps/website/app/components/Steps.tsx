@@ -3,6 +3,7 @@
 import React from 'react';
 import { Android } from '@/components/ui/android';
 import { LazyMotion, m, domAnimation } from 'motion/react';
+import { TracingBeam } from '@/components/ui/tracing-beam';
 
 export default function Steps() {
   const steps = [
@@ -46,28 +47,30 @@ export default function Steps() {
               </p>
             </div>
 
-            <div className="space-y-8 font-sans">
-              {steps.map((step, index) => (
-                <m.div 
-                  key={index}
-                  initial={{ opacity: 0, y: 20 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  viewport={{ once: true }}
-                  transition={{ duration: 0.5, delay: index * 0.15 }}
-                  className="flex gap-4"
-                >
-                  <div className={`w-12 h-12 rounded-full ${step.bg} text-white flex items-center justify-center font-bold text-lg shrink-0 shadow-sm`}>
-                    {step.number}
-                  </div>
-                  <div>
-                    <h3 className="font-headline-sm text-headline-sm text-navy mb-1">{step.title}</h3>
-                    <p className="font-body-sm text-body-sm text-on-surface-variant">
-                      {step.desc}
-                    </p>
-                  </div>
-                </m.div>
-              ))}
-            </div>
+            <TracingBeam className="px-4">
+              <div className="space-y-12 font-sans py-2 pl-4">
+                {steps.map((step, index) => (
+                  <m.div 
+                    key={index}
+                    initial={{ opacity: 0, y: 20 }}
+                    whileInView={{ opacity: 1, y: 0 }}
+                    viewport={{ once: true }}
+                    transition={{ duration: 0.5, delay: index * 0.15 }}
+                    className="flex gap-4 relative"
+                  >
+                    <div className={`w-12 h-12 rounded-full ${step.bg} text-white flex items-center justify-center font-bold text-lg shrink-0 shadow-sm z-10`}>
+                      {step.number}
+                    </div>
+                    <div>
+                      <h3 className="font-headline-sm text-headline-sm text-navy mb-1">{step.title}</h3>
+                      <p className="font-body-sm text-body-sm text-on-surface-variant max-w-md">
+                        {step.desc}
+                      </p>
+                    </div>
+                  </m.div>
+                ))}
+              </div>
+            </TracingBeam>
           </m.div>
 
           {/* Right Column: Android Mockup with Floating Animation */}

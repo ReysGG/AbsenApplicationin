@@ -23,8 +23,14 @@ import {
   CheckCircle2,
   XCircle,
   AlertCircle,
+  HeartPulse,
+  Server,
+  Building2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { StatusBadge } from "./StatusBadge";
+import { MiniChart } from "./MiniChart";
+import { DonutChart } from "./DonutChart";
 
 // ── Stat Cards ──────────────────────────────────────────────────────────────
 
@@ -85,7 +91,7 @@ interface Activity {
   name: string;
   action: string;
   time: string;
-  icon: string;
+  icon: React.ReactNode;
   color: string;
   status: "success" | "warning" | "error";
 }
@@ -95,7 +101,7 @@ const activities: Activity[] = [
     name: "Budi Santoso",
     action: "Check-in berhasil",
     time: "08:02",
-    icon: "✅",
+    icon: <CheckCircle2 size={16} />,
     color: "#10b981",
     status: "success",
   },
@@ -103,7 +109,7 @@ const activities: Activity[] = [
     name: "Siti Rahayu",
     action: "Pengajuan izin sakit",
     time: "08:15",
-    icon: "🏥",
+    icon: <HeartPulse size={16} />,
     color: "#f59e0b",
     status: "warning",
   },
@@ -111,7 +117,7 @@ const activities: Activity[] = [
     name: "Ahmad Fauzi",
     action: "Terlambat 32 menit",
     time: "08:47",
-    icon: "⚠️",
+    icon: <AlertCircle size={16} />,
     color: "#ef4444",
     status: "error",
   },
@@ -119,7 +125,7 @@ const activities: Activity[] = [
     name: "Dewi Puspita",
     action: "Check-in berhasil",
     time: "07:58",
-    icon: "✅",
+    icon: <CheckCircle2 size={16} />,
     color: "#10b981",
     status: "success",
   },
@@ -127,7 +133,7 @@ const activities: Activity[] = [
     name: "Rizki Pratama",
     action: "Lembur disetujui",
     time: "09:01",
-    icon: "🕐",
+    icon: <Clock size={16} />,
     color: "#6366f1",
     status: "success",
   },
@@ -135,7 +141,7 @@ const activities: Activity[] = [
     name: "Nurul Hidayah",
     action: "Check-in berhasil",
     time: "07:50",
-    icon: "✅",
+    icon: <CheckCircle2 size={16} />,
     color: "#10b981",
     status: "success",
   },
@@ -143,7 +149,7 @@ const activities: Activity[] = [
     name: "Dito Prasetyo",
     action: "Tidak hadir tanpa keterangan",
     time: "–",
-    icon: "❌",
+    icon: <XCircle size={16} />,
     color: "#ef4444",
     status: "error",
   },
@@ -216,116 +222,6 @@ const recentAttendance = [
   },
 ];
 
-function StatusBadge({ status }: { status: string }) {
-  const map: Record<string, { cls: string; icon: React.ReactNode }> = {
-    Hadir: {
-      cls: "status-badge--success",
-      icon: <CheckCircle2 size={12} />,
-    },
-    Izin: {
-      cls: "status-badge--warning",
-      icon: <AlertCircle size={12} />,
-    },
-    Terlambat: {
-      cls: "status-badge--error",
-      icon: <XCircle size={12} />,
-    },
-    Lembur: {
-      cls: "status-badge--info",
-      icon: <Clock size={12} />,
-    },
-  };
-  const { cls, icon } = map[status] ?? { cls: "", icon: null };
-  return (
-    <span className={cn("status-badge", cls)}>
-      {icon}
-      {status}
-    </span>
-  );
-}
-
-// ── Mini sparkline ───────────────────────────────────────────────────────────
-
-function MiniChart({
-  data,
-  color,
-}: {
-  data: number[];
-  color: string;
-}) {
-  const max = Math.max(...data);
-  const w = 80;
-  const h = 32;
-  const points = data
-    .map((v, i) => {
-      const x = (i / (data.length - 1)) * w;
-      const y = h - (v / max) * h;
-      return `${x},${y}`;
-    })
-    .join(" ");
-
-  return (
-    <svg width={w} height={h} className="overflow-visible">
-      <polyline
-        fill="none"
-        stroke={color}
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        points={points}
-      />
-      {/* last point dot */}
-      {(() => {
-        const last = data[data.length - 1];
-        const x = w;
-        const y = h - (last / max) * h;
-        return <circle cx={x} cy={y} r="3" fill={color} />;
-      })()}
-    </svg>
-  );
-}
-
-// ── Donut chart (CSS) ────────────────────────────────────────────────────────
-
-function DonutChart() {
-  const hadir = 89;
-  const terlambat = 6;
-  const absen = 5;
-
-  return (
-    <div className="admin-donut-wrap">
-      <div className="admin-donut">
-        <svg viewBox="0 0 36 36" className="admin-donut-svg">
-          <circle cx="18" cy="18" r="15.915" fill="transparent" stroke="#eceef0" strokeWidth="3" />
-          <circle cx="18" cy="18" r="15.915" fill="transparent" stroke="#0A192F" strokeWidth="3"
-            strokeDasharray={`${hadir} ${100 - hadir}`} strokeDashoffset="25" strokeLinecap="round" />
-          <circle cx="18" cy="18" r="15.915" fill="transparent" stroke="#00E5FF" strokeWidth="3"
-            strokeDasharray={`${terlambat} ${100 - terlambat}`} strokeDashoffset={`${25 - hadir}`} strokeLinecap="round" />
-          <circle cx="18" cy="18" r="15.915" fill="transparent" stroke="#ba1a1a" strokeWidth="3"
-            strokeDasharray={`${absen} ${100 - absen}`} strokeDashoffset={`${25 - hadir - terlambat}`} strokeLinecap="round" />
-        </svg>
-        <div className="admin-donut-center">
-          <span className="admin-donut-pct">89%</span>
-          <span className="admin-donut-sub">Hadir</span>
-        </div>
-      </div>
-      <div className="admin-donut-legend">
-        {[
-          { color: "#0A192F", label: "Hadir", val: "221" },
-          { color: "#00B8CC", label: "Terlambat", val: "14" },
-          { color: "#ba1a1a", label: "Absen", val: "13" },
-        ].map((l) => (
-          <div key={l.label} className="admin-donut-legend-item">
-            <span className="admin-donut-legend-dot" style={{ background: l.color }} />
-            <span className="admin-donut-legend-label">{l.label}</span>
-            <span className="admin-donut-legend-val">{l.val}</span>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
 // ── Main Dashboard ───────────────────────────────────────────────────────────
 
 export default function DashboardPage() {
@@ -333,14 +229,16 @@ export default function DashboardPage() {
 
   // Avoid hydration mismatch — set date only on client
   useEffect(() => {
-    setToday(
-      new Intl.DateTimeFormat("id-ID", {
-        weekday: "long",
-        day: "numeric",
-        month: "long",
-        year: "numeric",
-      }).format(new Date())
-    );
+    requestAnimationFrame(() => {
+      setToday(
+        new Intl.DateTimeFormat("id-ID", {
+          weekday: "long",
+          day: "numeric",
+          month: "long",
+          year: "numeric",
+        }).format(new Date())
+      );
+    });
   }, []);
 
   const weeklyData = [62, 71, 68, 74, 80, 77, 89];
@@ -374,25 +272,35 @@ export default function DashboardPage() {
       <div className="admin-stat-grid">
         {stats.map((s) => (
           <div key={s.title} className="admin-stat-card">
-            <BorderBeam size={60} duration={8} colorFrom="#0A192F" colorTo="#00E5FF" />
-            <div className={cn("admin-stat-icon-wrap", s.color)}>
-              <div className={cn("admin-stat-icon-bg", s.gradient)}>
-                {s.icon}
+            <BorderBeam size={60} duration={8} colorFrom="#022C22" colorTo="#34D399" />
+            
+            {/* Top row: Title and Icon */}
+            <div className="flex justify-between items-start w-full gap-2">
+              <p className="admin-stat-title">{s.title}</p>
+              <div className={cn("admin-stat-icon-wrap", s.color)}>
+                <div className={cn("admin-stat-icon-bg", s.gradient)}>
+                  {s.icon}
+                </div>
               </div>
             </div>
-            <div className="admin-stat-body">
-              <p className="admin-stat-title">{s.title}</p>
+
+            {/* Middle row: Large Value */}
+            <div className="flex-1 flex items-baseline mt-2">
               <p className="admin-stat-value">
                 <NumberTicker
                   value={s.value}
                   className="admin-ticker"
                 />
               </p>
+            </div>
+
+            {/* Bottom row: Trend and Sparkline */}
+            <div className="flex items-center justify-between w-full gap-2 mt-4">
               <div className="admin-stat-change">
                 {s.change >= 0 ? (
-                  <ArrowUpRight size={14} className="text-emerald-400" />
+                  <ArrowUpRight size={14} className="text-emerald-600" />
                 ) : (
-                  <ArrowDownRight size={14} className="text-rose-400" />
+                  <ArrowDownRight size={14} className="text-rose-600" />
                 )}
                 <span
                   className={
@@ -424,8 +332,8 @@ export default function DashboardPage() {
           <DonutChart />
           <div className="admin-progress-list">
             {[
-              { label: "Tepat Waktu", pct: 83, color: "#0A192F" },
-              { label: "Terlambat < 30 mnt", pct: 10, color: "#00B8CC" },
+              { label: "Tepat Waktu", pct: 83, color: "#022C22" },
+              { label: "Terlambat < 30 mnt", pct: 10, color: "#34D399" },
               { label: "Terlambat > 30 mnt", pct: 7, color: "#ba1a1a" },
             ].map((p) => (
               <div key={p.label} className="admin-progress-item">
@@ -459,9 +367,9 @@ export default function DashboardPage() {
                 >
                   <div
                     className="admin-activity-icon"
-                    style={{ backgroundColor: a.color + "22" }}
+                    style={{ backgroundColor: a.color + "22", color: a.color }}
                   >
-                    <span>{a.icon}</span>
+                    {a.icon}
                   </div>
                   <div className="admin-activity-body">
                     <p className="admin-activity-name">{a.name}</p>
@@ -481,28 +389,28 @@ export default function DashboardPage() {
           </div>
           <div className="admin-sys-grid">
             {[
-              { label: "Server Uptime", val: "99.9%", icon: "🟢", trend: "+0.1%" },
-              { label: "Total Check-in", val: "1,247", icon: "📍", trend: "+87" },
-              { label: "Lokasi Aktif", val: "12", icon: "🏢", trend: "0" },
-              { label: "Device Terdaftar", val: "312", icon: "📱", trend: "+3" },
+              { label: "Server Uptime", val: "99.9%", icon: <Server size={18} className="text-[#047857]" />, trend: "+0.1%" },
+              { label: "Total Check-in", val: "1,247", icon: <MapPin size={18} className="text-[#047857]" />, trend: "+87" },
+              { label: "Lokasi Aktif", val: "12", icon: <Building2 size={18} className="text-[#047857]" />, trend: "0" },
+              { label: "Device Terdaftar", val: "312", icon: <Smartphone size={18} className="text-[#047857]" />, trend: "+3" },
             ].map((s) => (
               <div key={s.label} className="admin-sys-card">
-                <span className="admin-sys-icon">{s.icon}</span>
+                <span className="admin-sys-icon flex items-center justify-center">{s.icon}</span>
                 <div>
                   <p className="admin-sys-val">{s.val}</p>
                   <p className="admin-sys-label">{s.label}</p>
-                  <p className="admin-sys-trend text-emerald-400">{s.trend}</p>
+                  <p className="admin-sys-trend text-emerald-600">{s.trend}</p>
                 </div>
               </div>
             ))}
           </div>
 
           {/* Resource bars */}
-          <div className="mt-4 space-y-3">
+          <div className="mt-auto pt-4 space-y-3">
             {[
-              { label: "CPU Usage", val: 34, color: "#0A192F" },
-              { label: "Memory", val: 70, color: "#006875" },
-              { label: "Storage", val: 48, color: "#00B8CC" },
+              { label: "CPU Usage", val: 34, color: "#022C22" },
+              { label: "Memory", val: 70, color: "#047857" },
+              { label: "Storage", val: 48, color: "#34D399" },
             ].map((r) => (
               <div key={r.label}>
                 <div className="flex justify-between text-xs mb-1" style={{color:'#75777e'}}>

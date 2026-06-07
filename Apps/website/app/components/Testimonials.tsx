@@ -59,7 +59,7 @@ function TestimonialCard({ name, role, company, text, avatar, rating }: typeof t
   return (
     <div className="w-[350px] bg-white border card-border rounded-2xl p-6 shadow-level-1 hover:shadow-level-2 transition-all shrink-0 flex flex-col justify-between font-sans">
       <p className="text-on-surface-variant font-body-sm text-body-sm italic mb-6">
-        "{text}"
+        &ldquo;{text}&rdquo;
       </p>
       <div className="flex items-center gap-3">
         <img

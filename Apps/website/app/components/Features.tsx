@@ -2,8 +2,10 @@
 
 import React, { useState, useEffect } from 'react';
 import { LazyMotion, m, domAnimation } from 'motion/react';
+import { ShineBorder } from '@/components/ui/shine-border';
 
 export default function Features() {
+  const [hoveredCard, setHoveredCard] = useState<number | null>(null);
   // --- 1. Card 1: Retail & Franchise (F&B) Shift & Outlet Registry ---
   const [selectedOutlet, setSelectedOutlet] = useState('Surabaya Main');
   const [selectedShift, setSelectedShift] = useState('Shift Pagi (08:00 - 17:00)');
@@ -94,8 +96,13 @@ export default function Features() {
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true, margin: "-50px" }}
               transition={{ duration: 0.7, delay: 0.1, type: "spring", stiffness: 80, damping: 15 }}
-              className="bg-white border border-neutral-200/80 rounded-2xl p-6 flex flex-col justify-between h-[540px] shadow-xs hover:shadow-sm transition-shadow"
+              className="bg-white border border-neutral-200/80 rounded-2xl p-6 flex flex-col justify-between h-[540px] shadow-xs hover:shadow-sm transition-shadow relative overflow-hidden"
+              onMouseEnter={() => setHoveredCard(1)}
+              onMouseLeave={() => setHoveredCard(null)}
             >
+              {hoveredCard === 1 && (
+                <ShineBorder borderWidth={1.5} shineColor={["#34D399", "#10B981", "#047857"]} duration={6} />
+              )}
               <div>
                 <span className="text-[10px] uppercase font-bold tracking-wider text-brand-teal mb-2 block">
                   Multi-Outlet &amp; Shift
@@ -207,7 +214,14 @@ export default function Features() {
             >
               
               {/* Top Stacked Card: Logistik & Sales Lapangan Phone Mockup Map */}
-              <div className="bg-white border border-neutral-200/80 rounded-2xl p-5 flex justify-between items-center h-[257px] relative overflow-hidden shadow-xs hover:shadow-sm transition-shadow">
+              <div 
+                className="bg-white border border-neutral-200/80 rounded-2xl p-5 flex justify-between items-center h-[257px] relative overflow-hidden shadow-xs hover:shadow-sm transition-shadow"
+                onMouseEnter={() => setHoveredCard(2)}
+                onMouseLeave={() => setHoveredCard(null)}
+              >
+                {hoveredCard === 2 && (
+                  <ShineBorder borderWidth={1.5} shineColor={["#34D399", "#10B981", "#047857"]} duration={6} />
+                )}
                 
                 {/* Left Side: Copywriting */}
                 <div className="w-[53%] flex flex-col justify-between h-full">
@@ -300,7 +314,14 @@ export default function Features() {
               </div>
 
               {/* Bottom Stacked Card: Kerja Remote (WFH) House Illustration */}
-              <div className="bg-white border border-neutral-200/80 rounded-2xl p-5 flex justify-between items-center h-[257px] relative overflow-hidden shadow-xs hover:shadow-sm transition-shadow">
+              <div 
+                className="bg-white border border-neutral-200/80 rounded-2xl p-5 flex justify-between items-center h-[257px] relative overflow-hidden shadow-xs hover:shadow-sm transition-shadow"
+                onMouseEnter={() => setHoveredCard(3)}
+                onMouseLeave={() => setHoveredCard(null)}
+              >
+                {hoveredCard === 3 && (
+                  <ShineBorder borderWidth={1.5} shineColor={["#34D399", "#10B981", "#047857"]} duration={6} />
+                )}
                 
                 {/* Left Side: Copywriting */}
                 <div className="w-[53%] flex flex-col justify-between h-full">
@@ -347,8 +368,13 @@ export default function Features() {
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true, margin: "-50px" }}
               transition={{ duration: 0.7, delay: 0.4, type: "spring", stiffness: 80, damping: 15 }}
-              className="bg-white border border-neutral-200/80 rounded-2xl p-6 flex flex-col justify-between h-[540px] shadow-xs hover:shadow-sm transition-shadow"
+              className="bg-white border border-neutral-200/80 rounded-2xl p-6 flex flex-col justify-between h-[540px] shadow-xs hover:shadow-sm transition-shadow relative overflow-hidden"
+              onMouseEnter={() => setHoveredCard(4)}
+              onMouseLeave={() => setHoveredCard(null)}
             >
+              {hoveredCard === 4 && (
+                <ShineBorder borderWidth={1.5} shineColor={["#34D399", "#10B981", "#047857"]} duration={6} />
+              )}
               <div>
                 <span className="text-[10px] uppercase font-bold tracking-wider text-brand-teal mb-2 block">
                   API &amp; Webhook Ready

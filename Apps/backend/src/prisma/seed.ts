@@ -1,0 +1,474 @@
+/**
+ * seed.ts — Bootstrap seed for AttendX Web Dashboard dev environment.
+ *
+ * Creates:
+ *   - Tenant + Workspace (timezone Asia/Jakarta)
+ *   - Stakeholder user + HR Admin user
+ *   - RoleAssignments (stakeholder, support_admin)
+ *   - Permission catalog (15 keys)
+ *   - RoleAssignmentPermissions (HR Admin gets all 15)
+ *   - 3 Departments, 2 Locations, 2 Shifts
+ *   - 5 Employees (Engineering dept, Kantor Jakarta Pusat + Shift Pagi)
+ *   - AttendanceLogs — last 7 weekdays for emp-001 and emp-002
+ *
+ * Idempotent: upsert for Tenant (slug) and User (email);
+ *             deleteMany + createMany for relations without unique constraints.
+ *
+ * Requirements: 4.7
+ *
+ * Run via: npm run db:seed   (tsx src/prisma/seed.ts)
+ */
+
+import 'dotenv/config'
+import { PrismaPg } from '@prisma/adapter-pg'
+import { PrismaClient } from '@prisma/client'
+import { ALL_PERMISSIONS } from '../lib/permissions'
+
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+/** Return the last N weekdays (Mon–Fri) relative to today, sorted ascending */
+function lastNWeekdays(n: number): Date[] {
+  const days: Date[] = []
+  const cursor = new Date()
+  // strip time component
+  cursor.setHours(0, 0, 0, 0)
+  while (days.length < n) {
+    const day = cursor.getDay() // 0=Sun, 6=Sat
+    if (day !== 0 && day !== 6) {
+      days.unshift(new Date(cursor))
+    }
+    cursor.setDate(cursor.getDate() - 1)
+  }
+  return days
+}
+
+/** Build a Date at a specific HH:MM on the given date */
+function dateAtTime(base: Date, hh: number, mm: number): Date {
+  const d = new Date(base)
+  d.setHours(hh, mm, 0, 0)
+  return d
+}
+
+// ---------------------------------------------------------------------------
+// Bootstrap
+// ---------------------------------------------------------------------------
+
+const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL! })
+const prisma = new PrismaClient({ adapter })
+
+async function main(): Promise<void> {
+  console.log('🌱 Starting seed...')
+
+  // ── 1. Tenant ──────────────────────────────────────────────────────────────
+  const tenant = await (prisma as any).tenant.upsert({
+    where: { slug: 'pt-inovasi-kerja-digital' },
+    update: {},
+    create: {
+      name: 'PT Inovasi Kerja Digital',
+      slug: 'pt-inovasi-kerja-digital',
+      status: 'Active',
+      plan: 'enterprise',
+    },
+  })
+  console.log(`✅ Tenant: ${tenant.name}`)
+
+  // ── 2. Workspace ───────────────────────────────────────────────────────────
+  const existingWorkspace = await (prisma as any).workspace.findFirst({
+    where: { tenantId: tenant.id, name: 'AttendX Demo Workspace' },
+  })
+
+  const workspace = existingWorkspace
+    ? existingWorkspace
+    : await (prisma as any).workspace.create({
+        data: {
+          tenantId: tenant.id,
+          name: 'AttendX Demo Workspace',
+          timezone: 'Asia/Jakarta',
+          defaultGeofenceRadius: 100,
+          defaultGracePeriod: 10,
+          absenceCutoffMinutes: 120,
+          wfhEnabled: true,
+          hybridEnabled: true,
+          status: 'Active',
+        },
+      })
+  console.log(`✅ Workspace: ${workspace.name}`)
+
+  // ── 3. Users ───────────────────────────────────────────────────────────────
+  const stakeholderUser = await (prisma as any).user.upsert({
+    where: { email: 'stakeholder@attendx.dev' },
+    update: {},
+    create: {
+      authUserId: 'auth_seed_stakeholder_001',
+      email: 'stakeholder@attendx.dev',
+      fullName: 'Admin Stakeholder',
+      globalRole: 'user',
+      status: 'Active',
+    },
+  })
+  console.log(`✅ User: ${stakeholderUser.fullName}`)
+
+  const hrAdminUser = await (prisma as any).user.upsert({
+    where: { email: 'hradmin@attendx.dev' },
+    update: {},
+    create: {
+      authUserId: 'auth_seed_hradmin_001',
+      email: 'hradmin@attendx.dev',
+      fullName: 'HR Admin',
+      globalRole: 'user',
+      status: 'Active',
+    },
+  })
+  console.log(`✅ User: ${hrAdminUser.fullName}`)
+
+  // ── 4. Permissions catalog ─────────────────────────────────────────────────
+  console.log('Seeding permissions...')
+  const permissionDescriptions: Record<string, string> = {
+    manage_employees: 'Create, update, archive employees',
+    manage_locations: 'Create and manage office/WFH locations',
+    manage_shifts: 'Create and assign work shifts',
+    manage_geofence: 'Modify geofence radius for locations',
+    manage_wfh_mode: 'Toggle WFH / hybrid mode for workspace',
+    manage_grace_period: 'Change grace period and attendance policy settings',
+    manage_attendance_policy: 'Manage global attendance policy settings',
+    approve_leave: 'Approve or reject employee leave requests',
+    export_reports: 'Export attendance and report data',
+    manage_roles: 'Assign and manage roles (Stakeholder only)',
+    view_dashboard: 'View overview dashboard',
+    view_live_attendance: 'View live attendance table',
+    view_reports: 'View and preview attendance reports',
+    view_employees: 'View employee list and details',
+    view_audit_logs: 'View audit log entries',
+  }
+
+  const permissionMap: Record<string, string> = {}
+  for (const key of ALL_PERMISSIONS) {
+    const perm = await (prisma as any).permission.upsert({
+      where: { key },
+      update: {},
+      create: {
+        key,
+        description: permissionDescriptions[key] ?? key,
+      },
+    })
+    permissionMap[key] = perm.id
+  }
+  console.log(`✅ Permissions seeded: ${Object.keys(permissionMap).length}`)
+
+  // ── 5. RoleAssignments ─────────────────────────────────────────────────────
+  // Stakeholder
+  const stakeholderAssignment = await (prisma as any).roleAssignment.upsert({
+    where: {
+      workspaceId_userId_role_scopeType_scopeId: {
+        workspaceId: workspace.id,
+        userId: stakeholderUser.id,
+        role: 'stakeholder',
+        scopeType: 'workspace',
+        scopeId: '',
+      },
+    },
+    update: {},
+    create: {
+      workspaceId: workspace.id,
+      userId: stakeholderUser.id,
+      role: 'stakeholder',
+      scopeType: 'workspace',
+      scopeId: null,
+    },
+  })
+  console.log(`✅ RoleAssignment: stakeholder → ${stakeholderUser.fullName}`)
+
+  // HR Admin
+  const hrAdminAssignment = await (prisma as any).roleAssignment.upsert({
+    where: {
+      workspaceId_userId_role_scopeType_scopeId: {
+        workspaceId: workspace.id,
+        userId: hrAdminUser.id,
+        role: 'support_admin',
+        scopeType: 'workspace',
+        scopeId: '',
+      },
+    },
+    update: {},
+    create: {
+      workspaceId: workspace.id,
+      userId: hrAdminUser.id,
+      role: 'support_admin',
+      scopeType: 'workspace',
+      scopeId: null,
+    },
+  })
+  console.log(`✅ RoleAssignment: support_admin → ${hrAdminUser.fullName}`)
+
+  // ── 6. RoleAssignmentPermissions for HR Admin ──────────────────────────────
+  // Delete + recreate for idempotency (no unique-safe upsert path here)
+  await (prisma as any).roleAssignmentPermission.deleteMany({
+    where: { roleAssignmentId: hrAdminAssignment.id },
+  })
+  const rapData = Object.values(permissionMap).map((permissionId) => ({
+    roleAssignmentId: hrAdminAssignment.id,
+    permissionId,
+  }))
+  await (prisma as any).roleAssignmentPermission.createMany({ data: rapData })
+  console.log(`✅ RoleAssignmentPermissions: HR Admin granted ${rapData.length} permissions`)
+
+  // ── 7. Departments ─────────────────────────────────────────────────────────
+  // deleteMany scoped to this workspace, then recreate
+  await (prisma as any).department.deleteMany({
+    where: { workspaceId: workspace.id },
+  })
+  const departmentNames = ['Engineering', 'Human Resources', 'Operations']
+  const departments: Array<{ id: string; name: string }> = []
+  for (const name of departmentNames) {
+    const dept = await (prisma as any).department.create({
+      data: { workspaceId: workspace.id, name, status: 'Active' },
+    })
+    departments.push(dept)
+  }
+  const engineeringDept = departments.find((d) => d.name === 'Engineering')!
+  console.log(`✅ Departments: ${departments.map((d) => d.name).join(', ')}`)
+
+  // ── 8. Locations ───────────────────────────────────────────────────────────
+  await (prisma as any).location.deleteMany({
+    where: { workspaceId: workspace.id },
+  })
+  const locationKantorJakarta = await (prisma as any).location.create({
+    data: {
+      workspaceId: workspace.id,
+      name: 'Kantor Jakarta Pusat',
+      type: 'Office',
+      address: 'Jl. Sudirman No. 1, Jakarta Pusat',
+      latitude: -6.2088,
+      longitude: 106.8456,
+      radiusMeters: 100,
+      status: 'Active',
+    },
+  })
+  const locationRemoteWfh = await (prisma as any).location.create({
+    data: {
+      workspaceId: workspace.id,
+      name: 'Remote WFH',
+      type: 'WFHApproved',
+      address: 'Jakarta',
+      latitude: -6.2,
+      longitude: 106.8167,
+      radiusMeters: 150,
+      status: 'Active',
+    },
+  })
+  console.log(
+    `✅ Locations: ${locationKantorJakarta.name}, ${locationRemoteWfh.name}`,
+  )
+
+  // ── 9. Shifts ──────────────────────────────────────────────────────────────
+  await (prisma as any).shift.deleteMany({
+    where: { workspaceId: workspace.id },
+  })
+  const workDaysWeekday = [
+    'MONDAY',
+    'TUESDAY',
+    'WEDNESDAY',
+    'THURSDAY',
+    'FRIDAY',
+  ]
+  const shiftPagi = await (prisma as any).shift.create({
+    data: {
+      workspaceId: workspace.id,
+      name: 'Shift Pagi',
+      startTime: '08:00',
+      endTime: '17:00',
+      breakMinutes: 60,
+      gracePeriodMinutes: 10,
+      checkoutToleranceMinutes: 60,
+      absenceCutoffMinutes: 120,
+      workDays: workDaysWeekday,
+      effectiveFrom: new Date('2024-01-01'),
+      status: 'Active',
+    },
+  })
+  const shiftSiang = await (prisma as any).shift.create({
+    data: {
+      workspaceId: workspace.id,
+      name: 'Shift Siang',
+      startTime: '13:00',
+      endTime: '22:00',
+      breakMinutes: 60,
+      gracePeriodMinutes: 15,
+      checkoutToleranceMinutes: 60,
+      absenceCutoffMinutes: 120,
+      workDays: workDaysWeekday,
+      effectiveFrom: new Date('2024-01-01'),
+      status: 'Active',
+    },
+  })
+  console.log(`✅ Shifts: ${shiftPagi.name}, ${shiftSiang.name}`)
+
+  // ── 10. Employees ──────────────────────────────────────────────────────────
+  // Delete attendance logs first to avoid FK constraint
+  await (prisma as any).attendanceLog.deleteMany({
+    where: { workspaceId: workspace.id },
+  })
+  await (prisma as any).employee.deleteMany({
+    where: { workspaceId: workspace.id },
+  })
+
+  type EmployeeInput = {
+    code: string
+    fullName: string
+    email: string
+    workMode: string
+    employmentStatus: string
+    accountStatus: string
+  }
+
+  const employeeSeedData: EmployeeInput[] = [
+    {
+      code: 'EMP-2024-0001',
+      fullName: 'Budi Santoso',
+      email: 'budi@attendx.dev',
+      workMode: 'WFO',
+      employmentStatus: 'Active',
+      accountStatus: 'Active',
+    },
+    {
+      code: 'EMP-2024-0002',
+      fullName: 'Siti Rahayu',
+      email: 'siti@attendx.dev',
+      workMode: 'WFO',
+      employmentStatus: 'Active',
+      accountStatus: 'Active',
+    },
+    {
+      code: 'EMP-2024-0003',
+      fullName: 'Ahmad Fauzi',
+      email: 'ahmad@attendx.dev',
+      workMode: 'WFH',
+      employmentStatus: 'Active',
+      accountStatus: 'Active',
+    },
+    {
+      code: 'EMP-2024-0004',
+      fullName: 'Dewi Lestari',
+      email: 'dewi@attendx.dev',
+      workMode: 'Hybrid',
+      employmentStatus: 'Active',
+      accountStatus: 'Active',
+    },
+    {
+      code: 'EMP-2024-0005',
+      fullName: 'Rizki Pratama',
+      email: 'rizki@attendx.dev',
+      workMode: 'WFO',
+      employmentStatus: 'Inactive',
+      accountStatus: 'Disabled',
+    },
+  ]
+
+  const createdEmployees: Array<{ id: string; fullName: string; email: string }> =
+    []
+  for (const emp of employeeSeedData) {
+    const created = await (prisma as any).employee.create({
+      data: {
+        workspaceId: workspace.id,
+        employeeCode: emp.code,
+        fullName: emp.fullName,
+        email: emp.email,
+        departmentId: engineeringDept.id,
+        workMode: emp.workMode,
+        employmentStatus: emp.employmentStatus,
+        accountStatus: emp.accountStatus,
+        assignedLocationId: locationKantorJakarta.id,
+        assignedShiftId: shiftPagi.id,
+        joinedAt: new Date('2024-01-01'),
+      },
+    })
+    createdEmployees.push(created)
+  }
+  console.log(
+    `✅ Employees: ${createdEmployees.map((e) => e.fullName).join(', ')}`,
+  )
+
+  // ── 11. AttendanceLogs — last 7 weekdays for emp-001 and emp-002 ───────────
+  const emp001 = createdEmployees.find((e) => e.email === 'budi@attendx.dev')!
+  const emp002 = createdEmployees.find((e) => e.email === 'siti@attendx.dev')!
+
+  const weekdays = lastNWeekdays(7)
+  const attendanceLogs: object[] = []
+
+  weekdays.forEach((day, index) => {
+    // emp-001: always Present, check-in 08:05, check-out 17:00
+    attendanceLogs.push({
+      workspaceId: workspace.id,
+      employeeId: emp001.id,
+      attendanceDate: day,
+      shiftId: shiftPagi.id,
+      checkInAt: dateAtTime(day, 8, 5),
+      checkOutAt: dateAtTime(day, 17, 0),
+      checkInLatitude: -6.2088,
+      checkInLongitude: 106.8456,
+      checkOutLatitude: -6.2088,
+      checkOutLongitude: 106.8456,
+      locationId: locationKantorJakarta.id,
+      workMode: 'WFO',
+      faceCheckStatus: 'Passed',
+      geofenceStatus: 'Valid',
+      syncStatus: 'Synced',
+      originalCheckInAt: dateAtTime(day, 8, 5),
+      syncedAt: dateAtTime(day, 8, 6),
+      status: 'Present',
+    })
+
+    // emp-002: Late on index 0 (first/oldest day), Present on the rest
+    const isLate = index === 0
+    attendanceLogs.push({
+      workspaceId: workspace.id,
+      employeeId: emp002.id,
+      attendanceDate: day,
+      shiftId: shiftPagi.id,
+      checkInAt: dateAtTime(day, isLate ? 8 : 8, isLate ? 35 : 5),
+      checkOutAt: dateAtTime(day, 17, 0),
+      checkInLatitude: -6.2088,
+      checkInLongitude: 106.8456,
+      checkOutLatitude: -6.2088,
+      checkOutLongitude: 106.8456,
+      locationId: locationKantorJakarta.id,
+      workMode: 'WFO',
+      faceCheckStatus: 'Passed',
+      geofenceStatus: 'Valid',
+      syncStatus: 'Synced',
+      originalCheckInAt: dateAtTime(day, isLate ? 8 : 8, isLate ? 35 : 5),
+      syncedAt: dateAtTime(day, isLate ? 8 : 8, isLate ? 36 : 6),
+      status: isLate ? 'Late' : 'Present',
+    })
+  })
+
+  await (prisma as any).attendanceLog.createMany({ data: attendanceLogs })
+  console.log(
+    `✅ AttendanceLogs: ${attendanceLogs.length} records for last 7 weekdays`,
+  )
+
+  // ── Done ───────────────────────────────────────────────────────────────────
+  console.log('\n🎉 Seed completed successfully!')
+  console.log(`   Tenant  : ${tenant.name}`)
+  console.log(`   Workspace: ${workspace.name} (${workspace.timezone})`)
+  console.log(
+    `   Users   : stakeholder@attendx.dev, hradmin@attendx.dev`,
+  )
+  console.log(
+    `   Employees: ${createdEmployees.length} (Engineering, Kantor Jakarta Pusat, Shift Pagi)`,
+  )
+  console.log(
+    `   Attendance logs: ${attendanceLogs.length} records`,
+  )
+}
+
+main()
+  .catch((e) => {
+    console.error('❌ Seed failed:', e)
+    process.exit(1)
+  })
+  .finally(async () => {
+    await prisma.$disconnect()
+  })

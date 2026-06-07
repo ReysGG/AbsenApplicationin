@@ -35,7 +35,9 @@ export default function WorldMap({
       shape: "circle",
       backgroundColor: "transparent",
     });
-    setSvgMap(svg);
+    requestAnimationFrame(() => {
+      setSvgMap(svg);
+    });
   }, [theme]);
 
   const projectPoint = (lat: number, lng: number) => {

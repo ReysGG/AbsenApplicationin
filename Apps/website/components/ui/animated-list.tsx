@@ -20,7 +20,7 @@ export function AnimatedListItem({ children }: { children: React.ReactNode }) {
 
   return (
     <LazyMotion features={domMax}>
-      <m.div {...animations} layout className="mx-auto w-full">
+      <m.div {...animations} layout className="mx-auto w-full" suppressHydrationWarning>
         {children}
       </m.div>
     </LazyMotion>
@@ -64,6 +64,7 @@ export const AnimatedList = React.memo(
     return (
       <div
         className={cn(`flex flex-col items-center gap-4`, className)}
+        suppressHydrationWarning
         {...props}
       >
         <AnimatePresence>

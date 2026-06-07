@@ -6,6 +6,7 @@ import Features from './components/Features';
 import Steps from './components/Steps';
 import UserFlows from './components/UserFlows';
 import GlobalReach from './components/GlobalReach';
+import Integrations from './components/Integrations';
 import Testimonials from './components/Testimonials';
 import Pricing from './components/Pricing';
 import FAQ from './components/FAQ';
@@ -37,6 +38,9 @@ export default function LandingPage() {
 
         {/* Global Connectivity Map Section */}
         <GlobalReach />
+
+        {/* System Integrations Section */}
+        <Integrations />
 
         {/* Testimonials Marquee Grid */}
         <Testimonials />
