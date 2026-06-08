@@ -46,8 +46,13 @@ export default function LoginPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
 
-  // The page the user came from (e.g. from an expired session redirect)
-  const callbackUrl = searchParams.get("callbackUrl") ?? "/workspace/overview"
+  // The page the user came from (e.g. from an expired session redirect).
+  // Validate to prevent open redirect via protocol-relative URLs (//evil.com).
+  const rawCallback = searchParams.get("callbackUrl") ?? ""
+  const callbackUrl =
+    rawCallback.startsWith("/") && !rawCallback.startsWith("//") && !rawCallback.includes(":")
+      ? rawCallback
+      : "/workspace/overview"
 
   // Generic server-level error (req 1.2 — don't reveal if email exists)
   const [serverError, setServerError] = useState<string | null>(null)

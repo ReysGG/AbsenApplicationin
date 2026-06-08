@@ -19,6 +19,7 @@ import reportsRouter from './modules/reports/reports.routes'
 import exportsRouter from './modules/exports/exports.routes'
 import settingsRouter from './modules/settings/settings.routes'
 import auditRouter from './modules/audit/audit.routes'
+import notificationsRouter from './modules/notifications/notifications.routes'
 import { startExportWorker } from './jobs/exportWorker'
 import { startAbsentJob } from './jobs/absentJob'
 import { startMissingCheckoutJob } from './jobs/missingCheckoutJob'
@@ -82,6 +83,9 @@ app.use('/api/v1', settingsRouter)
 
 // Audit log routes
 app.use('/api/v1', auditRouter)
+
+// Notifications routes
+app.use('/api/v1', notificationsRouter)
 
 // Health check
 app.get('/api/v1/health', (_req, res) => {

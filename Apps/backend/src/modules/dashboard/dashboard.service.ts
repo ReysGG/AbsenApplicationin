@@ -220,84 +220,38 @@ export async function getDashboardSummary(params: SummaryParams): Promise<Summar
   const { workspaceId, date, departmentId, locationId, scopeFilter } = params
   const { start, end } = dateToUtcRange(date)
 
-  // Total active employees (R5.8 — inactive excluded)
-  const totalEmployees = await (prisma as any).employee.count({
-    where: buildEmployeeWhere(workspaceId, scopeFilter, departmentId, locationId),
-  })
+  const empWhere = buildEmployeeWhere(workspaceId, scopeFilter, departmentId, locationId)
 
-  // Present today = Present OR Late (R5.1)
-  const presentToday = await (prisma as any).attendanceLog.count({
-    where: buildAttendanceWhere(
-      workspaceId,
-      start,
-      end,
-      scopeFilter,
-      departmentId,
-      locationId,
-      { in: ['Present', 'Late'] },
-    ),
-  })
-
-  // Late today
-  const lateToday = await (prisma as any).attendanceLog.count({
-    where: buildAttendanceWhere(
-      workspaceId,
-      start,
-      end,
-      scopeFilter,
-      departmentId,
-      locationId,
-      'Late',
-    ),
-  })
-
-  // On leave = Leave status in attendance logs (from approved LeaveRequest)
-  const onLeave = await (prisma as any).attendanceLog.count({
-    where: buildAttendanceWhere(
-      workspaceId,
-      start,
-      end,
-      scopeFilter,
-      departmentId,
-      locationId,
-      'Leave',
-    ),
-  })
-
-  // Absent
-  const absent = await (prisma as any).attendanceLog.count({
-    where: buildAttendanceWhere(
-      workspaceId,
-      start,
-      end,
-      scopeFilter,
-      departmentId,
-      locationId,
-      'Absent',
-    ),
-  })
-
-  // Unassigned shift = Active employees with no assignedShiftId (R5.6)
-  const unassignedShiftWhere = buildEmployeeWhere(workspaceId, scopeFilter, departmentId, locationId)
-  const unassignedShift = await (prisma as any).employee.count({
-    where: {
-      ...(unassignedShiftWhere as Record<string, unknown>),
-      assignedShiftId: null,
-    },
-  })
-
-  // Pending checkout
-  const pendingCheckout = await (prisma as any).attendanceLog.count({
-    where: buildAttendanceWhere(
-      workspaceId,
-      start,
-      end,
-      scopeFilter,
-      departmentId,
-      locationId,
-      'PendingCheckout',
-    ),
-  })
+  // Run all 7 counts in parallel — no data dependency between them
+  const [
+    totalEmployees,
+    presentToday,
+    lateToday,
+    onLeave,
+    absent,
+    unassignedShift,
+    pendingCheckout,
+  ] = await Promise.all([
+    (prisma as any).employee.count({ where: empWhere }),
+    (prisma as any).attendanceLog.count({
+      where: buildAttendanceWhere(workspaceId, start, end, scopeFilter, departmentId, locationId, { in: ['Present', 'Late'] }),
+    }),
+    (prisma as any).attendanceLog.count({
+      where: buildAttendanceWhere(workspaceId, start, end, scopeFilter, departmentId, locationId, 'Late'),
+    }),
+    (prisma as any).attendanceLog.count({
+      where: buildAttendanceWhere(workspaceId, start, end, scopeFilter, departmentId, locationId, 'Leave'),
+    }),
+    (prisma as any).attendanceLog.count({
+      where: buildAttendanceWhere(workspaceId, start, end, scopeFilter, departmentId, locationId, 'Absent'),
+    }),
+    (prisma as any).employee.count({
+      where: { ...(empWhere as Record<string, unknown>), assignedShiftId: null },
+    }),
+    (prisma as any).attendanceLog.count({
+      where: buildAttendanceWhere(workspaceId, start, end, scopeFilter, departmentId, locationId, 'PendingCheckout'),
+    }),
+  ])
 
   return {
     date,
@@ -396,18 +350,13 @@ export async function getDepartmentBreakdown(
   // Get active departments within scope
   const deptWhere: Record<string, unknown> = { workspaceId, status: 'Active' }
 
-  // If a specific department is requested, filter to it
   if (departmentId && departmentId !== 'all') {
     deptWhere['id'] = departmentId
   }
 
-  // If scope filter restricts to certain departments, filter
   if (scopeFilter && !scopeFilter.isWorkspaceScope && scopeFilter.departmentIds.length > 0) {
     if (departmentId && departmentId !== 'all') {
-      // already filtered above — only include if it's in scope
-      if (!scopeFilter.departmentIds.includes(departmentId)) {
-        return []
-      }
+      if (!scopeFilter.departmentIds.includes(departmentId)) return []
     } else {
       deptWhere['id'] = { in: scopeFilter.departmentIds }
     }
@@ -419,61 +368,77 @@ export async function getDepartmentBreakdown(
     orderBy: { name: 'asc' },
   })
 
-  const results: DepartmentBreakdownItem[] = []
+  if (departments.length === 0) return []
 
-  for (const dept of departments as Array<{ id: string; name: string }>) {
-    // Base employee filter within this dept
-    const empWhere: Record<string, unknown> = {
-      workspaceId,
-      departmentId: dept.id,
-      employmentStatus: 'Active',
-    }
-    if (locationId && locationId !== 'all') {
-      empWhere['assignedLocationId'] = locationId
-    }
-    // Location scope filter
-    if (scopeFilter && !scopeFilter.isWorkspaceScope && scopeFilter.locationIds.length > 0) {
-      empWhere['assignedLocationId'] = { in: scopeFilter.locationIds }
-    }
+  const deptIds = (departments as Array<{ id: string }>).map((d) => d.id)
 
-    const totalEmployees = await (prisma as any).employee.count({ where: empWhere })
-
-    // Attendance counts for this dept
-    const attendanceBase: Record<string, unknown> = {
-      workspaceId,
-      attendanceDate: { gte: start, lte: end },
-      employee: { departmentId: dept.id, employmentStatus: 'Active' },
-    }
-    if (locationId && locationId !== 'all') {
-      ;(attendanceBase['employee'] as Record<string, unknown>)['assignedLocationId'] = locationId
-    }
-    if (scopeFilter && !scopeFilter.isWorkspaceScope && scopeFilter.locationIds.length > 0) {
-      ;(attendanceBase['employee'] as Record<string, unknown>)['assignedLocationId'] = {
-        in: scopeFilter.locationIds,
-      }
-    }
-
-    const present = await (prisma as any).attendanceLog.count({
-      where: { ...attendanceBase, status: { in: ['Present', 'Late'] } },
-    })
-    const late = await (prisma as any).attendanceLog.count({
-      where: { ...attendanceBase, status: 'Late' },
-    })
-    const absent = await (prisma as any).attendanceLog.count({
-      where: { ...attendanceBase, status: 'Absent' },
-    })
-
-    results.push({
-      departmentId: dept.id,
-      departmentName: dept.name,
-      totalEmployees,
-      present,
-      late,
-      absent,
-    })
+  // Build shared employee filter for location scope
+  const empLocationFilter: Record<string, unknown> = {}
+  if (locationId && locationId !== 'all') {
+    empLocationFilter['assignedLocationId'] = locationId
+  }
+  if (scopeFilter && !scopeFilter.isWorkspaceScope && scopeFilter.locationIds.length > 0) {
+    empLocationFilter['assignedLocationId'] = { in: scopeFilter.locationIds }
   }
 
-  return results
+  // Run 3 parallel queries instead of 4 per department
+  const [empCounts, attendanceLogs] = await Promise.all([
+    // Employee count grouped by departmentId
+    (prisma as any).employee.groupBy({
+      by: ['departmentId'],
+      where: {
+        workspaceId,
+        departmentId: { in: deptIds },
+        employmentStatus: 'Active',
+        ...empLocationFilter,
+      },
+      _count: { id: true },
+    }),
+    // All attendance logs for these departments in one query
+    (prisma as any).attendanceLog.findMany({
+      where: {
+        workspaceId,
+        attendanceDate: { gte: start, lte: end },
+        status: { in: ['Present', 'Late', 'Absent'] },
+        employee: {
+          departmentId: { in: deptIds },
+          employmentStatus: 'Active',
+          ...empLocationFilter,
+        },
+      },
+      select: {
+        status: true,
+        employee: { select: { departmentId: true } },
+      },
+    }),
+  ])
+
+  // Build lookup maps from query results
+  const empCountMap = new Map<string, number>()
+  for (const row of empCounts as Array<{ departmentId: string; _count: { id: number } }>) {
+    empCountMap.set(row.departmentId, row._count.id)
+  }
+
+  const attendanceMap = new Map<string, { present: number; late: number; absent: number }>()
+  for (const deptId of deptIds) {
+    attendanceMap.set(deptId, { present: 0, late: 0, absent: 0 })
+  }
+  for (const log of attendanceLogs as Array<{ status: string; employee: { departmentId: string } }>) {
+    const entry = attendanceMap.get(log.employee.departmentId)
+    if (!entry) continue
+    if (log.status === 'Present' || log.status === 'Late') entry.present++
+    if (log.status === 'Late') entry.late++
+    if (log.status === 'Absent') entry.absent++
+  }
+
+  return (departments as Array<{ id: string; name: string }>).map((dept) => ({
+    departmentId: dept.id,
+    departmentName: dept.name,
+    totalEmployees: empCountMap.get(dept.id) ?? 0,
+    present: attendanceMap.get(dept.id)?.present ?? 0,
+    late: attendanceMap.get(dept.id)?.late ?? 0,
+    absent: attendanceMap.get(dept.id)?.absent ?? 0,
+  }))
 }
 
 /**

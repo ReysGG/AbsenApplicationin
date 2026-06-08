@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from "react";
 import { Activity, ShieldCheck, Server, Database, Key, Cloud, BellRing, Info, AlertTriangle, CheckCircle, RefreshCw } from "lucide-react";
 import { PageHeader } from "../_components/PageHeader";
+import { createClientApiClient } from "@/lib/apiClient";
 
 interface Incident {
   id: string;
@@ -13,7 +14,17 @@ interface Incident {
   status: "Resolved" | "Investigating" | "Monitoring";
 }
 
-const initialIncidents: Incident[] = [
+interface AuditLog {
+  id: string;
+  action: string;
+  actorEmail: string;
+  targetType: string;
+  targetId: string;
+  createdAt: string;
+  metadata?: Record<string, unknown>;
+}
+
+const fallbackIncidents: Incident[] = [
   {
     id: "1",
     date: "June 4, 2026",
@@ -40,17 +51,73 @@ const initialIncidents: Incident[] = [
   },
 ];
 
+function formatAuditDate(isoString: string): string {
+  try {
+    return new Date(isoString).toLocaleString([], {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  } catch {
+    return isoString;
+  }
+}
+
 export default function SystemHealthPage() {
   const [lastUpdated, setLastUpdated] = useState("Just now");
-  const [incidents, setIncidents] = useState<Incident[]>(initialIncidents);
+  const [incidents, setIncidents] = useState<Incident[]>(fallbackIncidents);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [auditLoading, setAuditLoading] = useState(true);
+  const [auditError, setAuditError] = useState<string | null>(null);
+  const [usingLiveAudit, setUsingLiveAudit] = useState(false);
   const [latencyPoints, setLatencyPoints] = useState<number[]>([
     42, 45, 40, 48, 50, 78, 44, 43, 41, 44, 46, 42, 45, 48, 75, 43, 40, 42,
   ]);
 
+  const fetchAuditLogs = async () => {
+    setAuditLoading(true);
+    setAuditError(null);
+    try {
+      const api = createClientApiClient();
+      const response = await api.get<AuditLog[]>("v1/audit", { limit: "10" });
+      if (response.success && response.data.length > 0) {
+        const mapped: Incident[] = response.data.map((log) => ({
+          id: log.id,
+          date: formatAuditDate(log.createdAt),
+          service: log.targetType ?? "System",
+          description: log.action,
+          duration: "—",
+          status: "Resolved",
+        }));
+        setIncidents(mapped);
+        setUsingLiveAudit(true);
+      } else if (!response.success) {
+        setAuditError(response.error?.message ?? "Failed to load audit logs.");
+        setIncidents(fallbackIncidents);
+        setUsingLiveAudit(false);
+      } else {
+        // success but empty — keep fallback
+        setIncidents(fallbackIncidents);
+        setUsingLiveAudit(false);
+      }
+    } catch {
+      setAuditError("Unable to connect to audit log service.");
+      setIncidents(fallbackIncidents);
+      setUsingLiveAudit(false);
+    } finally {
+      setAuditLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchAuditLogs();
+  }, []);
+
   const handleRefresh = () => {
     setIsRefreshing(true);
-    setTimeout(() => {
+    fetchAuditLogs().finally(() => {
       setIsRefreshing(false);
       const now = new Date();
       setLastUpdated(now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }));
@@ -60,7 +127,7 @@ export default function SystemHealthPage() {
         next.push(Math.floor(Math.random() * 20) + 35);
         return next;
       });
-    }, 800);
+    });
   };
 
   return (
@@ -255,40 +322,66 @@ export default function SystemHealthPage() {
       {/* Incident History Table */}
       <div className="bg-surface-container-lowest border border-outline-variant rounded-xl shadow-sm overflow-hidden">
         <div className="p-6 border-b border-outline-variant bg-surface flex justify-between items-center">
-          <h3 className="font-title-lg text-on-surface font-semibold">
-            Incident History
-          </h3>
+          <div>
+            <h3 className="font-title-lg text-on-surface font-semibold">
+              Incident History
+            </h3>
+            {!auditLoading && !auditError && usingLiveAudit && (
+              <p className="text-[10px] text-on-surface-variant/60 mt-0.5">Sourced from real audit logs</p>
+            )}
+            {!auditLoading && !usingLiveAudit && (
+              <p className="text-[10px] text-amber-600 mt-0.5">⚠️ Showing sample data — audit log unavailable</p>
+            )}
+          </div>
           <button className="text-primary text-xs font-semibold hover:underline">
             View All
           </button>
         </div>
         <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse">
-            <thead>
-              <tr className="bg-surface-container-low border-b border-outline-variant text-xs font-semibold uppercase tracking-wider text-on-surface-variant/80">
-                <th className="py-3 px-6">Date</th>
-                <th className="py-3 px-6">Service</th>
-                <th className="py-3 px-6">Description</th>
-                <th className="py-3 px-6">Duration</th>
-                <th className="py-3 px-6">Status</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-outline-variant/30 text-xs">
-              {incidents.map((inc) => (
-                <tr key={inc.id} className="hover:bg-surface-container-low/30 transition-colors">
-                  <td className="py-4 px-6 text-on-surface-variant font-medium">{inc.date}</td>
-                  <td className="py-4 px-6 font-bold text-on-surface">{inc.service}</td>
-                  <td className="py-4 px-6 text-on-surface-variant/90">{inc.description}</td>
-                  <td className="py-4 px-6 text-on-surface-variant">{inc.duration}</td>
-                  <td className="py-4 px-6">
-                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 font-semibold">
-                      <CheckCircle size={10} /> {inc.status}
-                    </span>
-                  </td>
+          {auditLoading ? (
+            <div className="py-12 flex flex-col items-center justify-center gap-2 text-on-surface-variant/60">
+              <RefreshCw size={20} className="animate-spin" />
+              <span className="text-xs">Loading audit logs…</span>
+            </div>
+          ) : auditError ? (
+            <div className="py-12 flex flex-col items-center justify-center gap-2">
+              <AlertTriangle size={20} className="text-amber-500" />
+              <span className="text-xs text-on-surface-variant/70">{auditError}</span>
+              <span className="text-[10px] text-on-surface-variant/50">Displaying sample incident data</span>
+            </div>
+          ) : incidents.length === 0 ? (
+            <div className="py-12 flex flex-col items-center justify-center gap-2 text-on-surface-variant/60">
+              <CheckCircle size={20} className="text-emerald-500" />
+              <span className="text-xs">No incidents recorded</span>
+            </div>
+          ) : (
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className="bg-surface-container-low border-b border-outline-variant text-xs font-semibold uppercase tracking-wider text-on-surface-variant/80">
+                  <th className="py-3 px-6">Date</th>
+                  <th className="py-3 px-6">Service</th>
+                  <th className="py-3 px-6">Description</th>
+                  <th className="py-3 px-6">Duration</th>
+                  <th className="py-3 px-6">Status</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody className="divide-y divide-outline-variant/30 text-xs">
+                {incidents.map((inc) => (
+                  <tr key={inc.id} className="hover:bg-surface-container-low/30 transition-colors">
+                    <td className="py-4 px-6 text-on-surface-variant font-medium">{inc.date}</td>
+                    <td className="py-4 px-6 font-bold text-on-surface">{inc.service}</td>
+                    <td className="py-4 px-6 text-on-surface-variant/90">{inc.description}</td>
+                    <td className="py-4 px-6 text-on-surface-variant">{inc.duration}</td>
+                    <td className="py-4 px-6">
+                      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 font-semibold">
+                        <CheckCircle size={10} /> {inc.status}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
         </div>
       </div>
     </div>

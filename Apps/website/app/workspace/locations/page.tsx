@@ -13,7 +13,7 @@
  * Requirements: 9.3, 9.7
  */
 
-import React, { useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import dynamic from "next/dynamic";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -33,15 +33,17 @@ import {
   Building2,
   GitBranch,
   Home,
+  Loader2,
 } from "lucide-react";
 import type {
   Location,
   LocationType,
   LocationStatus,
-  LocationFormValues,
   LocationFilters,
   CoordInputMode,
 } from "@/types/locations";
+import { createClientApiClient } from "@/lib/apiClient";
+import type { PaginatedData } from "@/lib/apiClient";
 
 // ---------------------------------------------------------------------------
 // Leaflet map — loaded client-side only (SSR-safe)
@@ -101,61 +103,6 @@ const CAN_MANAGE_LOCATIONS = true;
 const CAN_MANAGE_GEOFENCE = true;
 
 // ---------------------------------------------------------------------------
-// Mock data
-// ---------------------------------------------------------------------------
-
-const MOCK_LOCATIONS: Location[] = [
-  {
-    id: "loc-001",
-    name: "HQ Jakarta",
-    type: "Office",
-    address: "Jl. Jend. Sudirman No. 21, Senayan, Jakarta Selatan",
-    latitude: -6.2088,
-    longitude: 106.8456,
-    radiusMeters: 150,
-    status: "Active",
-    assignedEmployeeCount: 45,
-    createdAt: "2024-01-01T00:00:00Z",
-  },
-  {
-    id: "loc-002",
-    name: "Bandung R&D Hub",
-    type: "Branch",
-    address: "Jl. Asia Afrika No. 90, Bandung",
-    latitude: -6.9175,
-    longitude: 107.6191,
-    radiusMeters: 200,
-    status: "Active",
-    assignedEmployeeCount: 12,
-    createdAt: "2024-02-15T00:00:00Z",
-  },
-  {
-    id: "loc-003",
-    name: "WFH – Jakarta Selatan",
-    type: "WFHApproved",
-    address: "Kebayoran Baru, Jakarta Selatan",
-    latitude: -6.2607,
-    longitude: 106.8109,
-    radiusMeters: 100,
-    status: "Active",
-    assignedEmployeeCount: 8,
-    createdAt: "2024-03-10T00:00:00Z",
-  },
-  {
-    id: "loc-004",
-    name: "Medan Hub (Ditutup)",
-    type: "Branch",
-    address: "Jl. Balai Kota No. 2, Medan Barat",
-    latitude: 3.5952,
-    longitude: 98.6782,
-    radiusMeters: 250,
-    status: "Inactive",
-    assignedEmployeeCount: 0,
-    createdAt: "2023-11-20T00:00:00Z",
-  },
-];
-
-// ---------------------------------------------------------------------------
 // Type badge config
 // ---------------------------------------------------------------------------
 
@@ -165,20 +112,17 @@ const TYPE_CONFIG: Record<
 > = {
   Office: {
     label: "Kantor",
-    colorClass:
-      "bg-blue-100 text-blue-800 border-blue-200",
+    colorClass: "bg-blue-100 text-blue-800 border-blue-200",
     Icon: Building2,
   },
   Branch: {
     label: "Cabang",
-    colorClass:
-      "bg-orange-100 text-orange-800 border-orange-200",
+    colorClass: "bg-orange-100 text-orange-800 border-orange-200",
     Icon: GitBranch,
   },
   WFHApproved: {
     label: "WFH",
-    colorClass:
-      "bg-purple-100 text-purple-800 border-purple-200",
+    colorClass: "bg-purple-100 text-purple-800 border-purple-200",
     Icon: Home,
   },
 };
@@ -199,7 +143,12 @@ export default function LocationsPage() {
   // ---------------------------------------------------------------------------
   // State
   // ---------------------------------------------------------------------------
-  const [locations, setLocations] = useState<Location[]>(MOCK_LOCATIONS);
+  const [locations, setLocations] = useState<Location[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [fetchError, setFetchError] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
+
   const [filters, setFilters] = useState<LocationFilters>({
     search: "",
     status: "Active",
@@ -219,6 +168,54 @@ export default function LocationsPage() {
 
   // Coordinate picker mode
   const [coordMode, setCoordMode] = useState<CoordInputMode>("map");
+
+  // ---------------------------------------------------------------------------
+  // API client
+  // ---------------------------------------------------------------------------
+  const api = useMemo(() => createClientApiClient(), []);
+
+  // ---------------------------------------------------------------------------
+  // Fetch locations
+  // ---------------------------------------------------------------------------
+  const fetchLocations = useCallback(async () => {
+    setIsLoading(true);
+    setFetchError(null);
+    try {
+      const params: Record<string, string> = {};
+      if (filters.status !== "all") params.status = filters.status as string;
+      if (filters.type !== "all") params.type = filters.type as string;
+
+      const res = await api.get<Location[] | PaginatedData<Location>>(
+        "v1/locations",
+        Object.keys(params).length ? params : undefined
+      );
+
+      if (!res.success) {
+        setFetchError(res.error.message ?? "Gagal memuat data lokasi.");
+        return;
+      }
+
+      // Handle both response shapes:
+      // { success: true, data: Location[] }
+      // { success: true, data: { data: Location[], pagination: {...} } }
+      const raw = res.data;
+      if (Array.isArray(raw)) {
+        setLocations(raw);
+      } else if (raw && typeof raw === "object" && "data" in raw && Array.isArray((raw as PaginatedData<Location>).data)) {
+        setLocations((raw as PaginatedData<Location>).data);
+      } else {
+        setLocations([]);
+      }
+    } catch {
+      setFetchError("Terjadi kesalahan jaringan. Coba lagi.");
+    } finally {
+      setIsLoading(false);
+    }
+  }, [api, filters.status, filters.type]);
+
+  useEffect(() => {
+    fetchLocations();
+  }, [fetchLocations]);
 
   // ---------------------------------------------------------------------------
   // Form
@@ -246,22 +243,16 @@ export default function LocationsPage() {
   const watchedType = watch("type");
 
   // ---------------------------------------------------------------------------
-  // Filtered locations
+  // Client-side search filter (status/type are already server-filtered)
   // ---------------------------------------------------------------------------
   const filteredLocations = useMemo(() => {
-    return locations.filter((loc) => {
-      const matchSearch = loc.name
-        .toLowerCase()
-        .includes(filters.search.toLowerCase());
-      const matchStatus =
-        filters.status === "all" || loc.status === filters.status;
-      const matchType = filters.type === "all" || loc.type === filters.type;
-      return matchSearch && matchStatus && matchType;
-    });
-  }, [locations, filters]);
+    if (!filters.search) return locations;
+    const q = filters.search.toLowerCase();
+    return locations.filter((loc) => loc.name.toLowerCase().includes(q));
+  }, [locations, filters.search]);
 
   // ---------------------------------------------------------------------------
-  // Stats
+  // Stats (derived from all loaded locations, not just filtered)
   // ---------------------------------------------------------------------------
   const stats = useMemo(
     () => ({
@@ -280,6 +271,7 @@ export default function LocationsPage() {
   // ---------------------------------------------------------------------------
   function openCreateDialog() {
     setEditingLocation(null);
+    setSubmitError(null);
     reset({
       name: "",
       type: "Office",
@@ -295,6 +287,7 @@ export default function LocationsPage() {
 
   function openEditDialog(loc: Location) {
     setEditingLocation(loc);
+    setSubmitError(null);
     reset({
       name: loc.name,
       type: loc.type,
@@ -312,6 +305,7 @@ export default function LocationsPage() {
     setShowFormDialog(false);
     setEditingLocation(null);
     setPendingFormData(null);
+    setSubmitError(null);
   }
 
   // ---------------------------------------------------------------------------
@@ -319,59 +313,55 @@ export default function LocationsPage() {
   // ---------------------------------------------------------------------------
   function onFormSubmit(data: LocationFormSchema) {
     // R9.7: If editing and radius changed → show confirmation dialog
-    if (
-      editingLocation &&
-      data.radiusMeters !== editingLocation.radiusMeters
-    ) {
+    if (editingLocation && data.radiusMeters !== editingLocation.radiusMeters) {
       setPendingFormData(data);
       setShowRadiusConfirmDialog(true);
       return;
     }
-
-    applyFormData(data);
+    void applyFormData(data);
   }
 
-  function applyFormData(data: LocationFormSchema) {
-    if (editingLocation) {
-      setLocations((prev) =>
-        prev.map((loc) =>
-          loc.id === editingLocation.id
-            ? {
-                ...loc,
-                name: data.name,
-                type: data.type as LocationType,
-                address: data.address || undefined,
-                latitude: data.latitude,
-                longitude: data.longitude,
-                radiusMeters: data.radiusMeters,
-                status: data.status as LocationStatus,
-              }
-            : loc
-        )
-      );
-    } else {
-      const newLoc: Location = {
-        id: `loc-${Date.now()}`,
-        name: data.name,
-        type: data.type as LocationType,
-        address: data.address || undefined,
-        latitude: data.latitude,
-        longitude: data.longitude,
-        radiusMeters: data.radiusMeters,
-        status: data.status as LocationStatus,
-        assignedEmployeeCount: 0,
-        createdAt: new Date().toISOString(),
-      };
-      setLocations((prev) => [...prev, newLoc]);
+  async function applyFormData(data: LocationFormSchema) {
+    setIsSubmitting(true);
+    setSubmitError(null);
+
+    const payload = {
+      name: data.name,
+      type: data.type,
+      address: data.address || undefined,
+      latitude: data.latitude,
+      longitude: data.longitude,
+      radiusMeters: data.radiusMeters,
+      status: data.status,
+    };
+
+    try {
+      let res;
+      if (editingLocation) {
+        res = await api.patch<Location>(`v1/locations/${editingLocation.id}`, payload);
+      } else {
+        res = await api.post<Location>("v1/locations", payload);
+      }
+
+      if (!res.success) {
+        setSubmitError(res.error.message ?? "Gagal menyimpan lokasi.");
+        return;
+      }
+
+      closeFormDialog();
+      setShowRadiusConfirmDialog(false);
+      setPendingFormData(null);
+      await fetchLocations();
+    } catch {
+      setSubmitError("Terjadi kesalahan jaringan. Coba lagi.");
+    } finally {
+      setIsSubmitting(false);
     }
-    closeFormDialog();
-    setShowRadiusConfirmDialog(false);
-    setPendingFormData(null);
   }
 
-  function handleRadiusConfirmOk() {
+  async function handleRadiusConfirmOk() {
     if (pendingFormData) {
-      applyFormData(pendingFormData);
+      await applyFormData(pendingFormData);
     }
   }
 
@@ -382,22 +372,30 @@ export default function LocationsPage() {
     if (loc.status === "Active") {
       setShowDeactivateDialog(loc);
     } else {
-      setLocations((prev) =>
-        prev.map((l) =>
-          l.id === loc.id ? { ...l, status: "Active" } : l
-        )
-      );
+      void confirmToggleStatus(loc, "Active");
     }
   }
 
-  function confirmDeactivate() {
+  async function confirmDeactivate() {
     if (!showDeactivateDialog) return;
-    setLocations((prev) =>
-      prev.map((l) =>
-        l.id === showDeactivateDialog.id ? { ...l, status: "Inactive" } : l
-      )
-    );
+    await confirmToggleStatus(showDeactivateDialog, "Inactive");
     setShowDeactivateDialog(null);
+  }
+
+  async function confirmToggleStatus(loc: Location, newStatus: LocationStatus) {
+    try {
+      const res = await api.patch<Location>(
+        `v1/locations/${loc.id}/status`,
+        { status: newStatus }
+      );
+      if (!res.success) {
+        // Surface error briefly — could use a toast here
+        console.error("Toggle status failed:", res.error.message);
+      }
+      await fetchLocations();
+    } catch (err) {
+      console.error("Toggle status network error:", err);
+    }
   }
 
   // ---------------------------------------------------------------------------
@@ -554,8 +552,53 @@ export default function LocationsPage() {
       </div>
 
       {/* ── Location Cards Grid ─────────────────────────────────────── */}
-      {filteredLocations.length === 0 ? (
-        /* Empty state (R19.9) */
+
+      {/* Loading skeleton */}
+      {isLoading && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          {[1, 2, 3, 4].map((n) => (
+            <div
+              key={n}
+              className="bg-surface-container-lowest border border-outline-variant rounded-2xl overflow-hidden animate-pulse"
+            >
+              <div className="h-[180px] bg-slate-200" />
+              <div className="p-4 space-y-3">
+                <div className="h-4 bg-slate-200 rounded w-3/4" />
+                <div className="h-3 bg-slate-200 rounded w-1/2" />
+                <div className="h-3 bg-slate-200 rounded w-1/3" />
+                <div className="flex gap-2 pt-2">
+                  <div className="flex-1 h-8 bg-slate-200 rounded-lg" />
+                  <div className="flex-1 h-8 bg-slate-200 rounded-lg" />
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Fetch error */}
+      {!isLoading && fetchError && (
+        <div className="flex flex-col items-center justify-center py-16 gap-4 bg-surface-container-lowest border border-outline-variant rounded-2xl">
+          <AlertCircle size={36} className="text-error/60" />
+          <div className="text-center">
+            <p className="text-sm font-bold text-on-surface-variant">
+              Gagal memuat lokasi
+            </p>
+            <p className="text-xs text-on-surface-variant/60 mt-1">
+              {fetchError}
+            </p>
+          </div>
+          <button
+            onClick={fetchLocations}
+            className="h-9 px-4 bg-primary text-white text-xs font-semibold rounded-lg hover:bg-primary/95 transition-colors"
+          >
+            Coba Lagi
+          </button>
+        </div>
+      )}
+
+      {/* Empty state */}
+      {!isLoading && !fetchError && filteredLocations.length === 0 && (
         <div className="flex flex-col items-center justify-center py-16 gap-4 bg-surface-container-lowest border border-outline-variant rounded-2xl">
           <MapPin size={40} className="text-on-surface-variant/40" />
           <div className="text-center">
@@ -578,7 +621,10 @@ export default function LocationsPage() {
             </button>
           )}
         </div>
-      ) : (
+      )}
+
+      {/* Location cards */}
+      {!isLoading && !fetchError && filteredLocations.length > 0 && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           {filteredLocations.map((loc) => (
             <LocationCard
@@ -617,6 +663,7 @@ export default function LocationsPage() {
                 onClick={closeFormDialog}
                 aria-label="Tutup dialog"
                 className="h-7 w-7 rounded-md border border-outline-variant hover:bg-surface-container flex items-center justify-center text-on-surface-variant transition-colors"
+                disabled={isSubmitting}
               >
                 <X size={14} />
               </button>
@@ -628,6 +675,16 @@ export default function LocationsPage() {
               onSubmit={handleSubmit(onFormSubmit)}
               className="px-6 py-5 space-y-5 overflow-y-auto"
             >
+              {/* Submit error banner */}
+              {submitError && (
+                <div className="flex items-center gap-2 bg-error/10 border border-error/30 rounded-lg px-3 py-2">
+                  <AlertCircle size={14} className="text-error shrink-0" />
+                  <p className="text-[11px] text-error font-medium">
+                    {submitError}
+                  </p>
+                </div>
+              )}
+
               {/* Name */}
               <div className="space-y-1">
                 <label
@@ -798,12 +855,10 @@ export default function LocationsPage() {
                       typeof watchedLng === "number" && (
                         <div className="flex gap-3 text-[11px] font-mono text-on-surface bg-surface-container px-3 py-2 rounded-lg border border-outline-variant">
                           <span>
-                            Lat:{" "}
-                            <strong>{watchedLat.toFixed(6)}</strong>
+                            Lat: <strong>{watchedLat.toFixed(6)}</strong>
                           </span>
                           <span>
-                            Lng:{" "}
-                            <strong>{watchedLng.toFixed(6)}</strong>
+                            Lng: <strong>{watchedLng.toFixed(6)}</strong>
                           </span>
                         </div>
                       )}
@@ -952,15 +1007,18 @@ export default function LocationsPage() {
               <button
                 type="button"
                 onClick={closeFormDialog}
-                className="h-9 px-4 border border-outline-variant rounded-lg text-xs font-semibold text-on-surface-variant hover:bg-surface-container transition-colors"
+                disabled={isSubmitting}
+                className="h-9 px-4 border border-outline-variant rounded-lg text-xs font-semibold text-on-surface-variant hover:bg-surface-container transition-colors disabled:opacity-50"
               >
                 Batal
               </button>
               <button
                 type="submit"
                 form="location-form"
-                className="h-9 px-4 bg-primary text-white rounded-lg text-xs font-semibold hover:bg-primary/95 transition-colors"
+                disabled={isSubmitting}
+                className="h-9 px-4 bg-primary text-white rounded-lg text-xs font-semibold hover:bg-primary/95 transition-colors disabled:opacity-60 flex items-center gap-2"
               >
+                {isSubmitting && <Loader2 size={13} className="animate-spin" />}
                 {editingLocation ? "Simpan Perubahan" : "Tambah Lokasi"}
               </button>
             </div>
@@ -1004,14 +1062,17 @@ export default function LocationsPage() {
                   setShowRadiusConfirmDialog(false);
                   setPendingFormData(null);
                 }}
-                className="h-9 px-4 border border-outline-variant rounded-lg text-xs font-semibold text-on-surface-variant hover:bg-surface-container transition-colors"
+                disabled={isSubmitting}
+                className="h-9 px-4 border border-outline-variant rounded-lg text-xs font-semibold text-on-surface-variant hover:bg-surface-container transition-colors disabled:opacity-50"
               >
                 Batal
               </button>
               <button
-                onClick={handleRadiusConfirmOk}
-                className="h-9 px-4 bg-amber-600 text-white rounded-lg text-xs font-semibold hover:bg-amber-700 transition-colors"
+                onClick={() => void handleRadiusConfirmOk()}
+                disabled={isSubmitting}
+                className="h-9 px-4 bg-amber-600 text-white rounded-lg text-xs font-semibold hover:bg-amber-700 transition-colors disabled:opacity-60 flex items-center gap-2"
               >
+                {isSubmitting && <Loader2 size={13} className="animate-spin" />}
                 Ya, Simpan Perubahan
               </button>
             </div>
@@ -1053,7 +1114,7 @@ export default function LocationsPage() {
                 Batal
               </button>
               <button
-                onClick={confirmDeactivate}
+                onClick={() => void confirmDeactivate()}
                 className="h-9 px-4 bg-error text-white rounded-lg text-xs font-semibold hover:bg-error/90 transition-colors"
               >
                 Nonaktifkan

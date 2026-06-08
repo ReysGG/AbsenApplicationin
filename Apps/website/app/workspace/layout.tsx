@@ -22,6 +22,7 @@ import { auth } from "@/lib/auth";
 import { createServerApiClient } from "@/lib/apiClient";
 import { canAccessDashboard } from "@/lib/permissionGuards";
 import { Sidebar } from "@/components/dashboard/Sidebar";
+import { NotificationBell } from "@/components/dashboard/NotificationBell";
 import type { DashboardUser } from "@/types/dashboard";
 
 export const metadata: Metadata = {
@@ -59,7 +60,7 @@ export default async function WorkspaceLayout({
   let dashboardUser: DashboardUser;
 
   try {
-    const apiClient = createServerApiClient();
+    const apiClient = createServerApiClient(requestHeaders);
     const meResponse = await apiClient.get<MeResponse>("v1/me");
 
     if (meResponse.success) {
@@ -124,22 +125,27 @@ export default async function WorkspaceLayout({
             <span className="text-gray-700 font-medium">Dashboard</span>
           </div>
 
-          {/* Info user singkat di kanan header */}
-          <div className="hidden sm:flex items-center gap-2">
-            <div
-              className="w-7 h-7 rounded-full bg-slate-700 flex items-center justify-center text-white text-xs font-bold"
-              aria-label={`Masuk sebagai ${dashboardUser.fullName}`}
-              title={dashboardUser.fullName}
-            >
-              {dashboardUser.fullName
-                .split(" ")
-                .slice(0, 2)
-                .map((w) => w[0]?.toUpperCase() ?? "")
-                .join("") || "?"}
+          {/* Notification bell + user info */}
+          <div className="flex items-center gap-3">
+            <NotificationBell />
+
+            {/* Info user singkat di kanan header */}
+            <div className="hidden sm:flex items-center gap-2">
+              <div
+                className="w-7 h-7 rounded-full bg-slate-700 flex items-center justify-center text-white text-xs font-bold"
+                aria-label={`Masuk sebagai ${dashboardUser.fullName}`}
+                title={dashboardUser.fullName}
+              >
+                {dashboardUser.fullName
+                  .split(" ")
+                  .slice(0, 2)
+                  .map((w) => w[0]?.toUpperCase() ?? "")
+                  .join("") || "?"}
+              </div>
+              <span className="text-sm text-gray-600 font-medium max-w-[160px] truncate">
+                {dashboardUser.fullName}
+              </span>
             </div>
-            <span className="text-sm text-gray-600 font-medium max-w-[160px] truncate">
-              {dashboardUser.fullName}
-            </span>
           </div>
         </header>
 

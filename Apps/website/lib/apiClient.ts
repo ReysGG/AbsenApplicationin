@@ -105,8 +105,8 @@ export interface ApiClient {
   del<T>(path: string): Promise<ApiResponse<T>>;
 }
 
-function createApiClient(baseUrl: string): ApiClient {
-  const options: RequestOptions = { baseUrl };
+function createApiClient(baseUrl: string, defaultHeaders: Record<string, string> = {}): ApiClient {
+  const options: RequestOptions = { baseUrl, headers: defaultHeaders };
 
   return {
     get: <T>(path: string, params?: Record<string, string>) =>
@@ -143,18 +143,32 @@ function createApiClient(baseUrl: string): ApiClient {
  * For use in **Server Components** — Next.js SSR requires an absolute URL
  * when calling internal API routes from server-side code.
  *
+ * Pass `requestHeaders` (from `await headers()`) to forward cookies so the
+ * BFF proxy can resolve the better-auth session.
+ *
  * The URL defaults to NEXT_PUBLIC_APP_URL or http://localhost:3000.
  */
-export function createServerApiClient(): ApiClient {
+export function createServerApiClient(requestHeaders?: Headers): ApiClient {
   const appUrl =
     process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
   const baseUrl = `${appUrl}/api`;
-  return createApiClient(baseUrl);
+
+  // Forward Cookie header so the BFF can validate the better-auth session
+  const forwardedHeaders: Record<string, string> = {};
+  if (requestHeaders) {
+    const cookie = requestHeaders.get("cookie");
+    if (cookie) {
+      forwardedHeaders["cookie"] = cookie;
+    }
+  }
+
+  return createApiClient(baseUrl, forwardedHeaders);
 }
 
 /**
  * For use in **Client Components** — uses a relative path that the browser
- * resolves relative to the current origin.
+ * resolves relative to the current origin. Cookies are forwarded automatically
+ * by the browser.
  */
 export function createClientApiClient(): ApiClient {
   return createApiClient("/api");

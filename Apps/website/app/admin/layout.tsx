@@ -20,28 +20,19 @@ export default async function AdminLayout({
 }: {
   children: React.ReactNode;
 }) {
-  // Temporary bypass for local development/testing:
-  /*
+  // Validasi session server-side (R3.4)
   const session = await auth.api.getSession({
     headers: await headers(),
   });
 
   if (!session) {
-    redirect("/sign-in");
+    redirect("/login?callbackUrl=/admin");
   }
 
   const user = {
     name: session.user.name || session.user.email,
     email: session.user.email,
     initials: getInitials(session.user.name || "", session.user.email),
-  };
-  */
-
-  // Mock admin session details
-  const user = {
-    name: "Super Admin",
-    email: "admin@attendx.com",
-    initials: "SA",
   };
 
   return <AdminShell user={user}>{children}</AdminShell>;

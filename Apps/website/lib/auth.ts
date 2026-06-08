@@ -1,9 +1,18 @@
 import { betterAuth } from "better-auth";
-import { prismaAdapter } from "better-auth/adapters/prisma";
+import { prismaAdapter } from "@better-auth/prisma-adapter";
 import { nextCookies } from "better-auth/next-js";
-import { prisma } from "@/lib/prisma";
 import { sendPasswordResetEmail } from "@/lib/mailer";
+import { prisma } from "@/lib/prisma";
 
+/**
+ * better-auth server instance for Apps/website.
+ *
+ * Menggunakan Prisma adapter agar BetterAuth pakai koneksi Prisma yang sama
+ * (sudah proven konek ke Prisma Postgres). Ini lebih reliable daripada
+ * raw pg connection yang tidak support Prisma Postgres SSL certificate.
+ *
+ * Requirements: 1.1, 1.3, 1.4, 1.5
+ */
 export const auth = betterAuth({
   database: prismaAdapter(prisma, {
     provider: "postgresql",
@@ -23,7 +32,7 @@ export const auth = betterAuth({
      *
      * Requirements: 1.9, 1.10, 1.11
      */
-    sendResetPassword: async ({ user, url }) => {
+    sendResetPassword: async ({ user, url }: { user: { email: string }; url: string }) => {
       await sendPasswordResetEmail(user.email, url);
     },
 

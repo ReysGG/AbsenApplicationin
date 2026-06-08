@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   User,
   Shield,
@@ -9,24 +9,72 @@ import {
   CheckCircle,
   Save,
   Key,
-  SmartphoneIcon
+  SmartphoneIcon,
+  AlertCircle,
+  Loader2
 } from "lucide-react";
+import { createClientApiClient } from "@/lib/apiClient";
+
+// Shape of the /me response
+interface MeResponse {
+  authUserId: string;
+  email: string;
+  name: string;
+  role: string;
+  permissions: string[];
+  workspaceId: string;
+  workspaceName?: string;
+  department?: string;
+}
 
 export default function SettingsPage() {
   const [activeTab, setActiveTab] = useState("profile");
   const [isSaved, setIsSaved] = useState(false);
 
-  // Settings form states
-  const [name, setName] = useState("Michael Chen");
-  const [email, setEmail] = useState("michael.c@acme.com");
-  const [phone, setPhone] = useState("+62 812 3456 7890");
+  // Loading / error state for the /me fetch
+  const [isLoading, setIsLoading] = useState(true);
+  const [fetchError, setFetchError] = useState<string | null>(null);
 
+  // Profile form state — initialised empty, populated after /me resolves
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
+  const [department, setDepartment] = useState("");
+
+  // Security tab state
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
 
+  // Notification tab state
   const [pushNotifs, setPushNotifs] = useState(true);
   const [emailNotifs, setEmailNotifs] = useState(true);
 
+  // ---------------------------------------------------------------------------
+  // Fetch user profile on mount
+  // ---------------------------------------------------------------------------
+  useEffect(() => {
+    const apiClient = createClientApiClient();
+
+    apiClient.get<MeResponse>("v1/me").then((res) => {
+      if (res.success) {
+        setName(res.data.name ?? "");
+        setEmail(res.data.email ?? "");
+        setDepartment(res.data.department ?? "");
+        // Phone is not yet returned by /me — keep field blank for manual entry
+        setPhone("");
+      } else {
+        setFetchError(res.error?.message ?? "Failed to load user profile.");
+      }
+      setIsLoading(false);
+    }).catch(() => {
+      setFetchError("Could not connect to the server. Please refresh.");
+      setIsLoading(false);
+    });
+  }, []);
+
+  // ---------------------------------------------------------------------------
+  // Save handler
+  // ---------------------------------------------------------------------------
   const handleSave = (e: React.FormEvent) => {
     e.preventDefault();
     setIsSaved(true);
@@ -82,81 +130,115 @@ export default function SettingsPage() {
             </div>
           )}
 
+          {/* Global fetch error banner (shown on all tabs) */}
+          {fetchError && (
+            <div className="mb-4 p-3 bg-red-500/10 border border-red-500/20 text-red-800 text-xs font-semibold rounded-xl flex items-center gap-2">
+              <AlertCircle size={15} />
+              {fetchError}
+            </div>
+          )}
+
           {activeTab === "profile" && (
             <form onSubmit={handleSave} className="space-y-5">
               <h3 className="text-xs font-bold text-on-surface uppercase tracking-wider pb-3 border-b border-outline-variant">
                 Account Credentials
               </h3>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="space-y-1">
-                  <label className="text-[11px] font-bold text-on-surface-variant block uppercase">
-                    Full Name
-                  </label>
-                  <input
-                    type="text"
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    className="w-full h-9 px-3 border border-outline-variant rounded-lg text-xs font-semibold bg-surface focus:ring-1 focus:ring-primary focus:outline-hidden"
-                  />
+              {/* Loading skeleton */}
+              {isLoading ? (
+                <div className="flex items-center gap-2 text-xs text-on-surface-variant py-6">
+                  <Loader2 size={15} className="animate-spin" />
+                  Loading profile…
                 </div>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-1">
+                    <label className="text-[11px] font-bold text-on-surface-variant block uppercase">
+                      Full Name
+                    </label>
+                    <input
+                      type="text"
+                      value={name}
+                      onChange={(e) => setName(e.target.value)}
+                      className="w-full h-9 px-3 border border-outline-variant rounded-lg text-xs font-semibold bg-surface focus:ring-1 focus:ring-primary focus:outline-hidden"
+                    />
+                  </div>
 
-                <div className="space-y-1">
-                  <label className="text-[11px] font-bold text-on-surface-variant block uppercase">
-                    Email Address
-                  </label>
-                  <input
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    className="w-full h-9 px-3 border border-outline-variant rounded-lg text-xs font-semibold bg-surface focus:ring-1 focus:ring-primary focus:outline-hidden"
-                  />
+                  <div className="space-y-1">
+                    <label className="text-[11px] font-bold text-on-surface-variant block uppercase">
+                      Email Address
+                    </label>
+                    <input
+                      type="email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      className="w-full h-9 px-3 border border-outline-variant rounded-lg text-xs font-semibold bg-surface focus:ring-1 focus:ring-primary focus:outline-hidden"
+                    />
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-[11px] font-bold text-on-surface-variant block uppercase">
+                      Phone Number
+                    </label>
+                    <input
+                      type="text"
+                      value={phone}
+                      onChange={(e) => setPhone(e.target.value)}
+                      placeholder="Enter phone number"
+                      className="w-full h-9 px-3 border border-outline-variant rounded-lg text-xs font-semibold bg-surface focus:ring-1 focus:ring-primary focus:outline-hidden"
+                    />
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-[11px] font-bold text-on-surface-variant block uppercase">
+                      Assigned Division
+                    </label>
+                    <input
+                      type="text"
+                      value={department}
+                      disabled
+                      className="w-full h-9 px-3 border border-outline-variant rounded-lg text-xs font-semibold bg-surface-container opacity-70 cursor-not-allowed"
+                    />
+                  </div>
                 </div>
+              )}
 
-                <div className="space-y-1">
-                  <label className="text-[11px] font-bold text-on-surface-variant block uppercase">
-                    Phone Number
-                  </label>
-                  <input
-                    type="text"
-                    value={phone}
-                    onChange={(e) => setPhone(e.target.value)}
-                    className="w-full h-9 px-3 border border-outline-variant rounded-lg text-xs font-semibold bg-surface focus:ring-1 focus:ring-primary focus:outline-hidden"
-                  />
+              {!isLoading && (
+                <div className="pt-2">
+                  <button
+                    type="submit"
+                    className="h-9 px-5 bg-primary hover:bg-primary/95 text-white font-bold text-xs rounded-xl flex items-center gap-1.5 transition-colors shadow-sm"
+                  >
+                    <Save size={13} />
+                    Save Preferences
+                  </button>
                 </div>
-
-                <div className="space-y-1">
-                  <label className="text-[11px] font-bold text-on-surface-variant block uppercase">
-                    Assigned Division
-                  </label>
-                  <input
-                    type="text"
-                    value="Engineering"
-                    disabled
-                    className="w-full h-9 px-3 border border-outline-variant rounded-lg text-xs font-semibold bg-surface-container opacity-70 cursor-not-allowed"
-                  />
-                </div>
-              </div>
-
-              <div className="pt-2">
-                <button
-                  type="submit"
-                  className="h-9 px-5 bg-primary hover:bg-primary/95 text-white font-bold text-xs rounded-xl flex items-center gap-1.5 transition-colors shadow-sm"
-                >
-                  <Save size={13} />
-                  Save Preferences
-                </button>
-              </div>
+              )}
             </form>
           )}
 
           {activeTab === "security" && (
-            <form onSubmit={handleSave} className="space-y-5">
+            <div className="space-y-5">
               <h3 className="text-xs font-bold text-on-surface uppercase tracking-wider pb-3 border-b border-outline-variant">
                 Change Password
               </h3>
 
-              <div className="space-y-4 max-w-sm">
+              {/* Informational note — password change goes through the auth flow */}
+              <div className="p-3 bg-blue-500/10 border border-blue-500/20 text-blue-800 text-xs font-semibold rounded-xl flex items-start gap-2">
+                <Key size={15} className="mt-0.5 shrink-0" />
+                <span>
+                  Password changes are handled through the authentication flow. Use the{" "}
+                  <strong>Forgot Password</strong> link on the login page, or contact your
+                  workspace administrator to reset your credentials.
+                </span>
+              </div>
+
+              {/* Keep the UI shell as-is but disable the form */}
+              <form
+                onSubmit={(e) => e.preventDefault()}
+                className="space-y-4 max-w-sm opacity-50 pointer-events-none select-none"
+                aria-hidden="true"
+              >
                 <div className="space-y-1">
                   <label className="text-[11px] font-bold text-on-surface-variant block uppercase">
                     Current Password
@@ -164,8 +246,8 @@ export default function SettingsPage() {
                   <input
                     type="password"
                     value={currentPassword}
-                    onChange={(e) => setCurrentPassword(e.target.value)}
-                    className="w-full h-9 px-3 border border-outline-variant rounded-lg text-xs font-semibold bg-surface focus:ring-1 focus:ring-primary focus:outline-hidden"
+                    readOnly
+                    className="w-full h-9 px-3 border border-outline-variant rounded-lg text-xs font-semibold bg-surface"
                   />
                 </div>
 
@@ -176,22 +258,23 @@ export default function SettingsPage() {
                   <input
                     type="password"
                     value={newPassword}
-                    onChange={(e) => setNewPassword(e.target.value)}
-                    className="w-full h-9 px-3 border border-outline-variant rounded-lg text-xs font-semibold bg-surface focus:ring-1 focus:ring-primary focus:outline-hidden"
+                    readOnly
+                    className="w-full h-9 px-3 border border-outline-variant rounded-lg text-xs font-semibold bg-surface"
                   />
                 </div>
-              </div>
 
-              <div className="pt-2">
-                <button
-                  type="submit"
-                  className="h-9 px-5 bg-primary hover:bg-primary/95 text-white font-bold text-xs rounded-xl flex items-center gap-1.5 transition-colors shadow-sm"
-                >
-                  <Key size={13} />
-                  Update Password
-                </button>
-              </div>
-            </form>
+                <div className="pt-2">
+                  <button
+                    type="button"
+                    disabled
+                    className="h-9 px-5 bg-primary text-white font-bold text-xs rounded-xl flex items-center gap-1.5 shadow-sm"
+                  >
+                    <Key size={13} />
+                    Update Password
+                  </button>
+                </div>
+              </form>
+            </div>
           )}
 
           {activeTab === "devices" && (

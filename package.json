@@ -17,7 +17,8 @@
     "mobile:get": "cd Apps/app_flutter && flutter pub get",
     "mobile:run": "cd Apps/app_flutter && flutter run",
     "mobile:test": "cd Apps/app_flutter && flutter test",
-    "mobile:build:apk": "cd Apps/app_flutter && flutter build apk"
+    "mobile:build:apk": "cd Apps/app_flutter && flutter build apk",
+    "doctor": "npx react-doctor@latest"
   },
   "devDependencies": {
     "turbo": "latest"

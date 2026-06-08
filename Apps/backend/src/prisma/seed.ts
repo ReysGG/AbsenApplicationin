@@ -96,32 +96,88 @@ async function main(): Promise<void> {
       })
   console.log(`✅ Workspace: ${workspace.name}`)
 
-  // ── 3. Users ───────────────────────────────────────────────────────────────
+  // ── 3. Better-auth accounts + App Users ────────────────────────────────────
+  // Insert better-auth user+account rows directly into the shared DB so the
+  // seed doesn't depend on HTTP servers being up.
+  //
+  // Uses better-auth's own hashPassword() for full compatibility.
+  // Credentials: password = "Attendx2024!" for all seed accounts.
+
+  const { hashPassword: baHashPassword } = await import('better-auth/crypto')
+  const { randomBytes } = await import('crypto')
+
+  async function ensureBetterAuthUser(
+    email: string,
+    name: string,
+    password: string,
+  ): Promise<string> {
+    // Check if user already exists in better-auth `user` table
+    const existing = await (prisma as any).$queryRaw<Array<{ id: string }>>`
+      SELECT id FROM "user" WHERE email = ${email} LIMIT 1
+    `
+    if (existing.length > 0) {
+      console.log(`  ℹ️  Better-auth user already exists: ${email}`)
+      return (existing[0] as { id: string }).id
+    }
+
+    // Create the better-auth user row (camelCase columns — better-auth convention)
+    const userId = randomBytes(16).toString('hex')
+    const now = new Date()
+    await (prisma as any).$executeRaw`
+      INSERT INTO "user" (id, name, email, "emailVerified", "createdAt", "updatedAt")
+      VALUES (${userId}, ${name}, ${email}, true, ${now}, ${now})
+    `
+
+    // Create the email+password account row with better-auth-compatible hash
+    const hashedPassword = await baHashPassword(password)
+    const accountId = randomBytes(16).toString('hex')
+    await (prisma as any).$executeRaw`
+      INSERT INTO account (id, "accountId", "providerId", "userId", password, "createdAt", "updatedAt")
+      VALUES (${accountId}, ${email}, 'credential', ${userId}, ${hashedPassword}, ${now}, ${now})
+    `
+
+    console.log(`  ✅ Better-auth account created: ${email}`)
+    return userId
+  }
+
+  console.log('Creating better-auth accounts...')
+  const stakeholderAuthId = await ensureBetterAuthUser(
+    'stakeholder@attendx.dev',
+    'Admin Stakeholder',
+    'Attendx2024!',
+  )
+  const hrAdminAuthId = await ensureBetterAuthUser(
+    'hradmin@attendx.dev',
+    'HR Admin',
+    'Attendx2024!',
+  )
+
+  // ── 3b. App Users ──────────────────────────────────────────────────────────
   const stakeholderUser = await (prisma as any).user.upsert({
     where: { email: 'stakeholder@attendx.dev' },
-    update: {},
+    update: { authUserId: stakeholderAuthId },
     create: {
-      authUserId: 'auth_seed_stakeholder_001',
+      authUserId: stakeholderAuthId,
       email: 'stakeholder@attendx.dev',
       fullName: 'Admin Stakeholder',
       globalRole: 'user',
       status: 'Active',
     },
   })
-  console.log(`✅ User: ${stakeholderUser.fullName}`)
+  console.log(`✅ User: ${stakeholderUser.fullName} (authUserId: ${stakeholderAuthId.slice(0, 8)}...)`)
 
   const hrAdminUser = await (prisma as any).user.upsert({
     where: { email: 'hradmin@attendx.dev' },
-    update: {},
+    update: { authUserId: hrAdminAuthId },
     create: {
-      authUserId: 'auth_seed_hradmin_001',
+      authUserId: hrAdminAuthId,
       email: 'hradmin@attendx.dev',
       fullName: 'HR Admin',
       globalRole: 'user',
       status: 'Active',
     },
   })
-  console.log(`✅ User: ${hrAdminUser.fullName}`)
+  console.log(`✅ User: ${hrAdminUser.fullName} (authUserId: ${hrAdminAuthId.slice(0, 8)}...)`)
 
   // ── 4. Permissions catalog ─────────────────────────────────────────────────
   console.log('Seeding permissions...')

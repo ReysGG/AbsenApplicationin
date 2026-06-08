@@ -1,9 +1,22 @@
 import React from "react";
 
-export function DonutChart() {
-  const hadir = 89;
-  const terlambat = 6;
-  const absen = 5;
+export interface DonutChartProps {
+  presentCount?: number;
+  lateCount?: number;
+  absentCount?: number;
+  totalEmployees?: number;
+}
+
+export function DonutChart({
+  presentCount,
+  lateCount,
+  absentCount,
+  totalEmployees,
+}: DonutChartProps) {
+  const total = totalEmployees ?? 1;
+  const hadir = total > 0 ? Math.round(((presentCount ?? 0) / total) * 100) : 0;
+  const terlambat = total > 0 ? Math.round(((lateCount ?? 0) / total) * 100) : 0;
+  const absen = total > 0 ? Math.round(((absentCount ?? 0) / total) * 100) : 0;
 
   return (
     <div className="admin-donut-wrap">
@@ -18,15 +31,15 @@ export function DonutChart() {
             strokeDasharray={`${absen} ${100 - absen}`} strokeDashoffset={`${25 - hadir - terlambat}`} strokeLinecap="round" />
         </svg>
         <div className="admin-donut-center">
-          <span className="admin-donut-pct">89%</span>
+          <span className="admin-donut-pct">{hadir}%</span>
           <span className="admin-donut-sub">Hadir</span>
         </div>
       </div>
       <div className="admin-donut-legend">
         {[
-          { color: "#022C22", label: "Hadir", val: "221" },
-          { color: "#34D399", label: "Terlambat", val: "14" },
-          { color: "#ba1a1a", label: "Absen", val: "13" },
+          { color: "#022C22", label: "Hadir", val: String(presentCount ?? 0) },
+          { color: "#34D399", label: "Terlambat", val: String(lateCount ?? 0) },
+          { color: "#ba1a1a", label: "Absen", val: String(absentCount ?? 0) },
         ].map((l) => (
           <div key={l.label} className="admin-donut-legend-item">
             <span className="admin-donut-legend-dot" style={{ background: l.color }} />

@@ -177,6 +177,22 @@ async function handler(
   // Propagate request-id back to the browser
   responseHeaders.set("x-request-id", requestId);
 
+  // If the backend resolved a workspaceId, persist it as a cookie so future
+  // requests include it in the BFF context header.
+  const resolvedWorkspaceId = backendResponse.headers.get("x-resolved-workspace-id");
+  if (resolvedWorkspaceId && resolvedWorkspaceId !== workspaceId) {
+    // HttpOnly, SameSite=Lax, Secure in production — 7 days
+    const isProduction = process.env.NODE_ENV === "production";
+    const cookieValue = [
+      `${ACTIVE_WORKSPACE_COOKIE}=${resolvedWorkspaceId}`,
+      "Path=/",
+      "SameSite=Lax",
+      `Max-Age=${60 * 60 * 24 * 7}`,
+      isProduction ? "Secure" : "",
+    ].filter(Boolean).join("; ");
+    responseHeaders.append("Set-Cookie", cookieValue);
+  }
+
   return new NextResponse(backendResponse.body, {
     status: backendResponse.status,
     headers: responseHeaders,

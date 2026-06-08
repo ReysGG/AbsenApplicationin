@@ -64,6 +64,8 @@ import {
 
 import { createClientApiClient } from "@/lib/apiClient";
 import type { PaginatedData } from "@/lib/apiClient";
+import { formatDateTime, formatTime, todayDateString } from "@/lib/formatters";
+import { AttendanceStatusBadge } from "@/components/ui/AttendanceStatusBadge";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -86,39 +88,6 @@ import type {
 // Helpers
 // ---------------------------------------------------------------------------
 
-function todayDateString(): string {
-  return new Date().toLocaleDateString("en-CA"); // YYYY-MM-DD
-}
-
-function formatDateTime(iso: string | null): string {
-  if (!iso) return "—";
-  try {
-    return new Date(iso).toLocaleString("id-ID", {
-      day: "2-digit",
-      month: "2-digit",
-      year: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-      hour12: false,
-    });
-  } catch {
-    return iso;
-  }
-}
-
-function formatTime(iso: string | null): string {
-  if (!iso) return "—";
-  try {
-    return new Date(iso).toLocaleTimeString("id-ID", {
-      hour: "2-digit",
-      minute: "2-digit",
-      hour12: false,
-    });
-  } catch {
-    return iso;
-  }
-}
-
 function formatLastUpdated(date: Date | null): string {
   if (!date) return "—";
   return date.toLocaleTimeString("id-ID", {
@@ -127,61 +96,6 @@ function formatLastUpdated(date: Date | null): string {
     second: "2-digit",
     hour12: false,
   });
-}
-
-// ---------------------------------------------------------------------------
-// Status Badge (R19.5 — text + color, not color-only)
-// ---------------------------------------------------------------------------
-
-function StatusBadge({ status }: { status: AttendanceStatus }) {
-  const config: Record<
-    AttendanceStatus,
-    { label: string; className: string }
-  > = {
-    Present: {
-      label: "Hadir",
-      className:
-        "inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold border-transparent bg-green-100 text-green-800",
-    },
-    Late: {
-      label: "Terlambat",
-      className:
-        "inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold border-transparent bg-orange-100 text-orange-800",
-    },
-    Absent: {
-      label: "Tidak Hadir",
-      className:
-        "inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold border-transparent bg-red-100 text-red-800",
-    },
-    PendingCheckout: {
-      label: "Belum Pulang",
-      className:
-        "inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold border-transparent bg-gray-100 text-gray-600",
-    },
-    MissingCheckout: {
-      label: "Lupa Absen Pulang",
-      className:
-        "inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold border-transparent bg-amber-100 text-amber-800",
-    },
-    Leave: {
-      label: "Izin/Cuti",
-      className:
-        "inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold border-transparent bg-purple-100 text-purple-800",
-    },
-    Invalid: {
-      label: "Tidak Valid",
-      className:
-        "inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold border-destructive bg-red-600 text-white",
-    },
-  };
-
-  const { label, className } = config[status] ?? {
-    label: status,
-    className:
-      "inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold border-transparent bg-gray-100 text-gray-600",
-  };
-
-  return <span className={className}>{label}</span>;
 }
 
 // ---------------------------------------------------------------------------
@@ -553,7 +467,7 @@ function DetailPanel({ record, onClose }: DetailPanelProps) {
             <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
               Status Absensi
             </h3>
-            <StatusBadge status={record.status} />
+            <AttendanceStatusBadge status={record.status} />
           </section>
 
           {/* Admin Note */}
@@ -821,7 +735,7 @@ function AttendancePageInner() {
     {
       id: "status",
       header: "Status",
-      cell: ({ row }) => <StatusBadge status={row.original.status} />,
+      cell: ({ row }) => <AttendanceStatusBadge status={row.original.status} />,
     },
     {
       id: "action",

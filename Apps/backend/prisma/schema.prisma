@@ -160,6 +160,79 @@ enum HolidayStatus {
   Inactive
 }
 
+enum NotificationType {
+  leave_request_new
+  export_completed
+}
+
+enum LeaveSource {
+  mobile
+  dashboard
+}
+
+// ---------------------------------------------------------------------------
+// Better-auth tables (managed by better-auth, co-located here for schema sync)
+// The column names MUST match better-auth's internal Kysely schema (camelCase).
+// ---------------------------------------------------------------------------
+
+model AuthUser {
+  id            String    @id
+  name          String
+  email         String    @unique
+  emailVerified Boolean   @default(false)
+  image         String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  sessions      AuthSession[]
+  accounts      AuthAccount[]
+
+  @@map("user")
+}
+
+model AuthSession {
+  id        String   @id
+  expiresAt DateTime
+  token     String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  ipAddress String?
+  userAgent String?
+  userId    String
+  user      AuthUser @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("session")
+}
+
+model AuthAccount {
+  id                    String    @id
+  accountId             String
+  providerId            String
+  userId                String
+  user                  AuthUser  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accessToken           String?
+  refreshToken          String?
+  idToken               String?
+  accessTokenExpiresAt  DateTime?
+  refreshTokenExpiresAt DateTime?
+  scope                 String?
+  password              String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  @@map("account")
+}
+
+model AuthVerification {
+  id         String   @id
+  identifier String
+  value      String
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@map("verification")
+}
+
 // ---------------------------------------------------------------------------
 // Models
 // ---------------------------------------------------------------------------
@@ -195,17 +268,21 @@ model Workspace {
   createdAt              DateTime        @default(now()) @map("created_at")
   updatedAt              DateTime        @updatedAt @map("updated_at")
 
-  tenant          Tenant            @relation(fields: [tenantId], references: [id])
-  employees       Employee[]
-  departments     Department[]
-  locations       Location[]
-  shifts          Shift[]
-  attendanceLogs  AttendanceLog[]
-  leaveRequests   LeaveRequest[]
-  roleAssignments RoleAssignment[]
-  auditLogs       AuditLog[]
-  exportJobs      ExportJob[]
+  tenant           Tenant             @relation(fields: [tenantId], references: [id])
+  employees        Employee[]
+  departments      Department[]
+  locations        Location[]
+  shifts           Shift[]
+  attendanceLogs   AttendanceLog[]
+  attendanceRawLogs AttendanceRawLog[]
+  leaveRequests    LeaveRequest[]
+  leaveTypes       LeaveType[]
+  roleAssignments  RoleAssignment[]
+  auditLogs        AuditLog[]
+  exportJobs       ExportJob[]
   holidayCalendars HolidayCalendar[]
+  notifications    Notification[]
+  setting          WorkspaceSetting?
 
   @@index([tenantId])
   @@map("workspaces")
@@ -334,19 +411,22 @@ model Employee {
   createdAt          DateTime          @default(now()) @map("created_at")
   updatedAt          DateTime          @updatedAt @map("updated_at")
 
-  workspace        Workspace             @relation(fields: [workspaceId], references: [id])
-  user             User?                 @relation(fields: [userId], references: [id])
-  department       Department            @relation(fields: [departmentId], references: [id])
-  assignedLocation Location?             @relation("EmployeePrimaryLocation", fields: [assignedLocationId], references: [id])
-  assignedShift    Shift?                @relation("EmployeeAssignedShift", fields: [assignedShiftId], references: [id])
-  attendanceLogs   AttendanceLog[]
-  leaveRequests    LeaveRequest[]
-  wfhLocations     EmployeeWfhLocation[]
+  workspace           Workspace             @relation(fields: [workspaceId], references: [id])
+  user                User?                 @relation(fields: [userId], references: [id])
+  department          Department            @relation(fields: [departmentId], references: [id])
+  assignedLocation    Location?             @relation("EmployeePrimaryLocation", fields: [assignedLocationId], references: [id])
+  assignedShift       Shift?                @relation("EmployeeAssignedShift", fields: [assignedShiftId], references: [id])
+  attendanceLogs      AttendanceLog[]
+  attendanceRawLogs   AttendanceRawLog[]
+  leaveRequests       LeaveRequest[]
+  wfhLocations        EmployeeWfhLocation[]
 
   @@unique([workspaceId, employeeCode])
   @@unique([workspaceId, email])
   @@index([workspaceId])
   @@index([departmentId])
+  @@index([workspaceId, employmentStatus])
+  @@index([workspaceId, departmentId, employmentStatus])
   @@map("employees")
 }
 
@@ -422,6 +502,10 @@ model AttendanceLog {
   @@index([employeeId])
   @@index([attendanceDate])
   @@index([status])
+  // Composite indexes for common dashboard + report queries
+  @@index([workspaceId, attendanceDate, status])
+  @@index([workspaceId, employeeId, attendanceDate])
+  @@index([workspaceId, attendanceDate])
   @@map("attendance_logs")
 }
 
@@ -450,6 +534,8 @@ model LeaveRequest {
   @@index([workspaceId])
   @@index([employeeId])
   @@index([status])
+  @@index([workspaceId, status])
+  @@index([workspaceId, employeeId, status])
   @@map("leave_requests")
 }
 
@@ -513,5 +599,95 @@ model AuditLog {
   @@index([workspaceId])
   @@index([actorUserId])
   @@index([action])
+  @@index([workspaceId, createdAt])
+  @@index([workspaceId, action, createdAt])
   @@map("audit_logs")
+}
+
+// ---------------------------------------------------------------------------
+// AttendanceRawLog — semua attempt mentah dari mobile (R6.10, T10)
+// ---------------------------------------------------------------------------
+
+model AttendanceRawLog {
+  id                      String   @id @default(cuid())
+  workspaceId             String   @map("workspace_id")
+  employeeId              String   @map("employee_id")
+  eventType               String   @map("event_type") // check_in | check_out
+  rawPayloadJson          Json     @map("raw_payload_json")
+  deviceTime              DateTime @map("device_time")
+  serverReceivedAt        DateTime @default(now()) @map("server_received_at")
+  faceResult              String?  @map("face_result")
+  geofenceResult          String?  @map("geofence_result")
+  spoofingResult          String?  @map("spoofing_result")
+  isDuplicate             Boolean  @default(false) @map("is_duplicate")
+  isInvalidSequence       Boolean  @default(false) @map("is_invalid_sequence")
+  resultingAttendanceLogId String? @map("resulting_attendance_log_id")
+  createdAt               DateTime @default(now()) @map("created_at")
+
+  workspace      Workspace      @relation(fields: [workspaceId], references: [id])
+  employee       Employee       @relation(fields: [employeeId], references: [id])
+
+  @@index([workspaceId])
+  @@index([employeeId])
+  @@map("attendance_raw_logs")
+}
+
+// ---------------------------------------------------------------------------
+// LeaveType — tipe izin/cuti yang dapat dikonfigurasi per workspace (R11.3)
+// ---------------------------------------------------------------------------
+
+model LeaveType {
+  id                 String   @id @default(cuid())
+  workspaceId        String   @map("workspace_id")
+  name               String
+  requiresAttachment Boolean  @default(false) @map("requires_attachment")
+  status             String   @default("Active")
+  createdAt          DateTime @default(now()) @map("created_at")
+  updatedAt          DateTime @updatedAt @map("updated_at")
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id])
+
+  @@unique([workspaceId, name])
+  @@index([workspaceId])
+  @@map("leave_types")
+}
+
+// ---------------------------------------------------------------------------
+// WorkspaceSetting — konfigurasi workspace terpisah (R13)
+// ---------------------------------------------------------------------------
+
+model WorkspaceSetting {
+  id                      String   @id @default(cuid())
+  workspaceId             String   @unique @map("workspace_id")
+  lateCalculationPolicy   Json?    @map("late_calculation_policy")
+  missingCheckoutPolicy   Json?    @map("missing_checkout_policy")
+  exportPermissionsJson   Json?    @map("export_permissions_json")
+  displaySettingsJson     Json?    @map("display_settings_json")
+  createdAt               DateTime @default(now()) @map("created_at")
+  updatedAt               DateTime @updatedAt @map("updated_at")
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id])
+
+  @@map("workspace_settings")
+}
+
+// ---------------------------------------------------------------------------
+// Notification — in-app notifikasi untuk leave request baru & export selesai (R21)
+// ---------------------------------------------------------------------------
+
+model Notification {
+  id                  String           @id @default(cuid())
+  workspaceId         String           @map("workspace_id")
+  recipientAuthUserId String           @map("recipient_auth_user_id")
+  type                NotificationType
+  refId               String?          @map("ref_id")
+  isRead              Boolean          @default(false) @map("is_read")
+  createdAt           DateTime         @default(now()) @map("created_at")
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id])
+
+  @@index([workspaceId])
+  @@index([recipientAuthUserId])
+  @@index([isRead])
+  @@map("notifications")
 }

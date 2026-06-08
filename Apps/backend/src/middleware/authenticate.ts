@@ -33,11 +33,11 @@ import type { AuthenticatedUser, ScopeAssignment } from '../types/auth'
 
 /** Shape of the JSON payload encoded inside x-user-context */
 interface UserContextPayload {
-  userId: string
+  userId?: string      // App DB User.id — optional; resolved from authUserId if absent
   authUserId: string
   email: string
   fullName?: string
-  workspaceId: string
+  workspaceId?: string // Optional; resolved from first active workspace if absent
 }
 
 // ---------------------------------------------------------------------------
@@ -75,7 +75,7 @@ async function recordUnauthorizedAccess(
 
 export async function authenticate(
   req: Request,
-  _res: Response,
+  res: Response,
   next: NextFunction,
 ): Promise<void> {
   const contextHeader = req.headers['x-user-context'] as string | undefined
@@ -104,18 +104,56 @@ export async function authenticate(
     return next(new UnauthenticatedError('User context tidak dapat didekode'))
   }
 
-  if (!payload.userId || !payload.workspaceId) {
-    await recordUnauthorizedAccess(req, payload?.workspaceId ?? null, 'Incomplete user context payload')
+  if (!payload.authUserId) {
+    await recordUnauthorizedAccess(req, null, 'Incomplete user context payload — missing authUserId')
     return next(new UnauthenticatedError('User context tidak lengkap'))
   }
 
-  // 4. Look up User with RoleAssignments + Permissions for this workspace
+  // 4. Look up User by userId or authUserId, then resolve workspaceId
   try {
+    // 4a. Resolve the app User record
+    //     Priority: userId > authUserId > email (fallback for seed users with placeholder authUserId)
+    let userRecord = payload.userId
+      ? await prisma.user.findUnique({ where: { id: payload.userId } })
+      : await prisma.user.findUnique({ where: { authUserId: payload.authUserId } })
+
+    // Fallback: look up by email (dev seed users have placeholder authUserId)
+    if (!userRecord && payload.email) {
+      userRecord = await prisma.user.findUnique({ where: { email: payload.email } })
+      // NOTE: intentionally NOT updating authUserId here — mutating authUserId
+      // from a request middleware would allow account takeover if the shared
+      // INTERNAL_JWT_SECRET is ever compromised. authUserId sync must be done
+      // via a separate trusted admin operation.
+    }
+
+    if (!userRecord) {
+      await recordUnauthorizedAccess(req, null, `User not found: authUserId=${payload.authUserId}, email=${payload.email}`)
+      return next(new UnauthenticatedError('User tidak ditemukan'))
+    }
+
+    // 4b. Resolve workspaceId — use cookie value or fall back to first active workspace
+    let resolvedWorkspaceId = payload.workspaceId ?? ''
+    if (!resolvedWorkspaceId) {
+      const firstAssignment = await prisma.roleAssignment.findFirst({
+        where: { userId: userRecord.id },
+        include: { workspace: { select: { id: true, status: true } } },
+        orderBy: { createdAt: 'asc' },
+      })
+      const ws = firstAssignment?.workspace as { id: string; status: string } | undefined
+      if (ws && ws.status === 'Active') {
+        resolvedWorkspaceId = ws.id
+      } else {
+        await recordUnauthorizedAccess(req, null, `No active workspace for user: ${userRecord.id}`)
+        return next(new UnauthenticatedError('User tidak memiliki workspace aktif'))
+      }
+    }
+
+    // 4c. Load RoleAssignments + Permissions for the resolved workspace
     const user = await prisma.user.findUnique({
-      where: { id: payload.userId },
+      where: { id: userRecord.id },
       include: {
         roleAssignments: {
-          where: { workspaceId: payload.workspaceId },
+          where: { workspaceId: resolvedWorkspaceId },
           include: {
             permissions: {
               include: { permission: true },
@@ -126,9 +164,13 @@ export async function authenticate(
     })
 
     if (!user) {
-      await recordUnauthorizedAccess(req, payload.workspaceId, `User not found: ${payload.userId}`)
+      await recordUnauthorizedAccess(req, resolvedWorkspaceId, `User not found: ${userRecord.id}`)
       return next(new UnauthenticatedError('User tidak ditemukan'))
     }
+
+    // Replace payload references below with resolved values
+    payload.userId = userRecord.id
+    payload.workspaceId = resolvedWorkspaceId
 
     // 5. Derive roles (de-duplicated)
     const roles = [
@@ -182,6 +224,11 @@ export async function authenticate(
 
     req.user = authenticatedUser
     req.workspaceId = payload.workspaceId
+
+    // Expose resolved workspaceId to the BFF via response header so it can
+    // persist the ACTIVE_WORKSPACE_ID cookie on the client side.
+    // The BFF (Next.js route.ts) reads this header and sets the cookie.
+    res.setHeader('x-resolved-workspace-id', payload.workspaceId)
 
     return next()
   } catch (err) {

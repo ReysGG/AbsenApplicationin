@@ -23,10 +23,12 @@ import {
   LayoutDashboard,
   CalendarCheck,
   Users,
+  Building2,
   MapPin,
   Clock,
   FileText,
   BarChart3,
+  Download,
   Settings,
   Shield,
   X,
@@ -79,6 +81,12 @@ const NAV_ITEMS: NavItem[] = [
     requiredPermission: PERMISSIONS.VIEW_EMPLOYEES,
   },
   {
+    label: "Departemen",
+    href: "/workspace/departments",
+    icon: Building2,
+    requiredPermission: PERMISSIONS.VIEW_EMPLOYEES,
+  },
+  {
     label: "Lokasi",
     href: "/workspace/locations",
     icon: MapPin,
@@ -101,6 +109,12 @@ const NAV_ITEMS: NavItem[] = [
     href: "/workspace/reports",
     icon: BarChart3,
     requiredPermission: PERMISSIONS.VIEW_REPORTS,
+  },
+  {
+    label: "Ekspor",
+    href: "/workspace/exports",
+    icon: Download,
+    requiredPermission: PERMISSIONS.EXPORT_REPORTS,
   },
   {
     label: "Pengaturan",

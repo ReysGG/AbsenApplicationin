@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect, useCallback } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -19,7 +19,10 @@ import {
   AlertCircle,
   Moon,
   Sun,
+  Loader2,
 } from "lucide-react";
+import { createClientApiClient } from "@/lib/apiClient";
+import type { PaginatedData } from "@/lib/apiClient";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -135,100 +138,6 @@ const ALL_DAYS: { key: WorkDay; label: string; short: string }[] = [
 ];
 
 // ---------------------------------------------------------------------------
-// Mock data for UI prototype
-// ---------------------------------------------------------------------------
-
-const MOCK_SHIFTS: Shift[] = [
-  {
-    id: "shift-001",
-    name: "Pagi",
-    startTime: "08:00",
-    endTime: "17:00",
-    gracePeriodMinutes: 10,
-    checkoutToleranceMinutes: 60,
-    absenceCutoffMinutes: 120,
-    breakMinutes: 60,
-    workDays: ["MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY"],
-    effectiveFrom: "2024-01-01",
-    status: "Active",
-    isMidnightCrossing: false,
-    assignedEmployeeCount: 12,
-  },
-  {
-    id: "shift-002",
-    name: "Sore",
-    startTime: "14:00",
-    endTime: "22:00",
-    gracePeriodMinutes: 15,
-    checkoutToleranceMinutes: 45,
-    absenceCutoffMinutes: 90,
-    breakMinutes: 30,
-    workDays: ["MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY"],
-    effectiveFrom: "2024-01-01",
-    status: "Active",
-    isMidnightCrossing: false,
-    assignedEmployeeCount: 8,
-  },
-  {
-    id: "shift-003",
-    name: "Malam",
-    startTime: "22:00",
-    endTime: "06:00",
-    gracePeriodMinutes: 10,
-    checkoutToleranceMinutes: 60,
-    absenceCutoffMinutes: 120,
-    breakMinutes: 60,
-    workDays: ["MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY"],
-    effectiveFrom: "2024-01-01",
-    status: "Active",
-    isMidnightCrossing: true,
-    assignedEmployeeCount: 5,
-  },
-  {
-    id: "shift-004",
-    name: "Libur Sabtu-Minggu",
-    startTime: "08:00",
-    endTime: "16:00",
-    gracePeriodMinutes: 10,
-    checkoutToleranceMinutes: 60,
-    absenceCutoffMinutes: 120,
-    breakMinutes: 0,
-    workDays: ["SATURDAY", "SUNDAY"],
-    effectiveFrom: "2024-06-01",
-    status: "Inactive",
-    isMidnightCrossing: false,
-    assignedEmployeeCount: 0,
-  },
-];
-
-const MOCK_EMPLOYEES_WITHOUT_SHIFT: EmployeeWithoutShift[] = [
-  {
-    id: "emp-101",
-    employeeCode: "EMP-2024-0045",
-    fullName: "Dewi Sartika",
-    email: "dewi.s@company.com",
-    position: "Staff Operasional",
-    departmentName: "Operasional",
-  },
-  {
-    id: "emp-102",
-    employeeCode: "EMP-2024-0067",
-    fullName: "Budi Santoso",
-    email: "budi.s@company.com",
-    position: "Admin",
-    departmentName: "HR",
-  },
-  {
-    id: "emp-103",
-    employeeCode: "EMP-2024-0089",
-    fullName: "Rina Marlina",
-    email: "rina.m@company.com",
-    position: "Supervisor",
-    departmentName: "Produksi",
-  },
-];
-
-// ---------------------------------------------------------------------------
 // Helper
 // ---------------------------------------------------------------------------
 
@@ -240,15 +149,40 @@ function formatWorkDays(workDays: WorkDay[]): string {
   return workDays.map((d) => ALL_DAYS.find((x) => x.key === d)?.short ?? d).join(", ");
 }
 
+/** Normalise the backend list response — handles both `data.data[]` and `data[]` */
+function extractShiftList(data: unknown): Shift[] {
+  if (!data) return [];
+  // Paginated shape: { data: Shift[], pagination: {...} }
+  if (
+    typeof data === "object" &&
+    data !== null &&
+    "data" in data &&
+    Array.isArray((data as PaginatedData<Shift>).data)
+  ) {
+    return (data as PaginatedData<Shift>).data;
+  }
+  // Flat array shape
+  if (Array.isArray(data)) return data as Shift[];
+  return [];
+}
+
 // ---------------------------------------------------------------------------
 // Main component
 // ---------------------------------------------------------------------------
 
 export default function ShiftsPage() {
-  const [shifts, setShifts] = useState<Shift[]>(MOCK_SHIFTS);
-  const [employeesWithoutShift] = useState<EmployeeWithoutShift[]>(
-    MOCK_EMPLOYEES_WITHOUT_SHIFT
-  );
+  // Data state
+  const [shifts, setShifts] = useState<Shift[]>([]);
+  const [employeesWithoutShift, setEmployeesWithoutShift] = useState<EmployeeWithoutShift[]>([]);
+
+  // Loading / error state
+  const [shiftsLoading, setShiftsLoading] = useState(true);
+  const [shiftsError, setShiftsError] = useState<string | null>(null);
+  const [employeesLoading, setEmployeesLoading] = useState(true);
+  const [formSubmitting, setFormSubmitting] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
+  const [assignSubmitting, setAssignSubmitting] = useState(false);
+  const [assignError, setAssignError] = useState<string | null>(null);
 
   // UI state
   const [searchQuery, setSearchQuery] = useState("");
@@ -284,19 +218,71 @@ export default function ShiftsPage() {
   const isFormMidnightCrossing =
     watchedStart && watchedEnd && watchedEnd < watchedStart;
 
-  // Filtered list
-  const filteredShifts = useMemo(() => {
-    return shifts.filter((s) => {
-      const matchesSearch = s.name
-        .toLowerCase()
-        .includes(searchQuery.toLowerCase());
-      const matchesStatus =
-        statusFilter === "all" || s.status === statusFilter;
-      return matchesSearch && matchesStatus;
-    });
-  }, [shifts, searchQuery, statusFilter]);
+  // ---------------------------------------------------------------------------
+  // Data fetching
+  // ---------------------------------------------------------------------------
 
-  // Stats
+  const fetchShifts = useCallback(async (filter: "all" | "Active" | "Inactive") => {
+    setShiftsLoading(true);
+    setShiftsError(null);
+    try {
+      const api = createClientApiClient();
+      const params = filter !== "all" ? { status: filter } : { status: "all" };
+      const res = await api.get<PaginatedData<Shift> | Shift[]>("v1/shifts", params);
+      if (res.success) {
+        setShifts(extractShiftList(res.data));
+      } else {
+        setShiftsError(res.error.message ?? "Gagal memuat data shift.");
+      }
+    } catch {
+      setShiftsError("Terjadi kesalahan jaringan. Coba lagi.");
+    } finally {
+      setShiftsLoading(false);
+    }
+  }, []);
+
+  const fetchEmployeesWithoutShift = useCallback(async () => {
+    setEmployeesLoading(true);
+    try {
+      const api = createClientApiClient();
+      const res = await api.get<PaginatedData<EmployeeWithoutShift> | EmployeeWithoutShift[]>(
+        "v1/employees/without-shift"
+      );
+      if (res.success) {
+        const list = extractShiftList(res.data as unknown) as EmployeeWithoutShift[];
+        setEmployeesWithoutShift(list);
+      }
+      // Silently ignore errors — the section just shows empty state
+    } catch {
+      // noop
+    } finally {
+      setEmployeesLoading(false);
+    }
+  }, []);
+
+  // Initial load
+  useEffect(() => {
+    fetchShifts(statusFilter);
+    fetchEmployeesWithoutShift();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Re-fetch when filter changes
+  useEffect(() => {
+    fetchShifts(statusFilter);
+  }, [statusFilter, fetchShifts]);
+
+  // ---------------------------------------------------------------------------
+  // Derived values
+  // ---------------------------------------------------------------------------
+
+  // Client-side search filter (status is already applied server-side)
+  const filteredShifts = useMemo(() => {
+    return shifts.filter((s) =>
+      s.name.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+  }, [shifts, searchQuery]);
+
   const stats = useMemo(
     () => ({
       total: shifts.length,
@@ -312,6 +298,7 @@ export default function ShiftsPage() {
 
   function openCreateDialog() {
     setEditingShift(null);
+    setFormError(null);
     reset({
       breakMinutes: 0,
       gracePeriodMinutes: 10,
@@ -324,6 +311,7 @@ export default function ShiftsPage() {
 
   function openEditDialog(shift: Shift) {
     setEditingShift(shift);
+    setFormError(null);
     reset({
       name: shift.name,
       startTime: shift.startTime,
@@ -338,76 +326,90 @@ export default function ShiftsPage() {
     setShowFormDialog(true);
   }
 
-  function onFormSubmit(data: ShiftFormValues) {
-    const isOvernight =
-      data.startTime && data.endTime && data.endTime < data.startTime;
+  async function onFormSubmit(data: ShiftFormValues) {
+    setFormSubmitting(true);
+    setFormError(null);
 
-    if (editingShift) {
-      // Update existing
-      setShifts((prev) =>
-        prev.map((s) =>
-          s.id === editingShift.id
-            ? {
-                ...s,
-                name: data.name,
-                startTime: data.startTime,
-                endTime: data.endTime,
-                breakMinutes: data.breakMinutes ?? 0,
-                gracePeriodMinutes: data.gracePeriodMinutes ?? 10,
-                checkoutToleranceMinutes: data.checkoutToleranceMinutes ?? 60,
-                absenceCutoffMinutes: data.absenceCutoffMinutes ?? 120,
-                workDays: data.workDays as WorkDay[],
-                effectiveFrom:
-                  data.effectiveFrom ?? new Date().toISOString().slice(0, 10),
-                isMidnightCrossing: !!isOvernight,
-              }
-            : s
-        )
-      );
-    } else {
-      // Create new
-      const newShift: Shift = {
-        id: `shift-${Date.now()}`,
-        name: data.name,
-        startTime: data.startTime,
-        endTime: data.endTime,
-        breakMinutes: data.breakMinutes ?? 0,
-        gracePeriodMinutes: data.gracePeriodMinutes ?? 10,
-        checkoutToleranceMinutes: data.checkoutToleranceMinutes ?? 60,
-        absenceCutoffMinutes: data.absenceCutoffMinutes ?? 120,
-        workDays: data.workDays as WorkDay[],
-        effectiveFrom:
-          data.effectiveFrom ?? new Date().toISOString().slice(0, 10),
-        status: "Active",
-        isMidnightCrossing: !!isOvernight,
-        assignedEmployeeCount: 0,
-      };
-      setShifts((prev) => [...prev, newShift]);
+    const payload = {
+      name: data.name,
+      startTime: data.startTime,
+      endTime: data.endTime,
+      breakMinutes: data.breakMinutes ?? 0,
+      gracePeriodMinutes: data.gracePeriodMinutes ?? 10,
+      checkoutToleranceMinutes: data.checkoutToleranceMinutes ?? 60,
+      absenceCutoffMinutes: data.absenceCutoffMinutes ?? 120,
+      workDays: data.workDays,
+      effectiveFrom: data.effectiveFrom || new Date().toISOString().slice(0, 10),
+    };
+
+    try {
+      const api = createClientApiClient();
+      let res;
+
+      if (editingShift) {
+        res = await api.patch<Shift>(`v1/shifts/${editingShift.id}`, payload);
+      } else {
+        res = await api.post<Shift>("v1/shifts", payload);
+      }
+
+      if (res.success) {
+        setShowFormDialog(false);
+        await fetchShifts(statusFilter);
+      } else {
+        setFormError(res.error.message ?? "Gagal menyimpan shift.");
+      }
+    } catch {
+      setFormError("Terjadi kesalahan jaringan. Coba lagi.");
+    } finally {
+      setFormSubmitting(false);
     }
-    setShowFormDialog(false);
   }
 
-  function handleDeactivate(shift: Shift) {
-    setShifts((prev) =>
-      prev.map((s) =>
-        s.id === shift.id
-          ? { ...s, status: s.status === "Active" ? "Inactive" : "Active" }
-          : s
-      )
-    );
+  async function handleDeactivate(shift: Shift) {
+    const newStatus = shift.status === "Active" ? "Inactive" : "Active";
+    try {
+      const api = createClientApiClient();
+      const res = await api.patch<Shift>(`v1/shifts/${shift.id}`, { status: newStatus });
+      if (res.success) {
+        await fetchShifts(statusFilter);
+      }
+      // Silently ignore toggle errors — UI stays consistent via refetch
+    } catch {
+      // noop
+    }
   }
 
   function openAssignDialog(shift: Shift) {
     setAssignTargetShift(shift);
     setSelectedEmployeeIds([]);
+    setAssignError(null);
     setShowAssignDialog(true);
   }
 
-  function handleAssignSubmit() {
+  async function handleAssignSubmit() {
     if (!assignTargetShift || selectedEmployeeIds.length === 0) return;
-    // In real app: POST /shifts/:id/assign
-    setShowAssignDialog(false);
-    setSelectedEmployeeIds([]);
+    setAssignSubmitting(true);
+    setAssignError(null);
+
+    try {
+      const api = createClientApiClient();
+      const res = await api.post(`v1/shifts/${assignTargetShift.id}/assign`, {
+        employeeIds: selectedEmployeeIds,
+      });
+
+      if (res.success) {
+        setShowAssignDialog(false);
+        setSelectedEmployeeIds([]);
+        // Refresh both lists so counts and without-shift section update
+        await Promise.all([fetchShifts(statusFilter), fetchEmployeesWithoutShift()]);
+      } else {
+        setAssignError(res.error.message ?? "Gagal menetapkan shift.");
+      }
+    } catch {
+      setAssignError("Terjadi kesalahan jaringan. Coba lagi.");
+    } finally {
+      setAssignSubmitting(false);
+    }
   }
 
   function toggleDaySelection(day: WorkDay) {
@@ -550,7 +552,31 @@ export default function ShiftsPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-outline-variant/60">
-              {filteredShifts.length > 0 ? (
+              {shiftsLoading ? (
+                <tr>
+                  <td colSpan={8} className="py-10 text-center">
+                    <div className="flex items-center justify-center gap-2 text-on-surface-variant">
+                      <Loader2 size={16} className="animate-spin" />
+                      <span className="text-xs font-semibold">Memuat data shift...</span>
+                    </div>
+                  </td>
+                </tr>
+              ) : shiftsError ? (
+                <tr>
+                  <td colSpan={8} className="py-10 text-center">
+                    <div className="flex flex-col items-center gap-2">
+                      <AlertCircle size={20} className="text-error" />
+                      <p className="text-xs font-semibold text-error">{shiftsError}</p>
+                      <button
+                        onClick={() => fetchShifts(statusFilter)}
+                        className="mt-1 text-xs font-semibold text-primary hover:underline"
+                      >
+                        Coba lagi
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ) : filteredShifts.length > 0 ? (
                 filteredShifts.map((shift) => (
                   <tr
                     key={shift.id}
@@ -700,7 +726,12 @@ export default function ShiftsPage() {
           </div>
         </div>
 
-        {employeesWithoutShift.length === 0 ? (
+        {employeesLoading ? (
+          <div className="py-8 flex items-center justify-center gap-2 text-on-surface-variant">
+            <Loader2 size={16} className="animate-spin" />
+            <span className="text-xs font-semibold">Memuat data karyawan...</span>
+          </div>
+        ) : employeesWithoutShift.length === 0 ? (
           <div className="py-8 text-center">
             <Check size={24} className="mx-auto text-emerald-500 mb-2" />
             <p className="text-sm font-semibold text-on-surface-variant">
@@ -745,7 +776,6 @@ export default function ShiftsPage() {
                       {emp.position ?? "—"}
                     </td>
                     <td className="py-3 px-4 text-right">
-                      {/* Quick-assign: open assign dialog for first active shift */}
                       <button
                         onClick={() => {
                           const firstActive = shifts.find(
@@ -801,6 +831,17 @@ export default function ShiftsPage() {
               noValidate
             >
               <div className="px-6 py-5 space-y-4">
+                {/* Form-level error */}
+                {formError && (
+                  <div
+                    role="alert"
+                    className="flex items-center gap-2 text-[11px] text-error bg-error/5 border border-error/20 rounded-lg px-3 py-2"
+                  >
+                    <AlertCircle size={13} />
+                    <span>{formError}</span>
+                  </div>
+                )}
+
                 {/* Name */}
                 <div>
                   <label
@@ -993,14 +1034,17 @@ export default function ShiftsPage() {
                 <button
                   type="button"
                   onClick={() => setShowFormDialog(false)}
-                  className="h-9 px-4 border border-outline-variant rounded-lg text-xs font-semibold text-on-surface-variant hover:bg-surface-container transition-colors"
+                  disabled={formSubmitting}
+                  className="h-9 px-4 border border-outline-variant rounded-lg text-xs font-semibold text-on-surface-variant hover:bg-surface-container transition-colors disabled:opacity-50"
                 >
                   Batal
                 </button>
                 <button
                   type="submit"
-                  className="h-9 px-5 bg-primary text-white rounded-lg text-xs font-semibold hover:bg-primary/95 transition-colors"
+                  disabled={formSubmitting}
+                  className="h-9 px-5 bg-primary text-white rounded-lg text-xs font-semibold hover:bg-primary/95 transition-colors disabled:opacity-70 flex items-center gap-2"
                 >
+                  {formSubmitting && <Loader2 size={13} className="animate-spin" />}
                   {editingShift ? "Simpan Perubahan" : "Buat Shift"}
                 </button>
               </div>
@@ -1043,10 +1087,26 @@ export default function ShiftsPage() {
 
             {/* Employee list */}
             <div className="overflow-y-auto flex-1 px-6 py-4">
+              {assignError && (
+                <div
+                  role="alert"
+                  className="flex items-center gap-2 text-[11px] text-error bg-error/5 border border-error/20 rounded-lg px-3 py-2 mb-3"
+                >
+                  <AlertCircle size={13} />
+                  <span>{assignError}</span>
+                </div>
+              )}
+
               <p className="text-[11px] text-on-surface-variant mb-3">
                 Pilih karyawan yang akan ditetapkan ke shift ini:
               </p>
-              {employeesWithoutShift.length === 0 ? (
+
+              {employeesLoading ? (
+                <div className="py-6 flex items-center justify-center gap-2 text-on-surface-variant">
+                  <Loader2 size={16} className="animate-spin" />
+                  <span className="text-xs font-semibold">Memuat...</span>
+                </div>
+              ) : employeesWithoutShift.length === 0 ? (
                 <div className="py-6 text-center">
                   <Check size={20} className="mx-auto text-emerald-500 mb-2" />
                   <p className="text-xs font-semibold text-on-surface-variant">
@@ -1103,17 +1163,19 @@ export default function ShiftsPage() {
                 <button
                   type="button"
                   onClick={() => setShowAssignDialog(false)}
-                  className="h-9 px-4 border border-outline-variant rounded-lg text-xs font-semibold text-on-surface-variant hover:bg-surface-container transition-colors"
+                  disabled={assignSubmitting}
+                  className="h-9 px-4 border border-outline-variant rounded-lg text-xs font-semibold text-on-surface-variant hover:bg-surface-container transition-colors disabled:opacity-50"
                 >
                   Batal
                 </button>
                 <button
                   type="button"
                   onClick={handleAssignSubmit}
-                  disabled={selectedEmployeeIds.length === 0}
-                  className="h-9 px-5 bg-primary text-white rounded-lg text-xs font-semibold hover:bg-primary/95 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                  aria-disabled={selectedEmployeeIds.length === 0}
+                  disabled={selectedEmployeeIds.length === 0 || assignSubmitting}
+                  className="h-9 px-5 bg-primary text-white rounded-lg text-xs font-semibold hover:bg-primary/95 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                  aria-disabled={selectedEmployeeIds.length === 0 || assignSubmitting}
                 >
+                  {assignSubmitting && <Loader2 size={13} className="animate-spin" />}
                   Tetapkan Shift
                 </button>
               </div>
