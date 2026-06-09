@@ -83,3 +83,28 @@ export interface AuthenticatedUser {
   /** Active workspace id — duplicated here for convenience */
   workspaceId: string
 }
+
+// ---------------------------------------------------------------------------
+// Mobile employee context
+// ---------------------------------------------------------------------------
+
+/**
+ * The Employee record for an authenticated mobile user, attached to
+ * `req.employee` by `authenticateMobile`. Mobile self-service endpoints read
+ * only this employee's own data — never cross-employee or HR-wide data.
+ */
+export interface MobileEmployee {
+  id: string
+  workspaceId: string
+  userId: string | null
+  employeeCode: string
+  fullName: string
+  email: string
+  position: string | null
+  departmentId: string
+  departmentName: string | null
+  workMode: 'WFO' | 'WFH' | 'Hybrid'
+  faceProfileStatus: string
+  assignedLocationId: string | null
+  assignedShiftId: string | null
+}

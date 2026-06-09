@@ -446,6 +446,65 @@ async function main(): Promise<void> {
     `✅ Employees: ${createdEmployees.map((e) => e.fullName).join(', ')}`,
   )
 
+  // ── 10b. Mobile demo employee (loginable end user) ─────────────────────────
+  // Unlike the employees above, this one has a better-auth account + app User +
+  // end_user role assignment, so it can sign in to the Flutter mobile app.
+  const mobileAuthId = await ensureBetterAuthUser(
+    'karyawan@attendx.dev',
+    'David Boy',
+    'Attendx2024!',
+  )
+  const mobileUser = await (prisma as any).user.upsert({
+    where: { email: 'karyawan@attendx.dev' },
+    update: { authUserId: mobileAuthId },
+    create: {
+      authUserId: mobileAuthId,
+      email: 'karyawan@attendx.dev',
+      fullName: 'David Boy',
+      globalRole: 'user',
+      status: 'Active',
+    },
+  })
+  await (prisma as any).roleAssignment.upsert({
+    where: {
+      workspaceId_userId_role_scopeType_scopeId: {
+        workspaceId: workspace.id,
+        userId: mobileUser.id,
+        role: 'end_user',
+        scopeType: 'workspace',
+        scopeId: '',
+      },
+    },
+    update: {},
+    create: {
+      workspaceId: workspace.id,
+      userId: mobileUser.id,
+      role: 'end_user',
+      scopeType: 'workspace',
+      scopeId: null,
+    },
+  })
+  const mobileEmployee = await (prisma as any).employee.create({
+    data: {
+      workspaceId: workspace.id,
+      userId: mobileUser.id,
+      employeeCode: 'EMP-2024-0010',
+      fullName: 'David Boy',
+      email: 'karyawan@attendx.dev',
+      departmentId: engineeringDept.id,
+      position: 'Software Engineer',
+      workMode: 'WFO',
+      employmentStatus: 'Active',
+      accountStatus: 'Active',
+      faceProfileStatus: 'Registered',
+      assignedLocationId: locationKantorJakarta.id,
+      assignedShiftId: shiftPagi.id,
+      joinedAt: new Date('2024-01-01'),
+    },
+  })
+  createdEmployees.push(mobileEmployee)
+  console.log(`✅ Mobile demo employee: ${mobileEmployee.fullName} (karyawan@attendx.dev)`)
+
   // ── 11. AttendanceLogs — last 7 weekdays for emp-001 and emp-002 ───────────
   const emp001 = createdEmployees.find((e) => e.email === 'budi@attendx.dev')!
   const emp002 = createdEmployees.find((e) => e.email === 'siti@attendx.dev')!

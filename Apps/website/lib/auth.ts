@@ -25,6 +25,15 @@ export const auth = betterAuth({
     enabled: true,
 
     /**
+     * Akun tidak dibuat lewat self-registration publik. Admin/HR berasal dari
+     * seed, dan karyawan onboard via link aktivasi (Requirement 2) yang
+     * memanggil instance better-auth backend (Apps/backend) — bukan instance
+     * ini. Mematikan sign-up di sini menutup endpoint /api/auth/sign-up publik
+     * tanpa mengganggu flow aktivasi.
+     */
+    disableSignUp: true,
+
+    /**
      * Hook invoked by better-auth when a password-reset email should be sent.
      * The `url` param is the full reset link including the token.
      * Token expiry (30 minutes) is enforced by better-auth's built-in

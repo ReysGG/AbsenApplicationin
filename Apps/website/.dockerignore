@@ -1,0 +1,15 @@
+node_modules
+.next
+.git
+.env
+.env.*
+*.log
+npm-debug.log*
+.DS_Store
+Dockerfile
+.dockerignore
+playwright-report
+test-results
+e2e
+tests
+saas-demo.mp4

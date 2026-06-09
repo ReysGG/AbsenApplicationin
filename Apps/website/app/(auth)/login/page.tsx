@@ -11,7 +11,7 @@
  * Requirements: 1.1, 1.2, 1.3, 1.4, 1.6, 19.4, 19.6
  */
 
-import { useState } from "react"
+import { useState, Suspense } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
 import { useForm } from "react-hook-form"
@@ -42,7 +42,9 @@ const loginSchema = z.object({
 type LoginValues = z.infer<typeof loginSchema>
 
 // ── Page ──────────────────────────────────────────────────────────────────────
-export default function LoginPage() {
+// useSearchParams() requires a Suspense boundary for static prerendering in
+// Next.js 16, so the form lives in a child component wrapped below.
+function LoginForm() {
   const router = useRouter()
   const searchParams = useSearchParams()
 
@@ -201,5 +203,13 @@ export default function LoginPage() {
         </p>
       </CardFooter>
     </Card>
+  )
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={<Card className="w-full max-w-sm shadow-lg" />}>
+      <LoginForm />
+    </Suspense>
   )
 }

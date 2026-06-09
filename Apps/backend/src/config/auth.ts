@@ -14,6 +14,7 @@
  * Requirements: 1.1, 1.3, 1.4, 1.5, 17.4
  */
 import { betterAuth } from 'better-auth'
+import { bearer } from 'better-auth/plugins'
 import { env } from './env'
 
 // better-auth with PostgreSQL via connection string (Prisma-less mode)
@@ -26,6 +27,11 @@ export const auth = betterAuth({
 
   secret: env.BETTER_AUTH_SECRET,
   baseURL: env.BETTER_AUTH_URL,
+
+  // The bearer plugin lets the mobile app authenticate with
+  // `Authorization: Bearer <session-token>` instead of cookies. The web BFF
+  // keeps using HMAC-signed context headers; mobile uses this path.
+  plugins: [bearer()],
 
   emailAndPassword: {
     enabled: true,

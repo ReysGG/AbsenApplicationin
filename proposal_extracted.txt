@@ -1,0 +1,437 @@
+===== PAGE 1 =====
+ 
+PROPOSAL PENGEMBANGAN APLIKASI 
+ABSENSI DIGITAL KARYAWAN​
+“PT INOVASI KERJA DIGITAL” 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+Nama Kelompok: 
+Rancang Bangun Sistem Informasi Absensi Karyawan 
+Berbasis Android 
+ 
+ 
+Disusun oleh Kelompok: 
+1.​ David Boy 
+2.​ Muhammad Riky 
+3.​ Muhammad Fikri Nurwahid 
+4.​ Rizky Nurhafiizh Sayrendra 
+ 
+Dosen Pembimbing: 
+TRI ISMARDIKO WIDYAWAN, S.Kom, M.Kom 
+ 
+PROGRAM STUDI TEKNIK INFORMATIKA 
+UNIVERSITAS ESA UNGGUL 
+2026 
+ 
+
+===== PAGE 2 =====
+ 
+1.​
+Latar Belakang 
+PT Inovasi Kerja Digital menerapkan kebijakan kerja modern yang mengkombinasikan Work 
+From Office (WFO) dan Work From Home (WFH). Fleksibilitas ini menuntut sebuah sistem 
+pemantauan yang tidak lagi terikat pada satu lokasi fisik. Sistem absensi konvensional (seperti mesin 
+fingerprint di kantor) maupun pencatatan manual memiliki banyak kelemahan ketika dihadapkan pada 
+skenario kerja remote. Oleh karena itu, diperlukan sebuah sistem yang adaptif, portabel, namun tetap 
+memiliki tingkat keamanan dan validitas data yang sangat tinggi. 
+2.​
+Identifikasi Masalah 
+Berdasarkan latar belakang tersebut, teridentifikasi beberapa masalah utama: 
+●​ Ketidakakuratan Pencatatan Kehadiran (WFH): Sistem manual (seperti pelaporan via grup 
+pesan singkat) sangat rentan terhadap manipulasi waktu dan lokasi (titip absen atau buddy 
+punching). 
+●​ Beban Rekapitulasi: Divisi Human Resources (HR) menghabiskan banyak waktu produktif 
+untuk merekap data absensi dari berbagai sumber secara manual di setiap akhir bulan. 
+●​ Biaya Infrastruktur yang Tinggi: Solusi absensi digital komersial (Software as a Service) di 
+pasaran seringkali membebankan biaya langganan bulanan (subscription) per pengguna yang 
+cukup mahal bagi skala startup atau Small-Medium Enterprise (SME). 
+●​ Sistem yang ada tidak mendukung struktur organisasi bertingkat, sehingga perusahaan dengan 
+banyak divisi atau cabang tidak dapat mengelola data absensi secara terpisah per divisi.  
+3.​
+Solusi yang Ditawarkan 
+Solusi yang ditawarkan adalah pengembangan dan implementasi sistem absensi digital berbasis SaaS 
+(Software as a Service) terintegrasi, yang terdiri dari tiga komponen utama: 
+•      Aplikasi Mobile berbasis Flutter (Android & iOS) — untuk karyawan melakukan absensi. 
+•      Dashboard Web berbasis Next.js — untuk manajemen, pelaporan, dan konfigurasi sistem. 
+•      REST API berbasis Node.js/Express — sebagai lapisan backend yang mengelola seluruh 
+logika bisnis sistem. 
+Sistem ini menggunakan arsitektur multi-tenant dengan workspace terisolasi per organisasi. Setiap 
+perusahaan klien (Stakeholder) yang berlangganan akan mendapatkan workspace tersendiri yang 
+sepenuhnya terpisah dari tenant lain — data karyawan, laporan, dan konfigurasi tidak dapat diakses 
+oleh perusahaan lain. 
+Hierarki pengguna terbagi dalam dua level: 
+•      Level Platform — dikelola oleh tim pengembang (Super Admin & Admin): mengelola 
+tenant, billing, dan konfigurasi global platform. 
+•      Level Workspace — dikelola oleh Stakeholder: mengelola tim internal (Support Admin & 
+End User) di dalam workspace perusahaannya sendiri. 
+Untuk memastikan validitas data kehadiran, aplikasi menggunakan mekanisme otentikasi biometrik 
+melalui Face Recognition secara on-device menggunakan Google ML Kit, serta verifikasi geospasial 
+
+===== PAGE 3 =====
+ 
+melalui GPS dan Geofencing untuk memastikan karyawan berada di lokasi yang sah — baik Work 
+From Office (WFO) maupun lokasi Work From Home (WFH) yang telah terdaftar — secara real-time. 
+ 
+4.​
+Tujuan Pengembangan 
+●​ Mendidigitalisasi proses absensi yang mendukung model kerja WFO maupun WFH. 
+●​ Meminimalisir tindak kecurangan (manipulasi kehadiran) menggunakan keamanan berlapis 
+(GPS dan Wajah). 
+●​ Mengotomatisasi rekapitulasi data kehadiran untuk mempercepat proses administratif HR. 
+●​ Menciptakan solusi teknologi dengan biaya kepemilikan (Total Cost of Ownership) dan biaya 
+operasional serendah mungkin menggunakan teknologi open-source. 
+●​ Menyediakan sistem manajemen role bertingkat yang fleksibel untuk mengakomodasi 
+berbagai struktur organisasi perusahaan. 
+●​ Mendukung manajemen shift kerja secara terpusat agar perhitungan kehadiran dan 
+keterlambatan akurat per jadwal karyawan. 
+5.​
+Fitur Aplikasi 
+Sistem ini terbagi menjadi dua antarmuka utama: 
+5.1.​
+Aplikasi Mobile (Untuk Karyawan) 
+○​ Otentikasi Pengguna:  Login dengan akun yang didaftarkan oleh perusahaan. 
+○​ Check-in & Check-out Kehadiran:  Tombol absensi yang otomatis mengaktifkan 
+verifikasi. 
+○​ Validasi Lokasi (GPS):  Memastikan pengguna berada dalam radius WFO (kantor) 
+atau lokasi WFH yang diizinkan. 
+○​ Validasi Wajah (Face Recognition):  Pemindaian wajah real-time untuk mencocokkan 
+identitas fisik dengan profil akun pengguna. 
+○​ Riwayat Presensi Pribadi:  Menampilkan rekam jejak absensi harian karyawan 
+bersangkutan. 
+○​ Mode WFH toggle (GPS dinonaktifkan, face tetap aktif) 
+○​  Pengajuan izin/cuti langsung dari aplikasi  
+○​ Notifikasi pengingat absen & status approval izin  
+○​ Offline mode — absen tersimpan lokal, sync otomatis saat online 
+○​  Lihat jadwal shift pribadi  
+
+===== PAGE 4 =====
+ 
+5.2.​
+Dashboard Web (Untuk Admin HR) 
+○​ Manajemen Karyawan (CRUD):  Mendaftarkan, mengedit, atau menonaktifkan data 
+karyawan. 
+○​ Pemantauan Real-time:  Melihat data absensi yang masuk pada hari tersebut secara 
+langsung. 
+○​ Rekapitulasi dan Laporan:  Mengekspor laporan kehadiran karyawan per periode 
+(misal: format Excel/CSV). 
+○​ Manajemen Lokasi Kantor:  Menetapkan titik koordinat kantor dan radius geofencing 
+yang diperbolehkan. 
+○​ Manajemen role & hierarki pengguna (Super Admin / Admin / Stakeholder / Support 
+Admin / End User)  
+○​ Manajemen shift & penjadwalan karyawan  
+○​ Approval izin & cuti karyawan  
+○​ Manajemen multi-lokasi / multi-cabang  
+○​ Statistik & grafik kehadiran (tingkat kehadiran, keterlambatan, tren per bulan)  
+○​ Ekspor laporan ke PDF (sekarang hanya Excel/CSV)  
+ 
+ 
+ 
+5.3.​
+Hierarki Role Pengguna 
+Kemampuan 
+Super 
+Admin 
+Admin 
+(Tim 
+Kita) 
+Stake- 
+holder 
+Support Admin 
+End User 
+── LEVEL PLATFORM ── 
+Buat & nonaktifkan akun 
+Stakeholder 
+✅ 
+✅ 
+❌ 
+❌ 
+❌ 
+Kelola billing & subscription 
+tenant 
+✅ 
+✅ 
+Lihat 
+❌ 
+❌ 
+Monitor kesehatan platform 
+global 
+✅ 
+✅ 
+❌ 
+❌ 
+❌ 
+Akses support ticket & CS 
+✅ 
+✅ 
+❌ 
+❌ 
+❌ 
+Masuk ke dalam workspace 
+tenant 
+❌ 
+❌ 
+❌ 
+❌ 
+❌ 
+── LEVEL WORKSPACE ── 
+
+===== PAGE 5 =====
+ 
+Buat & kelola workspace 
+organisasi 
+❌ 
+❌ 
+✅ 
+❌ 
+❌ 
+Invite & kelola Support 
+Admin 
+❌ 
+❌ 
+✅ 
+❌ 
+❌ 
+Invite & kelola End User 
+❌ 
+❌ 
+✅ 
+✅ 
+❌ 
+Set lokasi kantor & geofence 
+❌ 
+❌ 
+✅ 
+✅ 
+❌ 
+Set & kelola jadwal shift 
+❌ 
+❌ 
+✅ 
+✅ 
+❌ 
+Lihat laporan absensi 
+❌ 
+❌ 
+Semua 
+Divisi 
+Sendiri 
+Approve izin & cuti 
+❌ 
+❌ 
+✅ 
+✅ 
+❌ 
+Export laporan Excel / PDF 
+❌ 
+❌ 
+✅ 
+✅ 
+Sendiri 
+Konfigurasi WFH mode 
+❌ 
+❌ 
+✅ 
+✅ 
+❌ 
+Check-in / Check-out 
+❌ 
+❌ 
+❌ 
+Opsional 
+✅ 
+Ajukan izin & cuti 
+❌ 
+❌ 
+❌ 
+Opsional 
+✅ 
+Lihat jadwal shift pribadi 
+❌ 
+❌ 
+❌ 
+Opsional 
+✅ 
+ 
+6.​
+Teknologi yang Digunakan 
+Sistem ini dibangun dengan tumpukan teknologi (Tech Stack) modern, gratis, dan 
+open-source, dirancang khusus untuk menekan biaya operasional hingga mendekati nol bagi 
+perusahaan rintisan: 
+●​ Flutter:  Kerangka kerja pengembangan antarmuka dari Google untuk membuat aplikasi 
+Android, iOS, dan Web secara serentak (single codebase). 
+●​ Node.js & Express.js: Runtime dan framework backend JavaScript yang menangani 
+seluruh business logic sistem, termasuk validasi role, kalkulasi shift, approval izin, dan 
+komunikasi antara aplikasi mobile dan dashboard web melalui RESTful API. 
+●​ Next.js: Framework React untuk membangun Dashboard Web yang dapat diakses oleh 
+seluruh hierarki role (Super Admin hingga Support Admin) dengan rendering sisi 
+server yang cepat dan aman. 
+●​ REST API Architecture: Pola komunikasi standar antara Flutter, Next.js, dan Node.js 
+menggunakan HTTP request dengan autentikasi berbasis JWT token yang diterbitkan 
+oleh Firebase Authentication dan diverifikasi di setiap endpoint Node.js. 
+●​ Firebase Authentication:  Layanan autentikasi pengguna secara aman dengan Free Tier (kuota 
+gratis) yang sangat besar (mendukung hingga puluhan ribu pengguna aktif). 
+
+===== PAGE 6 =====
+ 
+●​ Supabase:  Alternatif Firebase open-source berbasis PostgreSQL. Digunakan sebagai basis 
+data relasional untuk menyimpan profil, log kehadiran, dan vektor wajah. Versi Free Tier 
+sangat cukup untuk menampung data perusahaan skala kecil-menengah. 
+●​ Google ML Kit (Vision):  Library Machine Learning yang berjalan langsung di perangkat 
+(on-device). Sangat ideal karena tidak memerlukan biaya API tambahan dan memproses 
+wajah secara lokal dan cepat (mendeteksi liveness dan vektor wajah). 
+●​ OpenStreetMap (OSM):  Digunakan sebagai provider peta geospasial pada aplikasi, 
+menggantikan layanan berbayar seperti Google Maps API, sehingga tidak ada biaya panggilan 
+peta bulanan. 
+●​ GitHub:  Sistem kontrol versi (version control) untuk penyimpanan kode sumber (source 
+code) dan fasilitas Continuous Integration/Continuous Deployment (CI/CD) secara gratis 
+melalui GitHub Actions. 
+ 
+B. Keamanan 
+●​ JWT Authentication & Refresh Token: Setiap permintaan ke server divalidasi 
+menggunakan JSON Web Token (JWT) yang diterbitkan oleh Firebase Authentication. 
+Token memiliki masa berlaku terbatas dan diperbarui secara otomatis menggunakan 
+refresh token, sehingga sesi pengguna tetap aman tanpa perlu login ulang berulang kali. 
+●​ GPS Spoofing Detection: Sistem mendeteksi penggunaan aplikasi pemalsuan lokasi 
+(mock location) pada perangkat Android. Jika terdeteksi, proses check-in akan 
+dibatalkan secara otomatis dan kejadian tersebut dicatat sebagai anomali untuk ditinjau 
+oleh HR. 
+●​ Liveness Check (Blink/Head Turn) Anti-Foto Statis: Proses face recognition tidak 
+hanya mencocokkan wajah, tetapi juga memastikan bahwa wajah yang terdeteksi 
+adalah wajah nyata secara real-time melalui instruksi gerakan seperti kedipan mata 
+atau putaran kepala, sehingga tidak dapat dimanipulasi menggunakan foto atau gambar 
+statis. 
+●​ Rate Limiting untuk Mencegah Brute Force: Server membatasi jumlah permintaan 
+yang dapat dilakukan dalam satu rentang waktu tertentu dari satu perangkat atau akun 
+yang sama. Mekanisme ini mencegah serangan brute force pada endpoint login 
+maupun endpoint absensi. 
+7.​
+Sensor Yang Digunakan 
+7.1.​
+GPS 
+GPS digunakan untuk mendeteksi lokasi pengguna saat melakukan proses check-in dan 
+check-out. Sensor ini bekerja dengan mengambil titik koordinat lokasi karyawan secara real-time, lalu 
+sistem akan membandingkan lokasi tersebut dengan titik lokasi kantor atau lokasi WFH yang sudah 
+terdaftar. Dengan adanya GPS, aplikasi dapat memastikan bahwa karyawan benar-benar berada di 
+area yang diizinkan saat melakukan absensi. Tujuan penggunaan GPS adalah untuk meningkatkan 
+keakuratan data kehadiran dan mencegah kecurangan seperti titip absen atau melakukan absensi dari 
+lokasi yang tidak sesuai. 
+
+===== PAGE 7 =====
+ 
+7.2.​
+Kamera 
+Kamera digunakan untuk mengambil gambar wajah karyawan saat proses absensi 
+berlangsung. Ketika pengguna menekan tombol check-in atau check-out, aplikasi akan mengaktifkan 
+kamera untuk melakukan pemindaian wajah secara langsung. Kamera berperan sebagai alat utama 
+dalam proses verifikasi identitas pengguna. Tujuan penggunaan kamera adalah untuk memastikan 
+bahwa orang yang melakukan absensi adalah karyawan yang sesuai dengan akun yang digunakan. 
+7.3.​
+Face Recognition 
+Face Recognition digunakan untuk mencocokkan wajah pengguna dengan data wajah yang 
+sudah tersimpan pada profil akun karyawan. Proses ini dilakukan saat karyawan melakukan check-in 
+atau check-out. Sistem akan mendeteksi wajah secara real-time, lalu melakukan validasi untuk 
+memastikan bahwa wajah tersebut sesuai dengan identitas pengguna. Tujuan penggunaan Face 
+Recognition adalah untuk mencegah manipulasi absensi, seperti penggunaan akun oleh orang lain atau 
+titip absen. 
+7.4.​
+Liveness Detection 
+Liveness Detection digunakan untuk memastikan bahwa wajah yang terdeteksi adalah wajah 
+asli dari pengguna secara langsung, bukan foto atau gambar statis. Sistem dapat meminta pengguna 
+melakukan gerakan tertentu seperti berkedip atau menggerakkan kepala. Jika pengguna berhasil 
+mengikuti instruksi, proses validasi dapat dilanjutkan. Tujuan penggunaan Liveness Detection adalah 
+untuk meningkatkan keamanan proses absensi dan mencegah kecurangan menggunakan foto wajah. 
+7.5.​
+Internet / API 
+Internet atau API digunakan sebagai media komunikasi antara aplikasi mobile dan server. 
+Saat karyawan melakukan login, check-in, check-out, melihat riwayat presensi, melihat jadwal shift, 
+atau mengajukan izin/cuti, aplikasi akan mengirim dan mengambil data melalui API. Tujuan 
+penggunaan Internet/API adalah agar seluruh data absensi dapat tersimpan di database dan dapat 
+diproses oleh sistem secara terpusat. 
+7.6.​
+ Local Storage 
+Local Storage digunakan untuk menyimpan data absensi sementara di perangkat ketika 
+pengguna tidak memiliki koneksi internet. Jika karyawan melakukan absensi dalam kondisi offline, 
+data check-in atau check-out akan disimpan terlebih dahulu di perangkat. Setelah koneksi internet 
+kembali tersedia, data tersebut akan dikirim otomatis ke server. Tujuan penggunaan Local Storage 
+adalah agar karyawan tetap dapat melakukan absensi meskipun sedang berada dalam kondisi jaringan 
+yang tidak stabil. 
+7.7.​
+Push Notification 
+Push Notification digunakan untuk memberikan pengingat dan informasi kepada pengguna. 
+Aplikasi dapat mengirimkan notifikasi seperti pengingat check-in, pengingat check-out, status 
+pengajuan izin, status pengajuan cuti, atau informasi sinkronisasi data offline. Tujuan penggunaan 
+Push Notification adalah membantu karyawan agar tidak lupa melakukan absensi dan tetap 
+mendapatkan informasi terbaru terkait status kehadiran maupun pengajuan mereka. 
+
+===== PAGE 8 =====
+ 
+8.​
+Arsitektur Sistem 
+Arsitektur sistem dirancang dengan pembagian tanggung jawab yang jelas antara sisi klien, 
+pemrosesan lokal gawai untuk efisiensi dan privasi, serta layanan awan berbasis open-source/free-tier: 
+ 
+ 
+
+===== PAGE 9 =====
+ 
+9.​
+Mockup Aplikasi 
+9.1.​
+Sistem Superadmin 
+ 
+Dashboard monitoring sistem 
+ 
+
+===== PAGE 10 =====
+ 
+ 
+Livechat tiket support 
+ 
+
+===== PAGE 11 =====
+ 
+9.2.​
+Admin Perusahaan (HR) 
+ 
+Dashboard Kehadiran Karyawan 
+ 
+
+===== PAGE 12 =====
+ 
+ 
+Overview live-attendance 
+ 
+ 
+
+===== PAGE 13 =====
+ 
+9.3.​
+Karyawan Perusahaan 
+ 
+Halaman Login Aplikasi Absensi 
+ 
+
+===== PAGE 14 =====
+ 
+ 
+Halaman Utama 
+ 
+
+===== PAGE 15 =====
+ 
+ 
+Verifikasi Wajah 

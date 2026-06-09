@@ -33,8 +33,8 @@ import type { AuthenticatedUser, ScopeAssignment } from '../types/auth'
 
 /** Shape of the JSON payload encoded inside x-user-context */
 interface UserContextPayload {
-  userId?: string      // App DB User.id — optional; resolved from authUserId if absent
-  authUserId: string
+  userId?: string      // App DB User.id — output only; never used to resolve identity
+  authUserId: string   // better-auth user id — the sole identity proof
   email: string
   fullName?: string
   workspaceId?: string // Optional; resolved from first active workspace if absent
@@ -109,25 +109,18 @@ export async function authenticate(
     return next(new UnauthenticatedError('User context tidak lengkap'))
   }
 
-  // 4. Look up User by userId or authUserId, then resolve workspaceId
+  // 4. Look up User by authUserId, then resolve workspaceId
   try {
-    // 4a. Resolve the app User record
-    //     Priority: userId > authUserId > email (fallback for seed users with placeholder authUserId)
-    let userRecord = payload.userId
-      ? await prisma.user.findUnique({ where: { id: payload.userId } })
-      : await prisma.user.findUnique({ where: { authUserId: payload.authUserId } })
-
-    // Fallback: look up by email (dev seed users have placeholder authUserId)
-    if (!userRecord && payload.email) {
-      userRecord = await prisma.user.findUnique({ where: { email: payload.email } })
-      // NOTE: intentionally NOT updating authUserId here — mutating authUserId
-      // from a request middleware would allow account takeover if the shared
-      // INTERNAL_JWT_SECRET is ever compromised. authUserId sync must be done
-      // via a separate trusted admin operation.
-    }
+    // 4a. Resolve the app User record strictly by the cryptographically
+    //     asserted identity (better-auth user id). We never resolve by email:
+    //     email is not an identity proof and could collide with a pre-provisioned
+    //     account, enabling account takeover via the public auth flow.
+    const userRecord = await prisma.user.findUnique({
+      where: { authUserId: payload.authUserId },
+    })
 
     if (!userRecord) {
-      await recordUnauthorizedAccess(req, null, `User not found: authUserId=${payload.authUserId}, email=${payload.email}`)
+      await recordUnauthorizedAccess(req, null, `User not found: authUserId=${payload.authUserId}`)
       return next(new UnauthenticatedError('User tidak ditemukan'))
     }
 

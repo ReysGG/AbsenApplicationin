@@ -12,7 +12,7 @@
  * Requirements: 1.10, 1.11, 19.4, 19.6
  */
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, Suspense } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
 import { useForm } from "react-hook-form"
@@ -47,7 +47,8 @@ const resetPasswordSchema = z
 type ResetPasswordValues = z.infer<typeof resetPasswordSchema>
 
 // ── Page ──────────────────────────────────────────────────────────────────────
-export default function ResetPasswordPage() {
+// useSearchParams() requires a Suspense boundary for static prerendering.
+function ResetPasswordForm() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const token = searchParams.get("token")
@@ -205,5 +206,13 @@ export default function ResetPasswordPage() {
         </Link>
       </CardFooter>
     </Card>
+  )
+}
+
+export default function ResetPasswordPage() {
+  return (
+    <Suspense fallback={<Card className="w-full max-w-sm shadow-lg" />}>
+      <ResetPasswordForm />
+    </Suspense>
   )
 }

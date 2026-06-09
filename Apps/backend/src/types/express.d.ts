@@ -9,7 +9,7 @@
  */
 
 import type { Workspace } from '@prisma/client'
-import type { AuthenticatedUser, ScopeFilter } from './auth'
+import type { AuthenticatedUser, ScopeFilter, MobileEmployee } from './auth'
 
 declare global {
   namespace Express {
@@ -22,6 +22,12 @@ declare global {
       workspaceId?: string
       /** Full Workspace record — set by `resolveActiveWorkspace` middleware */
       activeWorkspace?: Workspace
+      /**
+       * The Employee record for the authenticated mobile user — set by the
+       * `authenticateMobile` middleware. Mobile endpoints are scoped to this
+       * employee's own data.
+       */
+      employee?: MobileEmployee
       /**
        * Scope filter — set by `enforceScope` middleware.
        * `undefined` for Stakeholders (full workspace access).

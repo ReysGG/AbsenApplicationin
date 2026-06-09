@@ -150,19 +150,19 @@ function formatWorkDays(workDays: WorkDay[]): string {
 }
 
 /** Normalise the backend list response — handles both `data.data[]` and `data[]` */
-function extractShiftList(data: unknown): Shift[] {
+function extractShiftList<T = Shift>(data: unknown): T[] {
   if (!data) return [];
-  // Paginated shape: { data: Shift[], pagination: {...} }
+  // Paginated shape: { data: T[], pagination: {...} }
   if (
     typeof data === "object" &&
     data !== null &&
     "data" in data &&
-    Array.isArray((data as PaginatedData<Shift>).data)
+    Array.isArray((data as PaginatedData<T>).data)
   ) {
-    return (data as PaginatedData<Shift>).data;
+    return (data as PaginatedData<T>).data;
   }
   // Flat array shape
-  if (Array.isArray(data)) return data as Shift[];
+  if (Array.isArray(data)) return data as T[];
   return [];
 }
 
@@ -249,7 +249,7 @@ export default function ShiftsPage() {
         "v1/employees/without-shift"
       );
       if (res.success) {
-        const list = extractShiftList(res.data as unknown) as EmployeeWithoutShift[];
+        const list = extractShiftList<EmployeeWithoutShift>(res.data);
         setEmployeesWithoutShift(list);
       }
       // Silently ignore errors — the section just shows empty state

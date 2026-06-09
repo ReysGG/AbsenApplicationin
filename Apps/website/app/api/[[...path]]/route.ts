@@ -186,6 +186,7 @@ async function handler(
     const cookieValue = [
       `${ACTIVE_WORKSPACE_COOKIE}=${resolvedWorkspaceId}`,
       "Path=/",
+      "HttpOnly",
       "SameSite=Lax",
       `Max-Age=${60 * 60 * 24 * 7}`,
       isProduction ? "Secure" : "",

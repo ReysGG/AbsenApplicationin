@@ -1,30 +1,31 @@
-// This is a basic Flutter widget test.
-//
-// To perform an interaction with a widget in your test, use the WidgetTester
-// utility in the flutter_test package. For example, you can send tap and scroll
-// gestures. You can also use WidgetTester to find child widgets in the widget
-// tree, read text, and verify that the values of widget properties are correct.
-
-import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:app_flutter/main.dart';
+import 'package:app_flutter/shared/models/work_location.dart';
 
 void main() {
-  testWidgets('Counter increments smoke test', (WidgetTester tester) async {
-    // Build our app and trigger a frame.
-    await tester.pumpWidget(const MyApp());
+  group('WorkLocation geofence', () {
+    const office = WorkLocation(
+      id: 'loc-1',
+      name: 'Office',
+      latitude: -6.2088,
+      longitude: 106.8456,
+      radiusMeters: 100,
+    );
 
-    // Verify that our counter starts at 0.
-    expect(find.text('0'), findsOneWidget);
-    expect(find.text('1'), findsNothing);
+    test('point at the exact center is within the geofence', () {
+      expect(office.isWithinGeofence(-6.2088, 106.8456), isTrue);
+      expect(office.distanceMetersTo(-6.2088, 106.8456), closeTo(0, 0.5));
+    });
 
-    // Tap the '+' icon and trigger a frame.
-    await tester.tap(find.byIcon(Icons.add));
-    await tester.pump();
+    test('a far-away point is outside the geofence', () {
+      // Roughly Bandung — definitely outside a 100m radius.
+      expect(office.isWithinGeofence(-6.9175, 107.6191), isFalse);
+    });
 
-    // Verify that our counter has incremented.
-    expect(find.text('0'), findsNothing);
-    expect(find.text('1'), findsOneWidget);
+    test('a point ~35m away stays within a 100m radius', () {
+      final d = office.distanceMetersTo(-6.20885, 106.84575);
+      expect(d, lessThan(100));
+      expect(office.isWithinGeofence(-6.20885, 106.84575), isTrue);
+    });
   });
 }

@@ -20,6 +20,7 @@ import exportsRouter from './modules/exports/exports.routes'
 import settingsRouter from './modules/settings/settings.routes'
 import auditRouter from './modules/audit/audit.routes'
 import notificationsRouter from './modules/notifications/notifications.routes'
+import mobileRouter from './modules/mobile/mobile.routes'
 import { startExportWorker } from './jobs/exportWorker'
 import { startAbsentJob } from './jobs/absentJob'
 import { startMissingCheckoutJob } from './jobs/missingCheckoutJob'
@@ -86,6 +87,9 @@ app.use('/api/v1', auditRouter)
 
 // Notifications routes
 app.use('/api/v1', notificationsRouter)
+
+// Mobile API routes (bearer-token auth, self-service for end users)
+app.use('/api/v1', mobileRouter)
 
 // Health check
 app.get('/api/v1/health', (_req, res) => {

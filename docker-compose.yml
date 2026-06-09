@@ -1,0 +1,77 @@
+# AttendX local stack: Postgres + Express backend + Next.js website.
+#
+# Usage:
+#   cp .env.docker.example .env       # then edit secrets
+#   docker compose up --build
+#
+# Host ports (mulai dari 10000 agar tidak bentrok dengan service lain):
+#   website  → http://localhost:10000
+#   backend  → http://localhost:10001
+#   postgres → localhost:10002
+# Port di DALAM jaringan Docker tetap 3000/4000/5432 (antar-container).
+#
+# The Flutter mobile app is NOT containerized (it ships as an APK/IPA). Point it
+# at the backend with:
+#   flutter run --dart-define=USE_MOCK_DATA=false \
+#               --dart-define=API_BASE_URL=http://10.0.2.2:10001/api/v1
+# (10.0.2.2 is the host loopback from the Android emulator.)
+
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-attendx}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-attendx}
+      POSTGRES_DB: ${POSTGRES_DB:-attendx}
+    ports:
+      - "10002:5432"
+    volumes:
+      - attendx_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-attendx} -d ${POSTGRES_DB:-attendx}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  backend:
+    build:
+      context: ./Apps/backend
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      PORT: 4000
+      # Backend owns the schema (prisma db push) for the shared DB.
+      DATABASE_URL: postgresql://${POSTGRES_USER:-attendx}:${POSTGRES_PASSWORD:-attendx}@db:5432/${POSTGRES_DB:-attendx}?schema=public
+      DIRECT_URL: postgresql://${POSTGRES_USER:-attendx}:${POSTGRES_PASSWORD:-attendx}@db:5432/${POSTGRES_DB:-attendx}?schema=public
+      BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET}
+      BETTER_AUTH_URL: ${BETTER_AUTH_URL:-http://localhost:10000}
+      INTERNAL_JWT_SECRET: ${INTERNAL_JWT_SECRET}
+      CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:10000}
+      RUN_SEED: ${RUN_SEED:-true}
+    ports:
+      - "10001:4000"
+
+  website:
+    build:
+      context: ./Apps/website
+    restart: unless-stopped
+    depends_on:
+      - backend
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      DATABASE_URL: postgresql://${POSTGRES_USER:-attendx}:${POSTGRES_PASSWORD:-attendx}@db:5432/${POSTGRES_DB:-attendx}?schema=public
+      BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET}
+      BETTER_AUTH_URL: ${BETTER_AUTH_URL:-http://localhost:10000}
+      INTERNAL_JWT_SECRET: ${INTERNAL_JWT_SECRET}
+      # The website BFF proxies API calls to the backend container.
+      BACKEND_URL: http://backend:4000
+    ports:
+      - "10000:3000"
+
+volumes:
+  attendx_pgdata:
