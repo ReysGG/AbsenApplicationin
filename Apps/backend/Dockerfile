@@ -8,12 +8,17 @@ FROM node:22-alpine AS builder
 WORKDIR /app
 
 # Install all deps (incl. dev) for the TypeScript build + prisma generate.
+# `--legacy-peer-deps` matches the local install behaviour: better-auth pulls a
+# peer-optional zod@^4 while the project pins zod@3; npm 10's strict resolver
+# rejects the optional peer that's fine in practice.
 COPY package.json package-lock.json ./
-RUN npm ci
+RUN npm ci --legacy-peer-deps
 
 COPY prisma ./prisma
 COPY prisma.config.ts tsconfig.json ./
-# Generate the Prisma client against the schema.
+# `prisma generate` resolves env via prisma.config.ts → needs DATABASE_URL even
+# at build time (no actual DB query is made). Real value is injected at runtime.
+ENV DATABASE_URL="postgresql://build:build@localhost:5432/build"
 RUN npx prisma generate
 
 COPY src ./src
@@ -33,7 +38,9 @@ COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/prisma ./prisma
 COPY prisma.config.ts tsconfig.json ./
-COPY src/prisma/seed.ts ./src/prisma/seed.ts
+# Seed runs via tsx and imports sibling files (../lib/permissions, ../config/*).
+# Copy the whole src/ tree so those resolve at runtime.
+COPY src ./src
 COPY docker-entrypoint.sh ./docker-entrypoint.sh
 RUN chmod +x ./docker-entrypoint.sh
 

@@ -22,6 +22,7 @@
 
 import { Router } from 'express'
 import { authenticateMobile } from '../../middleware/authenticateMobile'
+import { authRateLimit } from '../../middleware/rateLimiter'
 import {
   mobileLoginHandler,
   mobileLogoutHandler,
@@ -37,14 +38,17 @@ import {
   checkOutHandler,
   leaveListHandler,
   createLeaveHandler,
+  cancelLeaveHandler,
   scheduleHandler,
   notificationsHandler,
+  markNotificationReadHandler,
+  markAllNotificationsReadHandler,
 } from './mobile.controller'
 
 const router = Router()
 
 // Public
-router.post('/mobile/auth/login', mobileLoginHandler)
+router.post('/mobile/auth/login', authRateLimit, mobileLoginHandler)
 
 // Authenticated (bearer)
 const guard = [authenticateMobile]
@@ -60,7 +64,10 @@ router.get('/mobile/me/shift', ...guard, shiftHandler)
 router.get('/mobile/me/locations', ...guard, locationsHandler)
 router.get('/mobile/me/leave-requests', ...guard, leaveListHandler)
 router.post('/mobile/me/leave-requests', ...guard, createLeaveHandler)
+router.post('/mobile/me/leave-requests/:id/cancel', ...guard, cancelLeaveHandler)
 router.get('/mobile/me/schedule', ...guard, scheduleHandler)
 router.get('/mobile/me/notifications', ...guard, notificationsHandler)
+router.post('/mobile/me/notifications/read-all', ...guard, markAllNotificationsReadHandler)
+router.post('/mobile/me/notifications/:id/read', ...guard, markNotificationReadHandler)
 
 export default router

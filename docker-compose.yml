@@ -54,16 +54,27 @@ services:
       RUN_SEED: ${RUN_SEED:-true}
     ports:
       - "10001:4000"
+    healthcheck:
+      # Node one-liner — works without curl/wget being present in alpine.
+      test: ["CMD", "node", "-e", "require('http').get('http://127.0.0.1:4000/api/v1/health',r=>process.exit(r.statusCode===200?0:1)).on('error',()=>process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
 
   website:
     build:
       context: ./Apps/website
     restart: unless-stopped
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy
     environment:
       NODE_ENV: production
       PORT: 3000
+      # Next.js standalone server defaults to localhost; bind 0.0.0.0 so the
+      # container's healthcheck (127.0.0.1) and the host port mapping both work.
+      HOSTNAME: 0.0.0.0
       DATABASE_URL: postgresql://${POSTGRES_USER:-attendx}:${POSTGRES_PASSWORD:-attendx}@db:5432/${POSTGRES_DB:-attendx}?schema=public
       BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET}
       BETTER_AUTH_URL: ${BETTER_AUTH_URL:-http://localhost:10000}
@@ -72,6 +83,12 @@ services:
       BACKEND_URL: http://backend:4000
     ports:
       - "10000:3000"
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://127.0.0.1:3000/',r=>process.exit(r.statusCode<500?0:1)).on('error',()=>process.exit(1))"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
 
 volumes:
   attendx_pgdata:

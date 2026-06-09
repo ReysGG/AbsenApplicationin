@@ -12,12 +12,15 @@ COPY package.json package-lock.json ./
 # postinstall runs `prisma generate`; ensure the schema is present first.
 COPY prisma ./prisma
 COPY prisma.config.ts ./
-RUN npm ci
+# A dummy DATABASE_URL lets postinstall (`prisma generate`) and `next build`
+# run without a live DB. Real values are injected at runtime via compose env.
+ENV DATABASE_URL="postgresql://build:build@localhost:5432/build"
+# `--legacy-peer-deps` mirrors the local install behaviour. better-auth pulls a
+# peer-optional zod@^4 while the project pins zod@3; npm 10's strict resolver
+# rejects this, but the optional peer is fine in practice.
+RUN npm ci --legacy-peer-deps
 
 COPY . .
-# A dummy DATABASE_URL lets `next build` run without a live DB (no queries at
-# build time). Real values are injected at runtime via compose env.
-ENV DATABASE_URL="postgresql://build:build@localhost:5432/build"
 RUN npm run build
 
 # ---------------------------------------------------------------------------

@@ -146,3 +146,32 @@ export async function notificationsHandler(req: Request, res: Response, next: Ne
     next(err)
   }
 }
+
+export async function cancelLeaveHandler(req: Request, res: Response, next: NextFunction) {
+  try {
+    const id = String(req.params.id)
+    const data = await service.cancelMyLeaveRequest(requireEmployee(req), id)
+    sendSuccess(res, data, 'Pengajuan dibatalkan')
+  } catch (err) {
+    next(err)
+  }
+}
+
+export async function markNotificationReadHandler(req: Request, res: Response, next: NextFunction) {
+  try {
+    const id = String(req.params.id)
+    await service.markNotificationRead(requireEmployee(req), req.user!.authUserId, id)
+    sendSuccess(res, null, 'Notifikasi ditandai dibaca')
+  } catch (err) {
+    next(err)
+  }
+}
+
+export async function markAllNotificationsReadHandler(req: Request, res: Response, next: NextFunction) {
+  try {
+    const data = await service.markAllNotificationsRead(requireEmployee(req), req.user!.authUserId)
+    sendSuccess(res, data, 'Semua notifikasi ditandai dibaca')
+  } catch (err) {
+    next(err)
+  }
+}

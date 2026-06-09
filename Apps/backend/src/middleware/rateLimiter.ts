@@ -47,3 +47,32 @@ export const sensitiveRateLimit = rateLimit({
     },
   },
 })
+
+/**
+ * Auth rate limit — 10 attempts per 15 minutes, keyed by IP + email.
+ * Apply to credential endpoints (e.g. POST /mobile/auth/login) to slow down
+ * brute-force attacks. Keying on IP+email avoids one attacker locking out a
+ * whole shared-NAT office while still throttling per-account guessing.
+ *
+ * Requirements: 1.8, 17.3
+ */
+export const authRateLimit = rateLimit({
+  windowMs: WINDOW_MS,
+  limit: 10,
+  standardHeaders: 'draft-7',
+  legacyHeaders: false,
+  keyGenerator: (req) => {
+    const email =
+      typeof (req.body as { email?: unknown })?.email === 'string'
+        ? ((req.body as { email: string }).email).toLowerCase().trim()
+        : ''
+    return `${req.ip ?? 'unknown'}:${email}`
+  },
+  message: {
+    success: false,
+    error: {
+      code: 'RATE_LIMITED',
+      message: 'Terlalu banyak percobaan masuk. Coba lagi nanti.',
+    },
+  },
+})

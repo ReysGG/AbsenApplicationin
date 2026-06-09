@@ -46,9 +46,13 @@ class RemoteLeaveRepository implements LeaveRepository {
 
   @override
   Future<void> cancel(String id) async {
-    // Cancellation endpoint is not yet exposed on the mobile API; the UI keeps
-    // this as a no-op until the backend adds DELETE /mobile/me/leave-requests/:id.
-    throw UnimplementedError('Pembatalan pengajuan belum tersedia.');
+    try {
+      await _dio.post<Map<String, dynamic>>(
+        '/mobile/me/leave-requests/$id/cancel',
+      );
+    } on DioException catch (e) {
+      throw DioClient.mapError(e);
+    }
   }
 
   String _dateOnly(DateTime d) =>

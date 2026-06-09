@@ -28,11 +28,23 @@ class RemoteNotificationRepository implements NotificationRepository {
 
   @override
   Future<void> markRead(String id) async {
-    // Mark-read endpoint not yet exposed on the mobile API surface; no-op.
+    try {
+      await _dio.post<Map<String, dynamic>>(
+        '/mobile/me/notifications/$id/read',
+      );
+    } on DioException catch (e) {
+      throw DioClient.mapError(e);
+    }
   }
 
   @override
   Future<void> markAllRead() async {
-    // Mark-all-read endpoint not yet exposed on the mobile API surface; no-op.
+    try {
+      await _dio.post<Map<String, dynamic>>(
+        '/mobile/me/notifications/read-all',
+      );
+    } on DioException catch (e) {
+      throw DioClient.mapError(e);
+    }
   }
 }

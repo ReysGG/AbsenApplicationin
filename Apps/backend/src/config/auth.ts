@@ -14,16 +14,33 @@
  * Requirements: 1.1, 1.3, 1.4, 1.5, 17.4
  */
 import { betterAuth } from 'better-auth'
+import { prismaAdapter } from '@better-auth/prisma-adapter'
 import { bearer } from 'better-auth/plugins'
+import { prisma } from './prisma'
 import { env } from './env'
 
-// better-auth with PostgreSQL via connection string (Prisma-less mode)
-// This avoids the need for the backend Prisma schema to have auth tables
+// Use the Prisma adapter (same as Apps/website) so the backend talks to the
+// shared better-auth tables through the same Prisma client used by the rest of
+// the app. The kysely-pg path (`{ type: 'postgresql', url }`) failed to
+// initialise the adapter in this environment.
+//
+// Backend's Prisma schema names the auth models AuthUser/AuthSession/...
+// (mapped to the shared `user`/`session`/... tables). Better-auth looks up
+// models by Prisma model name, so we override modelName to point at the
+// AuthX names.
 export const auth = betterAuth({
-  database: {
-    type: 'postgresql',
-    url: env.DATABASE_URL,
+  database: prismaAdapter(prisma, { provider: 'postgresql' }),
+
+  user: { modelName: 'AuthUser' },
+  session: {
+    modelName: 'AuthSession',
+    expiresIn: 60 * 60 * 24, // 24h
+    rememberMeExpiresIn: 60 * 60 * 24 * 7, // 7d
+    updateAge: 60 * 60 * 24,
+    cookieCache: { enabled: true, maxAge: 60 * 5 },
   },
+  account: { modelName: 'AuthAccount' },
+  verification: { modelName: 'AuthVerification' },
 
   secret: env.BETTER_AUTH_SECRET,
   baseURL: env.BETTER_AUTH_URL,
@@ -35,16 +52,5 @@ export const auth = betterAuth({
 
   emailAndPassword: {
     enabled: true,
-  },
-
-  session: {
-    /** Must match Apps/website session config */
-    expiresIn: 60 * 60 * 24,               // 24 hours
-    rememberMeExpiresIn: 60 * 60 * 24 * 7, // 7 days (remember-me)
-    updateAge: 60 * 60 * 24,               // auto-extend daily
-    cookieCache: {
-      enabled: true,
-      maxAge: 60 * 5,
-    },
   },
 })
