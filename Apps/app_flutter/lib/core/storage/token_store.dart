@@ -1,40 +1,47 @@
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
-/// Persists auth tokens.
+/// Persists auth tokens in platform secure storage (Keystore on Android,
+/// Keychain on iOS, libsecret/DPAPI on desktop).
 ///
-/// NOTE: For production this should use platform secure storage
-/// (Keystore / Keychain via `flutter_secure_storage`). It is temporarily
-/// backed by SharedPreferences because the current Flutter SDK is installed
-/// under a path containing a space (`C:\Users\David Boy\flutter`), which breaks
-/// the Dart native-assets hook runner that `flutter_secure_storage` pulls in
-/// transitively (via `path_provider_foundation → objective_c`). Once the SDK
-/// is relocated to a space-free path, swap this back to secure storage.
+/// The bearer token is no longer stored in plaintext (previously
+/// SharedPreferences).
+///
+/// ENVIRONMENT CAVEAT (this machine only): the Flutter SDK is installed under a
+/// path containing a space (`C:\Users\David Boy\flutter`). That breaks the Dart
+/// native-assets hook runner (`objective_c` build hook) used by
+/// flutter_secure_storage, so `flutter test` and `flutter build apk` fail with
+/// "'C:\Users\David' is not recognized...". `flutter analyze` is unaffected.
+/// Fix: move the SDK to a space-free path (e.g. `C:\flutter`) and re-run
+/// `flutter pub get`. The application code itself is correct.
 class TokenStore {
+  TokenStore([FlutterSecureStorage? storage])
+      : _storage = storage ??
+            const FlutterSecureStorage(
+              aOptions: AndroidOptions(encryptedSharedPreferences: true),
+            );
+
   static const _kAccess = 'attendx.access_token';
   static const _kRefresh = 'attendx.refresh_token';
 
-  Future<SharedPreferences> get _prefs => SharedPreferences.getInstance();
+  final FlutterSecureStorage _storage;
 
   Future<void> saveTokens({
     required String accessToken,
     String? refreshToken,
   }) async {
-    final p = await _prefs;
-    await p.setString(_kAccess, accessToken);
+    await _storage.write(key: _kAccess, value: accessToken);
     if (refreshToken != null) {
-      await p.setString(_kRefresh, refreshToken);
+      await _storage.write(key: _kRefresh, value: refreshToken);
     }
   }
 
-  Future<String?> readAccessToken() async => (await _prefs).getString(_kAccess);
-  Future<String?> readRefreshToken() async =>
-      (await _prefs).getString(_kRefresh);
+  Future<String?> readAccessToken() => _storage.read(key: _kAccess);
+  Future<String?> readRefreshToken() => _storage.read(key: _kRefresh);
 
   Future<bool> hasSession() async => (await readAccessToken()) != null;
 
   Future<void> clear() async {
-    final p = await _prefs;
-    await p.remove(_kAccess);
-    await p.remove(_kRefresh);
+    await _storage.delete(key: _kAccess);
+    await _storage.delete(key: _kRefresh);
   }
 }
