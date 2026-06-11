@@ -16,7 +16,7 @@ export function TopTenantsList({ tenants }: TopTenantsListProps) {
           <div key={t.name}>
             <div className="flex justify-between text-xs mb-1.5">
               <span className="font-medium text-on-surface text-xs">{t.name}</span>
-              <span className="text-on-surface-variant text-xs">{t.users.toLocaleString()} users</span>
+              <span className="text-on-surface-variant text-xs">{(t.users ?? 0).toLocaleString()} users</span>
             </div>
             <div className="w-full bg-surface-container rounded-full h-2">
               <div

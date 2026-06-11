@@ -64,9 +64,16 @@ async function apiFetch<T>(
   const { baseUrl, headers: defaultHeaders = {} } = options;
   const { params, ...fetchInit } = init;
 
-  // Build URL — strip leading slash from path to avoid double-slash
+  // Build URL — strip leading slash from path to avoid double-slash.
+  // `baseUrl` may be relative (client client uses "/api"); new URL() requires
+  // an absolute URL, so resolve relative bases against the current origin.
   const cleanPath = path.startsWith("/") ? path.slice(1) : path;
-  const url = new URL(`${baseUrl}/${cleanPath}`);
+  const rawUrl = `${baseUrl}/${cleanPath}`;
+  const origin =
+    typeof window !== "undefined" ? window.location.origin : undefined;
+  const url = /^https?:\/\//.test(rawUrl)
+    ? new URL(rawUrl)
+    : new URL(rawUrl, origin ?? "http://localhost");
 
   if (params) {
     Object.entries(params).forEach(([key, value]) => {
@@ -83,9 +90,44 @@ async function apiFetch<T>(
     },
   });
 
-  // Parse JSON — backend always returns ApiResponse shape
-  const json = (await response.json()) as ApiResponse<T>;
-  return json;
+  // Parse JSON — backend returns the ApiResponse shape.
+  const json = (await response.json()) as
+    | (ApiSuccess<unknown> & { pagination?: unknown })
+    | ApiError;
+
+  // Normalize paginated list responses to PaginatedData nested under `data`:
+  //   { success, data: { data: [...], pagination: {...} } }
+  // The backend uses two flavours:
+  //   (a) FLAT:   { success, data: [...], pagination: {...} }
+  //   (b) NESTED: { success, data: { items: [...], pagination: {...} } }  (e.g. audit-logs)
+  // Re-shape both so list pages reading `res.data.data` + `res.data.pagination` work.
+  if (json.success) {
+    // (a) flat: pagination is a sibling of data, data is an array
+    if (
+      "pagination" in json &&
+      json.pagination !== undefined &&
+      Array.isArray((json as { data?: unknown }).data)
+    ) {
+      return {
+        success: true,
+        data: { data: json.data, pagination: json.pagination },
+        message: json.message,
+      } as unknown as ApiResponse<T>;
+    }
+    // (b) nested: data is an object holding `items` + `pagination`
+    const d = (json as { data?: unknown }).data as
+      | { items?: unknown; pagination?: unknown }
+      | undefined;
+    if (d && typeof d === "object" && Array.isArray(d.items) && d.pagination) {
+      return {
+        success: true,
+        data: { data: d.items, pagination: d.pagination },
+        message: json.message,
+      } as unknown as ApiResponse<T>;
+    }
+  }
+
+  return json as ApiResponse<T>;
 }
 
 // ---------------------------------------------------------------------------

@@ -149,7 +149,7 @@ export function TenantTable({
                       </span>
                     </td>
                     <td className="py-4 px-6 font-medium text-xs">
-                      {tenant.users.toLocaleString()}
+                      {(tenant.users ?? 0).toLocaleString()}
                     </td>
                     <td className="py-4 px-6">
                       <span

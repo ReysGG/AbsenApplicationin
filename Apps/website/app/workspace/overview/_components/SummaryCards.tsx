@@ -139,7 +139,7 @@ export default function SummaryCards({ data, loading }: SummaryCardsProps) {
     >
       {CARDS.map((card) => {
         const Icon = card.icon;
-        const value = data[card.key];
+        const value = data[card.key] ?? 0;
         const inner = (
           <div className="bg-white rounded-xl border border-gray-200 p-5 shadow-sm flex flex-col gap-2 hover:shadow-md transition-shadow h-full">
             <div className="flex items-center justify-between">

@@ -142,9 +142,19 @@ export default function OverviewPage() {
           api.get<LivePreviewItem[]>("v1/dashboard/live-preview", params),
         ]);
 
-      // Summary
+      // Summary — backend returns camelCase; component/type expect snake_case.
       if (summaryRes.status === "fulfilled" && summaryRes.value.success) {
-        setSummary({ data: summaryRes.value.data, loading: false, error: null });
+        const r = (summaryRes.value.data ?? {}) as unknown as Record<string, unknown>;
+        const summaryData = {
+          total_employees: (r.total_employees ?? r.totalEmployees ?? 0) as number,
+          present: (r.present ?? r.presentToday ?? 0) as number,
+          late: (r.late ?? r.lateToday ?? 0) as number,
+          on_leave: (r.on_leave ?? r.onLeave ?? 0) as number,
+          absent: (r.absent ?? 0) as number,
+          pending_checkout: (r.pending_checkout ?? r.pendingCheckout ?? 0) as number,
+          date: (r.date ?? "") as string,
+        } as DashboardSummary;
+        setSummary({ data: summaryData, loading: false, error: null });
       } else {
         const msg =
           summaryRes.status === "rejected"
@@ -155,9 +165,29 @@ export default function OverviewPage() {
         setSummary({ data: null, loading: false, error: msg });
       }
 
-      // Trend
+      // Trend — backend returns { labels: string[], series: { present, late, absent } };
+      // the chart expects an array of points { date, present, late, absent }.
       if (trendRes.status === "fulfilled" && trendRes.value.success) {
-        setTrend({ data: trendRes.value.data, loading: false, error: null });
+        const raw = trendRes.value.data as unknown as {
+          labels?: string[];
+          series?: Record<string, number[]>;
+        };
+        let points: AttendanceTrendPoint[];
+        if (Array.isArray(raw)) {
+          // Already in point form.
+          points = raw as AttendanceTrendPoint[];
+        } else if (raw && Array.isArray(raw.labels)) {
+          const s = raw.series ?? {};
+          points = raw.labels.map((date, i) => ({
+            date,
+            present: s.present?.[i] ?? 0,
+            late: s.late?.[i] ?? 0,
+            absent: s.absent?.[i] ?? 0,
+          })) as AttendanceTrendPoint[];
+        } else {
+          points = [];
+        }
+        setTrend({ data: points, loading: false, error: null });
       } else {
         const msg =
           trendRes.status === "rejected"
@@ -168,13 +198,20 @@ export default function OverviewPage() {
         setTrend({ data: null, loading: false, error: msg });
       }
 
-      // Breakdown
+      // Breakdown — backend returns camelCase; component expects snake_case.
       if (breakdownRes.status === "fulfilled" && breakdownRes.value.success) {
-        setBreakdown({
-          data: breakdownRes.value.data,
-          loading: false,
-          error: null,
-        });
+        const rawRows = (breakdownRes.value.data ?? []) as unknown as Array<
+          Record<string, unknown>
+        >;
+        const rows = (Array.isArray(rawRows) ? rawRows : []).map((r) => ({
+          department_id: (r.department_id ?? r.departmentId ?? "") as string,
+          department_name: (r.department_name ?? r.departmentName ?? "—") as string,
+          total_employees: (r.total_employees ?? r.totalEmployees ?? 0) as number,
+          present: (r.present ?? 0) as number,
+          late: (r.late ?? 0) as number,
+          absent: (r.absent ?? 0) as number,
+        })) as unknown as DepartmentBreakdownRow[];
+        setBreakdown({ data: rows, loading: false, error: null });
       } else {
         const msg =
           breakdownRes.status === "rejected"
@@ -185,13 +222,21 @@ export default function OverviewPage() {
         setBreakdown({ data: null, loading: false, error: msg });
       }
 
-      // Live preview
+      // Live preview — backend returns camelCase; component expects snake_case.
       if (previewRes.status === "fulfilled" && previewRes.value.success) {
-        setLivePreview({
-          data: previewRes.value.data,
-          loading: false,
-          error: null,
-        });
+        const rawItems = (previewRes.value.data ?? []) as unknown as Array<
+          Record<string, unknown>
+        >;
+        const items = (Array.isArray(rawItems) ? rawItems : []).map((r) => ({
+          attendance_id: (r.attendance_id ?? r.attendanceId ?? r.employeeId ?? "") as string,
+          employee_id: (r.employee_id ?? r.employeeId ?? "") as string,
+          employee_name: (r.employee_name ?? r.employeeName ?? "—") as string,
+          employee_code: (r.employee_code ?? r.employeeCode ?? "") as string,
+          department_name: (r.department_name ?? r.departmentName ?? r.department ?? "—") as string,
+          check_in_at: (r.check_in_at ?? r.checkInAt ?? "") as string,
+          status: (r.status ?? "") as LivePreviewItem["status"],
+        })) as LivePreviewItem[];
+        setLivePreview({ data: items, loading: false, error: null });
       } else {
         const msg =
           previewRes.status === "rejected"
