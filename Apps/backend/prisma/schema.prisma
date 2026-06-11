@@ -247,6 +247,8 @@ model Tenant {
   updatedAt  DateTime     @updatedAt @map("updated_at")
 
   workspaces Workspace[]
+  invoices   Invoice[]
+  tickets    SupportTicket[]
 
   @@map("tenants")
 }
@@ -690,4 +692,90 @@ model Notification {
   @@index([recipientAuthUserId])
   @@index([isRead])
   @@map("notifications")
+}
+
+// ---------------------------------------------------------------------------
+// Platform-admin models (super_admin / admin_platform) — cross-tenant.
+// These power the /admin platform console (tenants, billing, tickets).
+// NOT workspace-scoped: platform admins operate across all tenants.
+// ---------------------------------------------------------------------------
+
+enum InvoiceStatus {
+  Paid
+  Pending
+  Overdue
+}
+
+enum TicketStatus {
+  Open
+  InProgress
+  Closed
+}
+
+enum TicketPriority {
+  High
+  Medium
+  Low
+}
+
+enum TicketCategory {
+  Billing
+  Technical
+  FeatureRequest
+}
+
+enum TicketSender {
+  Client
+  Agent
+}
+
+model Invoice {
+  id          String        @id @default(cuid())
+  tenantId    String        @map("tenant_id")
+  plan        String
+  amountCents Int           @map("amount_cents")
+  status      InvoiceStatus @default(Pending)
+  issuedDate  DateTime      @map("issued_date")
+  dueDate     DateTime      @map("due_date")
+  createdAt   DateTime      @default(now()) @map("created_at")
+  updatedAt   DateTime      @updatedAt @map("updated_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+
+  @@index([tenantId])
+  @@index([status])
+  @@map("invoices")
+}
+
+model SupportTicket {
+  id          String         @id @default(cuid())
+  tenantId    String         @map("tenant_id")
+  title       String
+  description String
+  priority    TicketPriority @default(Medium)
+  status      TicketStatus   @default(Open)
+  category    TicketCategory @default(Technical)
+  createdAt   DateTime       @default(now()) @map("created_at")
+  updatedAt   DateTime       @updatedAt @map("updated_at")
+
+  tenant   Tenant          @relation(fields: [tenantId], references: [id])
+  messages TicketMessage[]
+
+  @@index([tenantId])
+  @@index([status])
+  @@map("support_tickets")
+}
+
+model TicketMessage {
+  id         String       @id @default(cuid())
+  ticketId   String       @map("ticket_id")
+  sender     TicketSender
+  senderName String       @map("sender_name")
+  body       String
+  createdAt  DateTime     @default(now()) @map("created_at")
+
+  ticket SupportTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+
+  @@index([ticketId])
+  @@map("ticket_messages")
 }

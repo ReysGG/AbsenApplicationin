@@ -270,11 +270,38 @@ async function main(): Promise<void> {
   await (prisma as any).roleAssignmentPermission.createMany({ data: rapData })
   console.log(`✅ RoleAssignmentPermissions: HR Admin granted ${rapData.length} permissions`)
 
-  // ── 7. Departments ─────────────────────────────────────────────────────────
-  // deleteMany scoped to this workspace, then recreate
-  await (prisma as any).department.deleteMany({
-    where: { workspaceId: workspace.id },
-  })
+  // ── 7. Clean slate: wipe all workspace-scoped data in FK-safe order ──────────
+  // Use raw DELETE in the correct dependency order so FK constraints are never violated.
+  // Order: leaf tables first → parent tables last
+  await (prisma as any).$executeRawUnsafe(
+    `DELETE FROM attendance_raw_logs WHERE workspace_id = $1`, workspace.id
+  )
+  await (prisma as any).$executeRawUnsafe(
+    `DELETE FROM attendance_logs WHERE workspace_id = $1`, workspace.id
+  )
+  await (prisma as any).$executeRawUnsafe(
+    `DELETE FROM leave_requests WHERE workspace_id = $1`, workspace.id
+  )
+  await (prisma as any).$executeRawUnsafe(
+    `DELETE FROM notifications WHERE workspace_id = $1`, workspace.id
+  )
+  // employee_wfh_locations has no workspace_id, delete via employee join
+  await (prisma as any).$executeRawUnsafe(
+    `DELETE FROM employee_wfh_locations WHERE employee_id IN (SELECT id FROM employees WHERE workspace_id = $1)`, workspace.id
+  )
+  await (prisma as any).$executeRawUnsafe(
+    `DELETE FROM employees WHERE workspace_id = $1`, workspace.id
+  )
+  await (prisma as any).$executeRawUnsafe(
+    `DELETE FROM departments WHERE workspace_id = $1`, workspace.id
+  )
+  await (prisma as any).$executeRawUnsafe(
+    `DELETE FROM locations WHERE workspace_id = $1`, workspace.id
+  )
+  await (prisma as any).$executeRawUnsafe(
+    `DELETE FROM shifts WHERE workspace_id = $1`, workspace.id
+  )
+  console.log(`✅ Workspace data cleared (FK-safe)`)
   const departmentNames = ['Engineering', 'Human Resources', 'Operations']
   const departments: Array<{ id: string; name: string }> = []
   for (const name of departmentNames) {
@@ -287,9 +314,6 @@ async function main(): Promise<void> {
   console.log(`✅ Departments: ${departments.map((d) => d.name).join(', ')}`)
 
   // ── 8. Locations ───────────────────────────────────────────────────────────
-  await (prisma as any).location.deleteMany({
-    where: { workspaceId: workspace.id },
-  })
   const locationKantorJakarta = await (prisma as any).location.create({
     data: {
       workspaceId: workspace.id,
@@ -319,9 +343,6 @@ async function main(): Promise<void> {
   )
 
   // ── 9. Shifts ──────────────────────────────────────────────────────────────
-  await (prisma as any).shift.deleteMany({
-    where: { workspaceId: workspace.id },
-  })
   const workDaysWeekday = [
     'MONDAY',
     'TUESDAY',
@@ -361,14 +382,6 @@ async function main(): Promise<void> {
   })
   console.log(`✅ Shifts: ${shiftPagi.name}, ${shiftSiang.name}`)
 
-  // ── 10. Employees ──────────────────────────────────────────────────────────
-  // Delete attendance logs first to avoid FK constraint
-  await (prisma as any).attendanceLog.deleteMany({
-    where: { workspaceId: workspace.id },
-  })
-  await (prisma as any).employee.deleteMany({
-    where: { workspaceId: workspace.id },
-  })
 
   type EmployeeInput = {
     code: string
@@ -563,6 +576,69 @@ async function main(): Promise<void> {
   console.log(
     `✅ AttendanceLogs: ${attendanceLogs.length} records for last 7 weekdays`,
   )
+
+  // ── 12. Platform-admin seed (tenants, invoices, tickets) ───────────────────
+  // Make the stakeholder a platform super_admin so /admin is reachable.
+  await (prisma as any).user.update({
+    where: { id: stakeholderUser.id },
+    data: { globalRole: 'super_admin' },
+  })
+  // Give the primary tenant a plan.
+  await (prisma as any).tenant.update({
+    where: { id: tenant.id },
+    data: { plan: 'Enterprise' },
+  })
+
+  // A couple of extra demo tenants (idempotent by slug).
+  const demoTenants = [
+    { name: 'Globex Inc.', slug: 'globex', plan: 'Pro', status: 'Active' },
+    { name: 'Stark Industries', slug: 'stark', plan: 'Basic', status: 'Suspended' },
+  ]
+  const tenantIds: Record<string, string> = { [tenant.slug]: tenant.id }
+  for (const t of demoTenants) {
+    const row = await (prisma as any).tenant.upsert({
+      where: { slug: t.slug },
+      update: { plan: t.plan, status: t.status },
+      create: { name: t.name, slug: t.slug, plan: t.plan, status: t.status },
+    })
+    tenantIds[t.slug] = row.id
+  }
+
+  // Invoices (reset + recreate for idempotency).
+  await (prisma as any).invoice.deleteMany({})
+  const now2 = new Date()
+  const day = 86400000
+  await (prisma as any).invoice.createMany({
+    data: [
+      { tenantId: tenant.id, plan: 'Enterprise', amountCents: 49900, status: 'Paid', issuedDate: new Date(now2.getTime() - 20 * day), dueDate: new Date(now2.getTime() - 6 * day) },
+      { tenantId: tenantIds['globex'], plan: 'Pro', amountCents: 19900, status: 'Pending', issuedDate: new Date(now2.getTime() - 5 * day), dueDate: new Date(now2.getTime() + 9 * day) },
+      { tenantId: tenantIds['stark'], plan: 'Basic', amountCents: 4900, status: 'Overdue', issuedDate: new Date(now2.getTime() - 40 * day), dueDate: new Date(now2.getTime() - 26 * day) },
+    ],
+  })
+
+  // Support tickets + initial client message (reset for idempotency).
+  await (prisma as any).ticketMessage.deleteMany({})
+  await (prisma as any).supportTicket.deleteMany({})
+  const ticket1 = await (prisma as any).supportTicket.create({
+    data: {
+      tenantId: tenant.id,
+      title: 'Geofencing check-in issues on Android 14',
+      description: 'Beberapa karyawan melaporkan koordinat GPS tidak terambil saat check-in di perangkat Android 14.',
+      priority: 'High', status: 'Open', category: 'Technical',
+    },
+  })
+  await (prisma as any).ticketMessage.create({
+    data: { ticketId: ticket1.id, sender: 'Client', senderName: 'Admin Acme', body: 'Halo tim support, kami menemui masalah check-in di Android 14. Mohon dicek.' },
+  })
+  await (prisma as any).supportTicket.create({
+    data: {
+      tenantId: tenantIds['globex'],
+      title: 'Export rekap bulanan timeout',
+      description: 'Spinner berputar lama hingga timeout saat mengunduh rekap bulanan.',
+      priority: 'Medium', status: 'InProgress', category: 'Billing',
+    },
+  })
+  console.log('✅ Platform seed: stakeholder→super_admin, 3 tenants, 3 invoices, 2 tickets')
 
   // ── Done ───────────────────────────────────────────────────────────────────
   console.log('\n🎉 Seed completed successfully!')

@@ -21,6 +21,7 @@ import settingsRouter from './modules/settings/settings.routes'
 import auditRouter from './modules/audit/audit.routes'
 import notificationsRouter from './modules/notifications/notifications.routes'
 import mobileRouter from './modules/mobile/mobile.routes'
+import platformRouter from './modules/platform/platform.routes'
 import { startExportWorker } from './jobs/exportWorker'
 import { startAbsentJob } from './jobs/absentJob'
 import { startMissingCheckoutJob } from './jobs/missingCheckoutJob'
@@ -90,6 +91,9 @@ app.use('/api/v1', notificationsRouter)
 
 // Mobile API routes (bearer-token auth, self-service for end users)
 app.use('/api/v1', mobileRouter)
+
+// Platform-admin console routes (globalRole gate, cross-tenant)
+app.use('/api/v1', platformRouter)
 
 // Health check
 app.get('/api/v1/health', (_req, res) => {

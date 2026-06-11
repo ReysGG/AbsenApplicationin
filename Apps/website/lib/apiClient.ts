@@ -146,11 +146,16 @@ function createApiClient(baseUrl: string, defaultHeaders: Record<string, string>
  * Pass `requestHeaders` (from `await headers()`) to forward cookies so the
  * BFF proxy can resolve the better-auth session.
  *
- * The URL defaults to NEXT_PUBLIC_APP_URL or http://localhost:3000.
+ * IMPORTANT: server-side code runs INSIDE the container/host and must call the
+ * app on the port it actually listens on (PORT, default 3000) — NOT the public
+ * NEXT_PUBLIC_APP_URL (e.g. http://localhost:10000), which is the host-mapped
+ * port and is unreachable from inside the container. Use INTERNAL_APP_URL to
+ * override explicitly if needed.
  */
 export function createServerApiClient(requestHeaders?: Headers): ApiClient {
+  const port = process.env.PORT ?? "3000";
   const appUrl =
-    process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
+    process.env.INTERNAL_APP_URL ?? `http://localhost:${port}`;
   const baseUrl = `${appUrl}/api`;
 
   // Forward Cookie header so the BFF can validate the better-auth session

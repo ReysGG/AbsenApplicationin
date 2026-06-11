@@ -37,10 +37,85 @@ function generateRequestId(): string {
   return `${Date.now().toString(16)}-${Math.random().toString(16).slice(2)}`;
 }
 
-/** Extract the path segments from the Next.js catch-all params. */
+/** Extract the path segments from the Next.js catch-all params.
+ *
+ * Strips a leading "v1" segment if present so that callers can use either
+ * convention: `api.get("v1/employees")` or `api.get("employees")`. The BFF
+ * always prepends `/api/v1` itself, so the leading `v1/` would otherwise
+ * produce a double-`v1` URL at the backend.
+ */
 function resolvePath(params: { path?: string[] }): string {
   if (!params.path || params.path.length === 0) return "";
-  return "/" + params.path.join("/");
+  const segments = params.path[0] === "v1" ? params.path.slice(1) : params.path;
+  return "/" + segments.join("/");
+}
+
+/**
+ * Public backend endpoints that must be reachable WITHOUT a logged-in session.
+ * These map to backend routes that are intentionally unauthenticated (no
+ * `authenticate` middleware) — e.g. employee account activation, where the
+ * employee has no account/session yet. The BFF forwards these straight through
+ * without signing a user-context header.
+ */
+const PUBLIC_BACKEND_PATHS = ["/employees/activate"];
+
+function isPublicBackendPath(path: string): boolean {
+  return PUBLIC_BACKEND_PATHS.some((p) => path === p || path.startsWith(p + "/"));
+}
+
+/** Forward a request to Express without a user-context header (public route). */
+async function forwardPublic(req: NextRequest, path: string): Promise<NextResponse> {
+  const backendUrl = new URL(`/api/v1${path}`, BACKEND_URL);
+  req.nextUrl.searchParams.forEach((value, key) => {
+    backendUrl.searchParams.set(key, value);
+  });
+
+  const requestId = req.headers.get("x-request-id") ?? generateRequestId();
+  const forwardedHeaders = new Headers();
+  req.headers.forEach((value, key) => {
+    const lower = key.toLowerCase();
+    if (lower === "host" || lower === "x-user-context" || lower === "x-user-context-sig") {
+      return;
+    }
+    forwardedHeaders.set(key, value);
+  });
+  forwardedHeaders.set("x-request-id", requestId);
+
+  const method = req.method.toUpperCase();
+  const hasBody =
+    ["POST", "PATCH", "PUT", "DELETE"].includes(method) &&
+    req.headers.get("content-length") !== "0";
+  const body: BodyInit | undefined = hasBody && req.body ? (req.body as BodyInit) : undefined;
+
+  try {
+    const backendResponse = await fetch(backendUrl.toString(), {
+      method,
+      headers: forwardedHeaders,
+      body,
+      // @ts-expect-error — Node 18+ supports duplex for streaming
+      duplex: body ? "half" : undefined,
+    });
+    const responseHeaders = new Headers();
+    backendResponse.headers.forEach((value, key) => {
+      const lower = key.toLowerCase();
+      if (lower === "transfer-encoding" || lower === "connection") return;
+      responseHeaders.set(key, value);
+    });
+    responseHeaders.set("x-request-id", requestId);
+    return new NextResponse(backendResponse.body, {
+      status: backendResponse.status,
+      headers: responseHeaders,
+    });
+  } catch (err) {
+    console.error("[BFF] Failed to reach backend (public):", err);
+    return NextResponse.json(
+      {
+        success: false,
+        error: { code: "INTERNAL_ERROR", message: "Backend tidak dapat dihubungi. Coba lagi nanti." },
+      },
+      { status: 502 }
+    );
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -51,6 +126,14 @@ async function handler(
   req: NextRequest,
   context: { params: Promise<{ path?: string[] }> }
 ) {
+  // 0. Public endpoints (e.g. account activation) bypass the session gate —
+  //    the user is not logged in yet by design.
+  const earlyParams = await context.params;
+  const earlyPath = resolvePath(earlyParams);
+  if (isPublicBackendPath(earlyPath)) {
+    return forwardPublic(req, earlyPath);
+  }
+
   // 1. Resolve session (better-auth server-side)
   const headersList = await headers();
   const session = await auth.api.getSession({ headers: headersList });

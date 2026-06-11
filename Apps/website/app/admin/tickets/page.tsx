@@ -1,14 +1,14 @@
 "use client";
 
-import React, { useState } from "react";
-import { Ticket, Search, Filter, AlertCircle, Clock, CheckCircle2, ChevronRight, CornerDownLeft, Send, User, Building, Trash, Ban, Check, ArrowRight } from "lucide-react";
+import React, { useState, useEffect, useCallback } from "react";
+import { Ticket, Search, CheckCircle2, ChevronRight, Send, Building } from "lucide-react";
 import { PageHeader } from "../_components/PageHeader";
+import { createClientApiClient } from "@/lib/apiClient";
 
 interface Message {
   id: string;
   sender: "Client" | "Agent";
   senderName: string;
-  avatarInitials: string;
   message: string;
   time: string;
 }
@@ -25,161 +25,89 @@ interface SupportTicket {
   messages: Message[];
 }
 
-const initialTickets: SupportTicket[] = [
-  {
-    id: "TCK-1092",
-    tenant: "Acme Corp",
-    title: "Geofencing check-in issues on Android 14",
-    description: "Multiple employees reporting that GPS coordinates are not fetching when checking in on Samsung S24 devices running Android 14.",
-    priority: "High",
-    status: "Open",
-    category: "Technical",
-    updatedAt: "10 mins ago",
-    messages: [
-      {
-        id: "1",
-        sender: "Client",
-        senderName: "Sarah Jenkins (Acme Corp Owner)",
-        avatarInitials: "SJ",
-        message: "Hi support team, we are facing an urgent issue with Android 14 check-ins. Geofencing seems to fail repeatedly. Could you check if the API payload is validated correctly?",
-        time: "10 mins ago",
-      },
-    ],
-  },
-  {
-    id: "TCK-1090",
-    tenant: "Globex Inc.",
-    title: "Cannot download monthly rekap excel report",
-    description: "When downloading monthly attendance rekap, we are getting a 504 Gateway Timeout error. This is blocking our payroll processing.",
-    priority: "High",
-    status: "In Progress",
-    category: "Technical",
-    updatedAt: "2 hours ago",
-    messages: [
-      {
-        id: "1",
-        sender: "Client",
-        senderName: "Budi Santoso (Globex Admin)",
-        avatarInitials: "BS",
-        message: "We need the monthly rekap excel report downloaded immediately. The spinner just keeps loading until a timeout occurs.",
-        time: "5 hours ago",
-      },
-      {
-        id: "2",
-        sender: "Agent",
-        senderName: "Michael Chen (Support)",
-        avatarInitials: "MC",
-        message: "Hello Budi, I am looking into the database query performance for monthly excel reports. It appears the date indices are slow for large employee lists. I will update you soon.",
-        time: "2 hours ago",
-      },
-    ],
-  },
-  {
-    id: "TCK-1088",
-    tenant: "Initech",
-    title: "Change billing payment method",
-    description: "Need to update credit card on file for subscription renewals. The system keeps rejecting our corporate Visa card.",
-    priority: "Medium",
-    status: "Closed",
-    category: "Billing",
-    updatedAt: "1 day ago",
-    messages: [
-      {
-        id: "1",
-        sender: "Client",
-        senderName: "Peter Gibbons",
-        avatarInitials: "PG",
-        message: "Could you reset our billing profile? Our new corporate card keeps getting rejected.",
-        time: "1 day ago",
-      },
-      {
-        id: "2",
-        sender: "Agent",
-        senderName: "Elena Rodriguez (Billing)",
-        avatarInitials: "ER",
-        message: "Hi Peter, I have cleared the billing attempt cache. Please try entering the credit card information now. Let me know if it goes through.",
-        time: "18 hours ago",
-      },
-      {
-        id: "3",
-        sender: "Client",
-        senderName: "Peter Gibbons",
-        avatarInitials: "PG",
-        message: "Thanks! That worked perfectly. Ticket can be closed.",
-        time: "16 hours ago",
-      },
-    ],
-  },
-  {
-    id: "TCK-1085",
-    tenant: "Stark Industries",
-    title: "Custom integration request: SAP API",
-    description: "Requesting Webhook endpoints details to push live check-in events to our internal SAP payroll database.",
-    priority: "Low",
-    status: "In Progress",
-    category: "Feature Request",
-    updatedAt: "3 days ago",
-    messages: [
-      {
-        id: "1",
-        sender: "Client",
-        senderName: "Happy Hogan",
-        avatarInitials: "HH",
-        message: "Do you support real-time webhooks? We need to stream logs directly to SAP database integrations.",
-        time: "3 days ago",
-      },
-    ],
-  },
-];
+/** Derive avatar initials from a sender name (DTO has no avatarInitials). */
+function initialsOf(name: string): string {
+  const parts = name.replace(/\(.*\)/, "").trim().split(/\s+/).filter(Boolean);
+  return (
+    parts.slice(0, 2).map((p) => p[0]?.toUpperCase() ?? "").join("") || "?"
+  );
+}
 
 export default function SupportTicketsPage() {
-  const [tickets, setTickets] = useState<SupportTicket[]>(initialTickets);
-  const [selectedTicketId, setSelectedTicketId] = useState<string>("TCK-1092");
+  const [tickets, setTickets] = useState<SupportTicket[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [selectedTicketId, setSelectedTicketId] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [statusTab, setStatusTab] = useState<"All" | "Open" | "In Progress" | "Closed">("All");
   const [replyText, setReplyText] = useState("");
 
-  const activeTicket = tickets.find((t) => t.id === selectedTicketId) || tickets[0];
+  const fetchTickets = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const api = createClientApiClient();
+      const res = await api.get<SupportTicket[]>("v1/platform/tickets");
+      if (res.success) {
+        setTickets(res.data);
+        setSelectedTicketId((prev) => prev ?? res.data[0]?.id ?? null);
+      } else {
+        setError(res.error.message ?? "Gagal memuat tiket.");
+      }
+    } catch {
+      setError("Terjadi kesalahan jaringan. Coba lagi.");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
-  const handleSendReply = (e: React.FormEvent) => {
+  useEffect(() => {
+    fetchTickets();
+  }, [fetchTickets]);
+
+  const activeTicket =
+    tickets.find((t) => t.id === selectedTicketId) || tickets[0] || null;
+
+  /** Replace one ticket in state with the server's updated copy. */
+  function applyUpdated(updated: SupportTicket) {
+    setTickets((prev) => prev.map((t) => (t.id === updated.id ? updated : t)));
+  }
+
+  const handleSendReply = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!replyText || !activeTicket) return;
-
-    const newReply: Message = {
-      id: (activeTicket.messages.length + 1).toString(),
-      sender: "Agent",
-      senderName: "Super Admin (You)",
-      avatarInitials: "SA",
-      message: replyText,
-      time: "Just now",
-    };
-
-    setTickets((prev) =>
-      prev.map((t) =>
-        t.id === activeTicket.id
-          ? {
-              ...t,
-              status: "In Progress" as const,
-              updatedAt: "Just now",
-              messages: [...t.messages, newReply],
-            }
-          : t
-      )
-    );
-    setReplyText("");
+    try {
+      const api = createClientApiClient();
+      const res = await api.post<SupportTicket>(
+        `v1/platform/tickets/${activeTicket.id}/reply`,
+        { message: replyText }
+      );
+      if (res.success) {
+        applyUpdated(res.data);
+        setReplyText("");
+      } else {
+        setError(res.error.message ?? "Gagal mengirim balasan.");
+      }
+    } catch {
+      setError("Gagal mengirim balasan.");
+    }
   };
 
-  const handleCloseTicket = (id: string) => {
-    setTickets((prev) =>
-      prev.map((t) => (t.id === id ? { ...t, status: "Closed" as const, updatedAt: "Just now" } : t))
-    );
-  };
+  async function setStatus(id: string, status: "Open" | "Closed") {
+    try {
+      const api = createClientApiClient();
+      const res = await api.patch<SupportTicket>(`v1/platform/tickets/${id}/status`, {
+        status,
+      });
+      if (res.success) applyUpdated(res.data);
+      else setError(res.error.message ?? "Gagal memperbarui status.");
+    } catch {
+      setError("Gagal memperbarui status.");
+    }
+  }
 
-  const handleOpenTicket = (id: string) => {
-    setTickets((prev) =>
-      prev.map((t) => (t.id === id ? { ...t, status: "Open" as const, updatedAt: "Just now" } : t))
-    );
-  };
+  const handleCloseTicket = (id: string) => setStatus(id, "Closed");
+  const handleOpenTicket = (id: string) => setStatus(id, "Open");
 
   // Filter tickets
   const filteredTickets = tickets.filter((t) => {
@@ -199,11 +127,16 @@ export default function SupportTicketsPage() {
         description="Helpdesk panel to resolve client technical requests and issues."
       />
 
-      {/* Demo Mode Banner */}
-      <div className="flex items-center gap-2 bg-amber-50 border border-amber-200 text-amber-800 rounded-lg px-4 py-2.5 text-xs font-medium">
-        <span>⚠️</span>
-        <span>Data yang ditampilkan adalah contoh demonstrasi. Integrasi backend untuk fitur ini akan tersedia di versi mendatang.</span>
-      </div>
+      {error && (
+        <div className="flex items-center gap-2 bg-red-50 border border-red-200 text-red-700 rounded-lg px-4 py-2.5 text-xs font-medium">
+          <span>⚠️</span>
+          <span>{error}</span>
+        </div>
+      )}
+
+      {loading && (
+        <div className="text-sm text-gray-500 py-12 text-center">Memuat tiket…</div>
+      )}
 
       {/* Main Inbox Interface Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 bg-surface-container-lowest border border-outline-variant rounded-xl shadow-sm overflow-hidden min-h-[600px] h-[calc(100vh-220px)] max-h-[800px]">
@@ -384,7 +317,7 @@ export default function SupportTicketsPage() {
                         : "bg-slate-200 text-slate-700 border border-slate-300"
                     }`}
                   >
-                    {msg.avatarInitials}
+                    {initialsOf(msg.senderName)}
                   </div>
                   <div>
                     <div

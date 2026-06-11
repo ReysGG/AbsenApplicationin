@@ -1,6 +1,7 @@
 "use client";
 
 import React from 'react';
+import Link from 'next/link';
 import { BorderBeam } from '@/components/ui/border-beam';
 import { Particles } from '@/components/ui/particles';
 import { LazyMotion, m, domAnimation } from 'motion/react';
@@ -32,12 +33,12 @@ export default function CTA() {
             </p>
             
             <div className="flex flex-col sm:flex-row gap-4 items-center justify-center font-sans w-full sm:w-auto z-10">
-              <button className="w-full sm:w-auto px-8 py-4 bg-mint text-navy hover:bg-white hover:text-navy rounded-xl text-sm font-semibold transition-all duration-300 shadow-level-2 hover:scale-[1.02] active:scale-[0.98] cursor-pointer">
+              <Link href="/sign-up" className="w-full sm:w-auto px-8 py-4 bg-mint text-navy hover:bg-white hover:text-navy rounded-xl text-sm font-semibold transition-all duration-300 shadow-level-2 hover:scale-[1.02] active:scale-[0.98] cursor-pointer text-center">
                 Coba Gratis 14 Hari
-              </button>
-              <button className="w-full sm:w-auto px-8 py-4 bg-transparent border border-white/20 hover:border-mint text-white rounded-xl text-sm font-semibold transition-all hover:bg-white/5 duration-300 cursor-pointer">
+              </Link>
+              <a href="#harga" className="w-full sm:w-auto px-8 py-4 bg-transparent border border-white/20 hover:border-mint text-white rounded-xl text-sm font-semibold transition-all hover:bg-white/5 duration-300 cursor-pointer text-center">
                 Hubungi Tim Sales
-              </button>
+              </a>
             </div>
             
             <div className="mt-8 text-white/60 font-sans text-xs flex flex-wrap gap-x-6 gap-y-2 justify-center">

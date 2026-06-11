@@ -46,9 +46,7 @@ export function UserTable({
             >
               <option value="All">All Roles</option>
               <option value="Super Admin">Super Admin</option>
-              <option value="CS Agent">CS Agent</option>
-              <option value="Support">Support</option>
-              <option value="Billing">Billing</option>
+              <option value="Platform Admin">Platform Admin</option>
             </select>
           </div>
         </div>
@@ -86,11 +84,7 @@ export function UserTable({
                       className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold ${
                         user.role === "Super Admin"
                           ? "bg-purple-100 text-purple-700"
-                          : user.role === "CS Agent"
-                          ? "bg-blue-100 text-blue-700"
-                          : user.role === "Support"
-                          ? "bg-emerald-100 text-emerald-700"
-                          : "bg-slate-100 text-slate-700"
+                          : "bg-blue-100 text-blue-700"
                       }`}
                     >
                       {user.role}

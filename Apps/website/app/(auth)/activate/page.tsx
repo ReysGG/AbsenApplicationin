@@ -8,7 +8,7 @@
  * Flow:
  * 1. Baca token dari URL query param (?token=...).
  * 2. Tampilkan form set password (password + konfirmasi).
- * 3. POST ke backend /api/v1/auth/activate dengan token + password.
+ * 3. POST ke backend /api/v1/employees/activate dengan token + password.
  * 4. Jika berhasil → redirect ke /login?activated=1.
  * 5. Jika token invalid/expired → tampilkan pesan error + link ke HR.
  *
@@ -159,7 +159,7 @@ function ActivatePageInner() {
     setErrorMessage(null);
 
     try {
-      const res = await fetch("/api/v1/auth/activate", {
+      const res = await fetch("/api/v1/employees/activate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ token, password: values.password }),

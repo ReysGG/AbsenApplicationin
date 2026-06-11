@@ -5,14 +5,7 @@ import { usePathname } from "next/navigation";
 import {
   LayoutDashboard,
   Users,
-  ClipboardList,
-  BarChart3,
-  Settings,
   ChevronDown,
-  FileText,
-  Bell,
-  Shield,
-  MapPin,
   X,
   Building2,
   CreditCard,
@@ -31,67 +24,11 @@ interface NavItem {
   children?: { label: string; href: string }[];
 }
 
-const navItems: NavItem[] = [
-  {
-    label: "Dashboard",
-    href: "/admin",
-    icon: <LayoutDashboard size={18} />,
-  },
-  {
-    label: "Karyawan",
-    icon: <Users size={18} />,
-    badge: "248",
-    children: [
-      { label: "Daftar Karyawan", href: "/admin/employees" },
-      { label: "Tambah Karyawan", href: "/admin/employees/new" },
-      { label: "Departemen", href: "/admin/departments" },
-    ],
-  },
-  {
-    label: "Absensi",
-    icon: <ClipboardList size={18} />,
-    children: [
-      { label: "Rekap Harian", href: "/admin/attendance/daily" },
-      { label: "Rekap Bulanan", href: "/admin/attendance/monthly" },
-      { label: "Pengajuan Izin", href: "/admin/attendance/leaves" },
-    ],
-  },
-  {
-    label: "Laporan",
-    icon: <BarChart3 size={18} />,
-    children: [
-      { label: "Laporan Kehadiran", href: "/admin/reports/attendance" },
-      { label: "Laporan Kinerja", href: "/admin/reports/performance" },
-    ],
-  },
-  {
-    label: "Notifikasi",
-    href: "/admin/notifications",
-    icon: <Bell size={18} />,
-    badge: "5",
-  },
-  {
-    label: "Lokasi",
-    href: "/admin/locations",
-    icon: <MapPin size={18} />,
-  },
-  {
-    label: "Dokumen",
-    href: "/admin/documents",
-    icon: <FileText size={18} />,
-  },
-  {
-    label: "Manajemen Akses",
-    href: "/admin/access",
-    icon: <Shield size={18} />,
-  },
-  {
-    label: "Pengaturan",
-    href: "/admin/settings",
-    icon: <Settings size={18} />,
-  },
-];
-
+// NOTE: The previous "Menu Utama" group linked to ~12 routes that do not exist
+// under app/admin (employees, departments, attendance/*, reports/*, locations,
+// settings, etc.) — every one was a 404, and they duplicated the real
+// /workspace/* dashboard. Removed to eliminate dead links. Only the Platform
+// Admin pages below actually exist.
 const platformNavItems: NavItem[] = [
   {
     label: "Platform Dashboard",
@@ -263,14 +200,7 @@ export default function AdminSidebar({
 
         {/* Nav */}
         <nav className="admin-nav">
-          <p className="admin-nav-section-label">Menu Utama</p>
-          <ul className="admin-nav-list mb-6">
-            {navItems.map((item) => (
-              <NavGroup key={item.label} item={item} />
-            ))}
-          </ul>
-
-          <p className="admin-nav-section-label border-t border-white/5 pt-4 mt-2">Platform Admin</p>
+          <p className="admin-nav-section-label">Platform Admin</p>
           <ul className="admin-nav-list">
             {platformNavItems.map((item) => (
               <NavGroup key={item.label} item={item} />

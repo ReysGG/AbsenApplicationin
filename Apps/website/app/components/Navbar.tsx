@@ -34,7 +34,7 @@ export default function Navbar() {
             <span className="font-headline-sm text-headline-sm font-bold text-navy">Absen.ai</span>
           </div>
           <div className="hidden md:flex space-x-8 items-center">
-            <a className="text-brand-teal font-bold hover:text-navy transition-colors duration-200" href="#">Beranda</a>
+            <a className="text-brand-teal font-bold hover:text-navy transition-colors duration-200" href="#hero">Beranda</a>
             <a className="text-neutral-600 hover:text-brand-teal transition-colors duration-200" href="#fitur">Fitur</a>
             <a className="text-neutral-600 hover:text-brand-teal transition-colors duration-200" href="#alur">Alur Kerja</a>
             <a className="text-neutral-600 hover:text-brand-teal transition-colors duration-200" href="#harga">Harga</a>

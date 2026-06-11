@@ -1,6 +1,7 @@
 "use client";
 
 import React from 'react';
+import Link from 'next/link';
 import { AnimatedGradientText } from '@/components/ui/animated-gradient-text';
 import { ShinyButton } from '@/components/ui/shiny-button';
 import { Safari } from '@/components/ui/safari';
@@ -13,7 +14,7 @@ import { LazyMotion, m, domAnimation } from 'motion/react';
 export default function Hero() {
   return (
     <LazyMotion features={domAnimation}>
-      <section className="relative px-margin-mobile md:px-margin-desktop max-w-container-max mx-auto py-20 md:py-28 overflow-hidden flex flex-col items-center text-center">
+      <section id="hero" className="relative px-margin-mobile md:px-margin-desktop max-w-container-max mx-auto py-20 md:py-28 overflow-hidden flex flex-col items-center text-center">
         {/* Background Grid Pattern and Interactive Particles */}
         <GridPattern
           width={40}
@@ -63,12 +64,14 @@ export default function Hero() {
           transition={{ duration: 0.6, delay: 0.45 }}
           className="z-10 flex flex-col sm:flex-row gap-4 mb-16 items-center justify-center"
         >
-          <ShinyButton className="px-8 py-4 bg-navy text-white border-navy rounded-md text-sm font-semibold hover:bg-mint hover:text-navy transition-all duration-300 shadow-level-2">
-            Coba Gratis 14 Hari
-          </ShinyButton>
-          <button className="flex items-center justify-center px-8 py-4 bg-transparent border border-mint text-brand-teal hover:text-navy rounded-md text-sm font-semibold hover:bg-mint/10 transition-all duration-300 font-sans cursor-pointer">
+          <Link href="/sign-up" aria-label="Coba gratis 14 hari">
+            <ShinyButton className="px-8 py-4 bg-navy text-white border-navy rounded-md text-sm font-semibold hover:bg-mint hover:text-navy transition-all duration-300 shadow-level-2">
+              Coba Gratis 14 Hari
+            </ShinyButton>
+          </Link>
+          <a href="#fitur" className="flex items-center justify-center px-8 py-4 bg-transparent border border-mint text-brand-teal hover:text-navy rounded-md text-sm font-semibold hover:bg-mint/10 transition-all duration-300 font-sans cursor-pointer">
             Lihat Demo Video
-          </button>
+          </a>
         </m.div>
 
         {/* Logos Ticker (Trusted by) */}

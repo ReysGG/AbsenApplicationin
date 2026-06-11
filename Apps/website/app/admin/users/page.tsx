@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { Users, UserCheck, Shield, HelpCircle, Plus } from "lucide-react";
 import { PageHeader } from "../_components/PageHeader";
 import { StatCard } from "../_components/StatCard";
@@ -8,82 +8,76 @@ import { AdminUser } from "./_components/types";
 import { InviteAdminModal } from "./_components/InviteAdminModal";
 import { UserTable } from "./_components/UserTable";
 import { Toast } from "./_components/Toast";
-
-const initialUsers: AdminUser[] = [
-  {
-    id: "1",
-    name: "Sarah Jenkins",
-    email: "sarah.j@attendx.com",
-    role: "CS Agent",
-    status: "Active",
-    lastActive: "2 mins ago",
-  },
-  {
-    id: "2",
-    name: "Michael Chen",
-    email: "m.chen@attendx.com",
-    role: "Support",
-    status: "Active",
-    lastActive: "1 hour ago",
-  },
-  {
-    id: "3",
-    name: "Elena Rodriguez",
-    email: "elena.r@attendx.com",
-    role: "Billing",
-    status: "Inactive",
-    lastActive: "3 days ago",
-  },
-  {
-    id: "4",
-    name: "David K.",
-    email: "david.k@attendx.com",
-    role: "Super Admin",
-    status: "Active",
-    lastActive: "Just now",
-  },
-  {
-    id: "5",
-    name: "Jessica Taylor",
-    email: "jessica.t@attendx.com",
-    role: "CS Agent",
-    status: "Active",
-    lastActive: "4 hours ago",
-  },
-];
+import { createClientApiClient } from "@/lib/apiClient";
 
 export default function AdminUsersPage() {
-  const [users, setUsers] = useState<AdminUser[]>(initialUsers);
+  const [users, setUsers] = useState<AdminUser[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [roleFilter, setRoleFilter] = useState("All");
   const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
-  const handleInviteAdmin = (data: {
+  const fetchUsers = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const api = createClientApiClient();
+      const res = await api.get<AdminUser[]>("v1/platform/admin-users");
+      if (res.success) {
+        setUsers(res.data);
+      } else {
+        setError(res.error.message ?? "Gagal memuat admin users.");
+      }
+    } catch {
+      setError("Terjadi kesalahan jaringan. Coba lagi.");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchUsers();
+  }, [fetchUsers]);
+
+  const handleInviteAdmin = async (data: {
     name: string;
     email: string;
     role: AdminUser["role"];
   }) => {
-    const newUser: AdminUser = {
-      id: (users.length + 1).toString(),
-      name: data.name,
-      email: data.email,
-      role: data.role,
-      status: "Active",
-      lastActive: "Invited",
-    };
-
-    setUsers((prev) => [newUser, ...prev]);
-    setIsInviteModalOpen(false);
-
-    setToastMessage("User invited successfully!");
-    setTimeout(() => setToastMessage(null), 3000);
+    try {
+      const api = createClientApiClient();
+      // Backend promotes an EXISTING app user (by email) to a platform role.
+      const res = await api.post("v1/platform/admin-users/invite", {
+        email: data.email,
+        role: data.role,
+      });
+      if (res.success) {
+        setIsInviteModalOpen(false);
+        setToastMessage("Admin role granted successfully!");
+        setTimeout(() => setToastMessage(null), 3000);
+        fetchUsers();
+      } else {
+        setError(res.error.message ?? "Gagal mengundang admin.");
+      }
+    } catch {
+      setError("Gagal mengundang admin.");
+    }
   };
 
-  const handleDeactivate = (id: string) => {
-    setUsers((prev) =>
-      prev.map((u) => (u.id === id ? { ...u, status: u.status === "Active" ? "Inactive" : "Active" } : u))
-    );
+  const handleDeactivate = async (id: string) => {
+    try {
+      const api = createClientApiClient();
+      const res = await api.post(`v1/platform/admin-users/${id}/deactivate`, {});
+      if (res.success) {
+        fetchUsers();
+      } else {
+        setError(res.error.message ?? "Gagal mencabut akses.");
+      }
+    } catch {
+      setError("Gagal mencabut akses.");
+    }
   };
 
   // Filter team directory
@@ -111,11 +105,12 @@ export default function AdminUsersPage() {
         </button>
       </PageHeader>
 
-      {/* Demo Mode Banner */}
-      <div className="flex items-center gap-2 bg-amber-50 border border-amber-200 text-amber-800 rounded-lg px-4 py-2.5 text-xs font-medium">
-        <span>⚠️</span>
-        <span>Data yang ditampilkan adalah contoh demonstrasi. Integrasi backend untuk fitur ini akan tersedia di versi mendatang.</span>
-      </div>
+      {error && (
+        <div className="flex items-center gap-2 bg-red-50 border border-red-200 text-red-700 rounded-lg px-4 py-2.5 text-xs font-medium">
+          <span>⚠️</span>
+          <span>{error}</span>
+        </div>
+      )}
 
       {/* KPI Cards Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -136,16 +131,16 @@ export default function AdminUsersPage() {
           gradientCls="bg-emerald-500/5"
         />
         <StatCard
-          title="CS Agents"
-          value={users.filter((u) => u.role === "CS Agent").length}
+          title="Super Admins"
+          value={users.filter((u) => u.role === "Super Admin").length}
           icon={<Shield size={20} />}
           iconBgColor="bg-blue-500/10"
           iconColor="text-blue-600"
           gradientCls="bg-blue-500/5"
         />
         <StatCard
-          title="Technical Support"
-          value={users.filter((u) => u.role === "Support").length}
+          title="Platform Admins"
+          value={users.filter((u) => u.role !== "Super Admin").length}
           icon={<HelpCircle size={20} />}
           iconBgColor="bg-purple-500/10"
           iconColor="text-purple-600"
@@ -153,15 +148,18 @@ export default function AdminUsersPage() {
         />
       </div>
 
-      {/* Team Directory Table Card */}
-      <UserTable
-        filteredUsers={filteredUsers}
-        search={search}
-        setSearch={setSearch}
-        roleFilter={roleFilter}
-        setRoleFilter={setRoleFilter}
-        onDeactivate={handleDeactivate}
-      />
+      {loading ? (
+        <div className="text-sm text-gray-500 py-12 text-center">Memuat admin users…</div>
+      ) : (
+        <UserTable
+          filteredUsers={filteredUsers}
+          search={search}
+          setSearch={setSearch}
+          roleFilter={roleFilter}
+          setRoleFilter={setRoleFilter}
+          onDeactivate={handleDeactivate}
+        />
+      )}
 
       {/* Invite Admin Modal */}
       <InviteAdminModal

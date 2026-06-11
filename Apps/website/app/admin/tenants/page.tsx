@@ -1,73 +1,45 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { Plus } from "lucide-react";
 import { PageHeader } from "../_components/PageHeader";
 import { Tenant } from "./_components/types";
 import { TenantTable } from "./_components/TenantTable";
 import { TenantDrawer } from "./_components/TenantDrawer";
 import { AddTenantModal } from "./_components/AddTenantModal";
-
-const initialTenants: Tenant[] = [
-  {
-    id: "1",
-    name: "Acme Corp",
-    domain: "acme.attendx.io",
-    plan: "Enterprise",
-    users: 1245,
-    status: "Active",
-    lastActive: "2 hours ago",
-    mrr: 499,
-  },
-  {
-    id: "2",
-    name: "Globex Inc.",
-    domain: "globex.attendx.io",
-    plan: "Pro",
-    users: 342,
-    status: "Active",
-    lastActive: "5 hours ago",
-    mrr: 199,
-  },
-  {
-    id: "3",
-    name: "Stark Industries",
-    domain: "stark.attendx.io",
-    plan: "Basic",
-    users: 45,
-    status: "Suspended",
-    lastActive: "2 days ago",
-    mrr: 49,
-  },
-  {
-    id: "4",
-    name: "Initech",
-    domain: "initech.attendx.io",
-    plan: "Pro",
-    users: 620,
-    status: "Active",
-    lastActive: "1 day ago",
-    mrr: 199,
-  },
-  {
-    id: "5",
-    name: "Umbrella Corp",
-    domain: "umbrella.attendx.io",
-    plan: "Basic",
-    users: 410,
-    status: "Active",
-    lastActive: "3 days ago",
-    mrr: 49,
-  },
-];
+import { createClientApiClient } from "@/lib/apiClient";
 
 export default function TenantsPage() {
-  const [tenants, setTenants] = useState<Tenant[]>(initialTenants);
+  const [tenants, setTenants] = useState<Tenant[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [planFilter, setPlanFilter] = useState("All");
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [selectedTenant, setSelectedTenant] = useState<Tenant | null>(null);
+
+  const fetchTenants = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const api = createClientApiClient();
+      const res = await api.get<Tenant[]>("v1/platform/tenants");
+      if (res.success) {
+        setTenants(res.data);
+      } else {
+        setError(res.error.message ?? "Gagal memuat tenant.");
+      }
+    } catch {
+      setError("Terjadi kesalahan jaringan. Coba lagi.");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchTenants();
+  }, [fetchTenants]);
 
   const handleSelectAll = (checked: boolean) => {
     if (checked) {
@@ -83,39 +55,45 @@ export default function TenantsPage() {
     );
   };
 
-  const handleAddTenant = (data: {
+  const handleAddTenant = async (data: {
     name: string;
     domain: string;
     plan: "Enterprise" | "Pro" | "Basic";
   }) => {
-    const newTenant: Tenant = {
-      id: (tenants.length + 1).toString(),
-      name: data.name,
-      domain: data.domain.includes(".") ? data.domain : `${data.domain}.attendx.io`,
-      plan: data.plan,
-      users: 0,
-      status: "Active",
-      lastActive: "Just now",
-      mrr: data.plan === "Enterprise" ? 499 : data.plan === "Pro" ? 199 : 49,
-    };
-
-    setTenants((prev) => [newTenant, ...prev]);
-    setIsAddModalOpen(false);
+    try {
+      const api = createClientApiClient();
+      // domain may be "acme" or "acme.attendx.io" — slug is the first label.
+      const slug = data.domain.split(".")[0] || undefined;
+      const res = await api.post("v1/platform/tenants", {
+        name: data.name,
+        slug,
+        plan: data.plan,
+      });
+      if (res.success) {
+        setIsAddModalOpen(false);
+        fetchTenants();
+      } else {
+        setError(res.error.message ?? "Gagal menambah tenant.");
+      }
+    } catch {
+      setError("Gagal menambah tenant.");
+    }
   };
 
-  const handleDeleteSelected = () => {
-    setTenants((prev) => prev.filter((t) => !selectedIds.includes(t.id)));
-    setSelectedIds([]);
-  };
-
-  const handleSuspendSelected = () => {
-    setTenants((prev) =>
-      prev.map((t) =>
-        selectedIds.includes(t.id) ? { ...t, status: "Suspended" as const } : t
+  async function bulkStatus(status: "Suspended" | "Inactive") {
+    const api = createClientApiClient();
+    await Promise.all(
+      selectedIds.map((id) =>
+        api.patch(`v1/platform/tenants/${id}/status`, { status }).catch(() => null)
       )
     );
     setSelectedIds([]);
-  };
+    fetchTenants();
+  }
+
+  // Tenants own data, so they are never hard-deleted — "delete" deactivates.
+  const handleDeleteSelected = () => bulkStatus("Inactive");
+  const handleSuspendSelected = () => bulkStatus("Suspended");
 
   // Filters
   const filteredTenants = tenants.filter((t) => {
@@ -142,40 +120,47 @@ export default function TenantsPage() {
         </button>
       </PageHeader>
 
-      {/* Demo Mode Banner */}
-      <div className="flex items-center gap-2 bg-amber-50 border border-amber-200 text-amber-800 rounded-lg px-4 py-2.5 text-xs font-medium">
-        <span>⚠️</span>
-        <span>Data yang ditampilkan adalah contoh demonstrasi. Integrasi backend untuk fitur ini akan tersedia di versi mendatang.</span>
-      </div>
+      {error && (
+        <div className="flex items-center gap-2 bg-red-50 border border-red-200 text-red-700 rounded-lg px-4 py-2.5 text-xs font-medium">
+          <span>⚠️</span>
+          <span>{error}</span>
+        </div>
+      )}
 
-      {/* Main Table Component */}
-      <TenantTable
-        tenants={tenants}
-        filteredTenants={filteredTenants}
-        search={search}
-        setSearch={setSearch}
-        planFilter={planFilter}
-        setPlanFilter={setPlanFilter}
-        selectedIds={selectedIds}
-        onSelectAll={handleSelectAll}
-        onSelectRow={handleSelectRow}
-        onSuspendSelected={handleSuspendSelected}
-        onDeleteSelected={handleDeleteSelected}
-        onSelectTenant={setSelectedTenant}
-      />
+      {loading ? (
+        <div className="text-sm text-gray-500 py-12 text-center">Memuat tenant…</div>
+      ) : (
+        <>
+          {/* Main Table Component */}
+          <TenantTable
+            tenants={tenants}
+            filteredTenants={filteredTenants}
+            search={search}
+            setSearch={setSearch}
+            planFilter={planFilter}
+            setPlanFilter={setPlanFilter}
+            selectedIds={selectedIds}
+            onSelectAll={handleSelectAll}
+            onSelectRow={handleSelectRow}
+            onSuspendSelected={handleSuspendSelected}
+            onDeleteSelected={handleDeleteSelected}
+            onSelectTenant={setSelectedTenant}
+          />
 
-      {/* Drawer */}
-      <TenantDrawer
-        selectedTenant={selectedTenant}
-        onClose={() => setSelectedTenant(null)}
-      />
+          {/* Drawer */}
+          <TenantDrawer
+            selectedTenant={selectedTenant}
+            onClose={() => setSelectedTenant(null)}
+          />
 
-      {/* Modal */}
-      <AddTenantModal
-        isOpen={isAddModalOpen}
-        onClose={() => setIsAddModalOpen(false)}
-        onAddTenant={handleAddTenant}
-      />
+          {/* Modal */}
+          <AddTenantModal
+            isOpen={isAddModalOpen}
+            onClose={() => setIsAddModalOpen(false)}
+            onAddTenant={handleAddTenant}
+          />
+        </>
+      )}
     </div>
   );
 }

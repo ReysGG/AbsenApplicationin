@@ -21,6 +21,9 @@ ENV DATABASE_URL="postgresql://build:build@localhost:5432/build"
 RUN npm ci --legacy-peer-deps
 
 COPY . .
+# NEXT_PUBLIC_* vars must be present at build time to be embedded in client bundles.
+ARG NEXT_PUBLIC_APP_URL=http://localhost:10000
+ENV NEXT_PUBLIC_APP_URL=${NEXT_PUBLIC_APP_URL}
 RUN npm run build
 
 # ---------------------------------------------------------------------------

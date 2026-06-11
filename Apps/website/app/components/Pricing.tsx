@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from 'react';
+import Link from 'next/link';
 import { BorderBeam } from '@/components/ui/border-beam';
 import { LazyMotion, m, domAnimation, AnimatePresence } from 'motion/react';
 
@@ -118,9 +119,9 @@ export default function Pricing() {
                 </li>
               </ul>
             </div>
-            <button className="w-full py-3 border border-mint text-brand-teal hover:bg-mint/10 rounded-xl font-label-md text-label-md transition-all duration-300 cursor-pointer font-bold">
+            <Link href="/sign-up" className="block text-center w-full py-3 border border-mint text-brand-teal hover:bg-mint/10 rounded-xl font-label-md text-label-md transition-all duration-300 cursor-pointer font-bold">
               Mulai Uji Coba
-            </button>
+            </Link>
           </m.div>
 
           {/* Pro Plan (Highlighted) */}
@@ -182,9 +183,9 @@ export default function Pricing() {
                 </li>
               </ul>
             </div>
-            <button className="w-full py-3 bg-navy text-white hover:bg-mint hover:text-navy rounded-xl font-label-md text-label-md font-bold transition-all duration-300 shadow-level-1 cursor-pointer">
+            <Link href="/sign-up" className="block text-center w-full py-3 bg-navy text-white hover:bg-mint hover:text-navy rounded-xl font-label-md text-label-md font-bold transition-all duration-300 shadow-level-1 cursor-pointer">
               Mulai Uji Coba
-            </button>
+            </Link>
           </m.div>
 
           {/* Enterprise Plan */}
@@ -229,9 +230,9 @@ export default function Pricing() {
                 </li>
               </ul>
             </div>
-            <button className="w-full py-3 bg-navy text-white hover:bg-mint hover:text-navy rounded-xl font-label-md text-label-md font-bold transition-all duration-300 cursor-pointer">
+            <Link href="/sign-up" className="block text-center w-full py-3 bg-navy text-white hover:bg-mint hover:text-navy rounded-xl font-label-md text-label-md font-bold transition-all duration-300 cursor-pointer">
               Hubungi Sales
-            </button>
+            </Link>
           </m.div>
         </div>
       </section>

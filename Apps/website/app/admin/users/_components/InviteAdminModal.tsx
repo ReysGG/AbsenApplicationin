@@ -16,11 +16,11 @@ interface InviteAdminModalProps {
 export function InviteAdminModal({ isOpen, onClose, onInvite }: InviteAdminModalProps) {
   const [inviteName, setInviteName] = useState("");
   const [inviteEmail, setInviteEmail] = useState("");
-  const [inviteRole, setInviteRole] = useState<AdminUser["role"]>("CS Agent");
+  const [inviteRole, setInviteRole] = useState<AdminUser["role"]>("Platform Admin");
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!inviteName || !inviteEmail) return;
+    if (!inviteEmail) return;
 
     onInvite({
       name: inviteName,
@@ -30,7 +30,7 @@ export function InviteAdminModal({ isOpen, onClose, onInvite }: InviteAdminModal
 
     setInviteName("");
     setInviteEmail("");
-    setInviteRole("CS Agent");
+    setInviteRole("Platform Admin");
   };
 
   return (
@@ -70,9 +70,7 @@ export function InviteAdminModal({ isOpen, onClose, onInvite }: InviteAdminModal
             onChange={(e) => setInviteRole(e.target.value as AdminUser["role"])}
             className="w-full px-3 py-2 bg-surface border border-navy/30 rounded-lg text-sm text-on-surface focus:ring-2 focus:ring-navy focus:outline-none transition-all"
           >
-            <option value="CS Agent">CS Agent</option>
-            <option value="Support">Support</option>
-            <option value="Billing">Billing</option>
+            <option value="Platform Admin">Platform Admin</option>
             <option value="Super Admin">Super Admin</option>
           </select>
         </div>
