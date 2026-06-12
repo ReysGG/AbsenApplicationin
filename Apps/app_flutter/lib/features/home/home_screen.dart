@@ -543,7 +543,7 @@ class _QuickGrid extends StatelessWidget {
   Widget build(BuildContext context) {
     final items = [
       (Icons.history_rounded, 'Riwayat', AppColors.brandMid, AppRoutes.history),
-      (Icons.post_add_rounded, 'Pengajuan', const Color(0xFF8127CF),
+      (Icons.event_busy_rounded, 'Cuti', const Color(0xFF8127CF),
           AppRoutes.leave),
       (Icons.calendar_month_rounded, 'Jadwal', const Color(0xFF0E9F6E),
           AppRoutes.schedule),

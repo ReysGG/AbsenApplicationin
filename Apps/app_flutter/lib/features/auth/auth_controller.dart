@@ -7,14 +7,28 @@ import '../../shared/models/user_profile.dart';
 enum AuthStatus { unknown, authenticated, unauthenticated }
 
 class AuthState {
-  const AuthState({this.status = AuthStatus.unknown, this.profile});
+  const AuthState({
+    this.status = AuthStatus.unknown,
+    this.profile,
+    this.isAppLockEnabled = false,
+    this.isLocked = false,
+  });
 
   final AuthStatus status;
   final UserProfile? profile;
+  final bool isAppLockEnabled;
+  final bool isLocked;
 
-  AuthState copyWith({AuthStatus? status, UserProfile? profile}) => AuthState(
+  AuthState copyWith({
+    AuthStatus? status,
+    UserProfile? profile,
+    bool? isAppLockEnabled,
+    bool? isLocked,
+  }) => AuthState(
         status: status ?? this.status,
         profile: profile ?? this.profile,
+        isAppLockEnabled: isAppLockEnabled ?? this.isAppLockEnabled,
+        isLocked: isLocked ?? this.isLocked,
       );
 }
 
@@ -30,9 +44,18 @@ class AuthController extends StateNotifier<AuthState> {
     try {
       final repo = _ref.read(authRepositoryProvider);
       final profile = await repo.restoreSession();
-      state = profile != null
-          ? AuthState(status: AuthStatus.authenticated, profile: profile)
-          : const AuthState(status: AuthStatus.unauthenticated);
+      if (profile != null) {
+        final tokenStore = _ref.read(tokenStoreProvider);
+        final appLockEnabled = await tokenStore.isAppLockEnabled();
+        state = AuthState(
+          status: AuthStatus.authenticated,
+          profile: profile,
+          isAppLockEnabled: appLockEnabled,
+          isLocked: appLockEnabled, // Lock on cold start if enabled
+        );
+      } else {
+        state = const AuthState(status: AuthStatus.unauthenticated);
+      }
     } catch (_) {
       // Network error / unreachable backend on cold start must NOT hang the
       // splash. Treat any failure as "not logged in" and route to login.
@@ -43,7 +66,14 @@ class AuthController extends StateNotifier<AuthState> {
   Future<void> login({required String email, required String password}) async {
     final repo = _ref.read(authRepositoryProvider);
     final profile = await repo.login(email: email, password: password);
-    state = AuthState(status: AuthStatus.authenticated, profile: profile);
+    final tokenStore = _ref.read(tokenStoreProvider);
+    final appLockEnabled = await tokenStore.isAppLockEnabled();
+    state = AuthState(
+      status: AuthStatus.authenticated,
+      profile: profile,
+      isAppLockEnabled: appLockEnabled,
+      isLocked: false, // Don't lock immediately after login
+    );
     // Best-effort: register this device for push. Never block login.
     try {
       await FcmService.instance
@@ -51,6 +81,16 @@ class AuthController extends StateNotifier<AuthState> {
     } catch (_) {
       // Ignore — push is non-critical.
     }
+  }
+
+  Future<void> setAppLockEnabled(bool enabled) async {
+    final tokenStore = _ref.read(tokenStoreProvider);
+    await tokenStore.setAppLockEnabled(enabled);
+    state = state.copyWith(isAppLockEnabled: enabled);
+  }
+
+  void unlock() {
+    state = state.copyWith(isLocked: false);
   }
 
   Future<void> logout() async {

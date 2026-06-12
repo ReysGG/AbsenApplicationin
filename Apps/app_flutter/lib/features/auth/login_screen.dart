@@ -98,19 +98,19 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                                 .fadeIn(),
                             const SizedBox(width: AppSpacing.sm),
                             Text(AppConfig.appName,
-                                style: AppTypography.headlineLgMobile.copyWith(
+                                style: AppTypography.titleLg.copyWith(
                                   color: AppColors.primary,
                                 )),
                           ],
                         ),
                         const SizedBox(height: AppSpacing.xl),
-                        Text('Masuk ke Akun', style: AppTypography.display)
+                        Text('Selamat Datang Kembali', style: AppTypography.display)
                             .animate(delay: 80.ms)
                             .fadeIn(duration: 320.ms)
                             .slideY(begin: 0.08, curve: Curves.easeOut),
                         const SizedBox(height: AppSpacing.sm),
                         Text(
-                          'Gunakan akun karyawan yang telah didaftarkan perusahaan',
+                          'Silakan masuk ke akun Anda untuk melanjutkan',
                           style: AppTypography.bodyMd.copyWith(
                             color: AppColors.onSurfaceVariant,
                           ),
@@ -136,34 +136,34 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                             keyboardType: TextInputType.emailAddress,
                             textInputAction: TextInputAction.next,
                             autofillHints: const [AutofillHints.email],
-                            style: const TextStyle(
-                                color: Color(0xFF191B23),
+                            style: TextStyle(
+                                color: AppColors.onSurface,
                                 fontSize: 15,
                                 fontFamily: 'Inter'),
                             decoration: InputDecoration(
                               hintText: 'nama@perusahaan.com',
                               prefixIcon: const Icon(Icons.mail_outline),
                               filled: true,
-                              fillColor: const Color(0xFFF4F6FB),
+                              fillColor: AppColors.surface,
                               enabledBorder: OutlineInputBorder(
                                 borderRadius:
                                     BorderRadius.circular(AppRadius.lg),
-                                borderSide: const BorderSide(
-                                    color: Color(0xFFD6DAE5)),
+                                borderSide: BorderSide(
+                                    color: AppColors.outlineVariant),
                               ),
                               focusedBorder: OutlineInputBorder(
                                 borderRadius:
                                     BorderRadius.circular(AppRadius.lg),
                                 borderSide: BorderSide(
-                                    color: AppColors.brandMid, width: 2),
+                                    color: AppColors.primary, width: 2),
                               ),
                             ),
                             validator: (v) {
                               final value = v?.trim() ?? '';
                               if (value.isEmpty) return 'Email wajib diisi';
                               if (!value.contains('@')) {
-                                return 'Format email tidak valid';
-                              }
+                                  return 'Format email tidak valid';
+                               }
                               return null;
                             },
                           ),
@@ -179,26 +179,26 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                             textInputAction: TextInputAction.done,
                             autofillHints: const [AutofillHints.password],
                             onFieldSubmitted: (_) => _submit(),
-                            style: const TextStyle(
-                                color: Color(0xFF191B23),
+                            style: TextStyle(
+                                color: AppColors.onSurface,
                                 fontSize: 15,
                                 fontFamily: 'Inter'),
                             decoration: InputDecoration(
                               hintText: 'Masukkan kata sandi',
                               prefixIcon: const Icon(Icons.lock_outline),
                               filled: true,
-                              fillColor: const Color(0xFFF4F6FB),
+                              fillColor: AppColors.surface,
                               enabledBorder: OutlineInputBorder(
                                 borderRadius:
                                     BorderRadius.circular(AppRadius.lg),
-                                borderSide: const BorderSide(
-                                    color: Color(0xFFD6DAE5)),
+                                borderSide: BorderSide(
+                                    color: AppColors.outlineVariant),
                               ),
                               focusedBorder: OutlineInputBorder(
                                 borderRadius:
                                     BorderRadius.circular(AppRadius.lg),
                                 borderSide: BorderSide(
-                                    color: AppColors.brandMid, width: 2),
+                                    color: AppColors.primary, width: 2),
                               ),
                               suffixIcon: IconButton(
                                 icon: Icon(_obscure
@@ -228,7 +228,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                                 ),
                               );
                             },
-                            child: const Text('Lupa kata sandi?'),
+                            child: const Text('Lupa Kata Sandi?'),
                           ),
                         ),
                         const SizedBox(height: AppSpacing.sm),
@@ -237,17 +237,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                           child: Container(
                             decoration: BoxDecoration(
                               borderRadius: BorderRadius.circular(AppRadius.lg),
-                              gradient: const LinearGradient(
-                                colors: [
-                                  AppColors.brandStart,
-                                  AppColors.brandEnd,
-                                ],
-                                begin: Alignment.centerLeft,
-                                end: Alignment.centerRight,
-                              ),
+                              color: AppColors.primary,
                               boxShadow: [
                                 BoxShadow(
-                                  color: AppColors.brandMid.withValues(alpha: 0.35),
+                                  color: AppColors.primary.withValues(alpha: 0.25),
                                   blurRadius: 16,
                                   offset: const Offset(0, 6),
                                 ),
@@ -293,10 +286,13 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                             Icon(Icons.shield_outlined,
                                 size: 18, color: AppColors.outline),
                             const SizedBox(width: AppSpacing.xs),
-                            Text(
-                              'Koneksi aman & terenkripsi',
-                              style: AppTypography.labelSm.copyWith(
-                                color: AppColors.outline,
+                            Expanded(
+                              child: Text(
+                                'Keamanan data Anda terjamin oleh sistem enkripsi kami.',
+                                style: AppTypography.labelSm.copyWith(
+                                  color: AppColors.outline,
+                                ),
+                                textAlign: TextAlign.center,
                               ),
                             ),
                           ],

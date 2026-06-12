@@ -9,6 +9,7 @@ import '../../features/attendance/location_validation_screen.dart';
 import '../../features/auth/auth_controller.dart';
 import '../../features/auth/login_screen.dart';
 import '../../features/auth/splash_screen.dart';
+import '../../features/auth/lock_screen.dart';
 import '../../features/history/attendance_detail_screen.dart';
 import '../../features/history/history_screen.dart';
 import '../../features/home/home_screen.dart';
@@ -48,8 +49,14 @@ final routerProvider = Provider<GoRouter>((ref) {
         // Unauthenticated: only the login screen is allowed.
         return loc == AppRoutes.login ? null : AppRoutes.login;
       }
-      // Authenticated: bounce away from splash/login into the app.
-      if (loc == AppRoutes.splash || loc == AppRoutes.login) {
+
+      // Authenticated but locked: force redirect to Lock Screen.
+      if (auth.isLocked) {
+        return loc == AppRoutes.lock ? null : AppRoutes.lock;
+      }
+
+      // Authenticated and unlocked: bounce away from splash/login/lock into the app.
+      if (loc == AppRoutes.splash || loc == AppRoutes.login || loc == AppRoutes.lock) {
         return AppRoutes.home;
       }
       return null;
@@ -62,6 +69,10 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: AppRoutes.login,
         builder: (_, _) => const LoginScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.lock,
+        builder: (_, _) => const LockScreen(),
       ),
 
       // Full-screen flows (outside the bottom-nav shell)

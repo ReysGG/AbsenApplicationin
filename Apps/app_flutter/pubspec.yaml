@@ -55,6 +55,7 @@ dependencies:
   flutter_map: 6.2.1
   latlong2: ^0.9.1
   screen_brightness: ^2.1.9
+  local_auth: ^3.0.1
 
 dev_dependencies:
   flutter_test:

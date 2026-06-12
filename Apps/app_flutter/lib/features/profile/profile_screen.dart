@@ -20,23 +20,7 @@ class ProfileScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final profile = ref.watch(authControllerProvider).profile;
 
-    final menuItems = <_MenuData>[
-      _MenuData(
-        icon: Icons.sync,
-        label: 'Sinkronisasi Offline',
-        onTap: () => context.push(AppRoutes.syncStatus),
-      ),
-      _MenuData(
-        icon: Icons.notifications_outlined,
-        label: 'Notifikasi',
-        onTap: () => context.push(AppRoutes.notifications),
-      ),
-      _MenuData(
-        icon: Icons.help_outline,
-        label: 'Bantuan',
-        onTap: () {},
-      ),
-    ];
+
 
     return Scaffold(
       backgroundColor: AppColors.pageBg,
@@ -145,10 +129,42 @@ class ProfileScreen extends ConsumerWidget {
                   padding: EdgeInsets.zero,
                   child: Column(
                     children: [
-                      for (var i = 0; i < menuItems.length; i++) ...[
-                        if (i > 0) const Divider(height: 1),
-                        _MenuTile(data: menuItems[i], index: i),
-                      ],
+                      ListTile(
+                        leading: Icon(Icons.security, color: AppColors.onSurfaceVariant),
+                        title: const Text('Kunci Aplikasi (Sidik Jari / PIN)', style: AppTypography.labelMd),
+                        trailing: Switch(
+                          value: ref.watch(authControllerProvider).isAppLockEnabled,
+                          onChanged: (value) async {
+                            await ref.read(authControllerProvider.notifier).setAppLockEnabled(value);
+                          },
+                          activeThumbColor: AppColors.primary,
+                        ),
+                        splashColor: AppColors.surfaceContainerLow,
+                      ),
+                      const Divider(height: 1),
+                      ListTile(
+                        leading: Icon(Icons.sync, color: AppColors.onSurfaceVariant),
+                        title: const Text('Sinkronisasi Offline', style: AppTypography.labelMd),
+                        trailing: Icon(Icons.chevron_right, color: AppColors.outline),
+                        onTap: () => context.push(AppRoutes.syncStatus),
+                        splashColor: AppColors.surfaceContainerLow,
+                      ),
+                      const Divider(height: 1),
+                      ListTile(
+                        leading: Icon(Icons.notifications_outlined, color: AppColors.onSurfaceVariant),
+                        title: const Text('Notifikasi', style: AppTypography.labelMd),
+                        trailing: Icon(Icons.chevron_right, color: AppColors.outline),
+                        onTap: () => context.push(AppRoutes.notifications),
+                        splashColor: AppColors.surfaceContainerLow,
+                      ),
+                      const Divider(height: 1),
+                      ListTile(
+                        leading: Icon(Icons.help_outline, color: AppColors.onSurfaceVariant),
+                        title: const Text('Bantuan', style: AppTypography.labelMd),
+                        trailing: Icon(Icons.chevron_right, color: AppColors.outline),
+                        onTap: () {},
+                        splashColor: AppColors.surfaceContainerLow,
+                      ),
                     ],
                   ),
                 )
@@ -226,35 +242,4 @@ class ProfileScreen extends ConsumerWidget {
       );
 }
 
-// ── Menu data + tile ─────────────────────────────────────────────────────────
 
-class _MenuData {
-  const _MenuData({
-    required this.icon,
-    required this.label,
-    required this.onTap,
-  });
-  final IconData icon;
-  final String label;
-  final VoidCallback onTap;
-}
-
-class _MenuTile extends StatelessWidget {
-  const _MenuTile({required this.data, required this.index});
-  final _MenuData data;
-  final int index;
-
-  @override
-  Widget build(BuildContext context) {
-    return ListTile(
-      leading: Icon(data.icon, color: AppColors.onSurfaceVariant),
-      title: Text(data.label, style: AppTypography.labelMd),
-      trailing: Icon(Icons.chevron_right, color: AppColors.outline),
-      onTap: data.onTap,
-      splashColor: AppColors.surfaceContainerLow,
-    )
-        .animate(delay: (160 + 70 * index).ms)
-        .fadeIn(duration: 280.ms, curve: Curves.easeOut)
-        .slideX(begin: 0.06, duration: 300.ms, curve: Curves.easeOut);
-  }
-}

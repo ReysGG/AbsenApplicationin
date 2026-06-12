@@ -33,9 +33,9 @@ class SolidCard extends StatelessWidget {
         border: Border.all(color: const Color(0xFFEDEFF5)),
         boxShadow: const [
           BoxShadow(
-            color: Color(0x0F1B2A4A),
-            blurRadius: 18,
-            offset: Offset(0, 6),
+            color: Color(0x14172B4D),
+            blurRadius: 20,
+            offset: Offset(0, 4),
           ),
         ],
       ),

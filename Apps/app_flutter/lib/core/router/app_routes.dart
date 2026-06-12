@@ -2,6 +2,7 @@
 abstract final class AppRoutes {
   static const splash = '/';
   static const login = '/login';
+  static const lock = '/lock';
 
   // Shell tabs
   static const home = '/home';

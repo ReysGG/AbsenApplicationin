@@ -22,17 +22,17 @@ abstract final class AppTypography {
     letterSpacing: -0.01 * 24,
   );
 
-  static const headlineLgMobile = TextStyle(
+  static const headlineMd = TextStyle(
     fontFamily: _family,
     fontSize: 20,
     height: 28 / 20,
     fontWeight: FontWeight.w600,
   );
 
-  static const headlineMd = TextStyle(
+  static const titleLg = TextStyle(
     fontFamily: _family,
-    fontSize: 20,
-    height: 28 / 20,
+    fontSize: 18,
+    height: 24 / 18,
     fontWeight: FontWeight.w600,
   );
 
@@ -52,16 +52,16 @@ abstract final class AppTypography {
 
   static const labelMd = TextStyle(
     fontFamily: _family,
-    fontSize: 14,
-    height: 20 / 14,
+    fontSize: 12,
+    height: 16 / 12,
     fontWeight: FontWeight.w500,
+    letterSpacing: 0.01 * 12,
   );
 
   static const labelSm = TextStyle(
     fontFamily: _family,
-    fontSize: 12,
-    height: 16 / 12,
+    fontSize: 10,
+    height: 12 / 10,
     fontWeight: FontWeight.w600,
-    letterSpacing: 0.05 * 12,
   );
 }

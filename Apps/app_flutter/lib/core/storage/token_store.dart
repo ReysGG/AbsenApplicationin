@@ -22,6 +22,7 @@ class TokenStore {
 
   static const _kAccess = 'attendx.access_token';
   static const _kRefresh = 'attendx.refresh_token';
+  static const _kAppLock = 'attendx.app_lock_enabled';
 
   final FlutterSecureStorage _storage;
 
@@ -39,6 +40,15 @@ class TokenStore {
   Future<String?> readRefreshToken() => _storage.read(key: _kRefresh);
 
   Future<bool> hasSession() async => (await readAccessToken()) != null;
+
+  Future<bool> isAppLockEnabled() async {
+    final val = await _storage.read(key: _kAppLock);
+    return val == 'true';
+  }
+
+  Future<void> setAppLockEnabled(bool enabled) async {
+    await _storage.write(key: _kAppLock, value: enabled ? 'true' : 'false');
+  }
 
   Future<void> clear() async {
     await _storage.delete(key: _kAccess);

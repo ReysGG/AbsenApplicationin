@@ -17,8 +17,8 @@ class MainShell extends StatelessWidget {
   static const _tabs = [
     _TabSpec(Icons.home_outlined, Icons.home, 'Beranda'),
     _TabSpec(Icons.history_outlined, Icons.history, 'Riwayat'),
-    _TabSpec(Icons.post_add_outlined, Icons.post_add, 'Pengajuan'),
-    _TabSpec(Icons.schedule_outlined, Icons.schedule, 'Shift'),
+    _TabSpec(Icons.event_busy_outlined, Icons.event_busy, 'Cuti'),
+    _TabSpec(Icons.calendar_today_outlined, Icons.calendar_today, 'Jadwal'),
     _TabSpec(Icons.person_outline, Icons.person, 'Profil'),
   ];
 

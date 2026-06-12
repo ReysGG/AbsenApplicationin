@@ -9,50 +9,50 @@ abstract final class AppColors {
   static bool isDark = false;
 
   // ── Light Theme Palette ──────────────────────────────────────────────────
-  static const backgroundLight = Color(0xFFF9F9FF);
+  static const backgroundLight = Color(0xFFF8F9FA);
   static const surfaceLight = Color(0xFFFFFFFF);
-  static const surfaceDimLight = Color(0xFFD8D9E3);
-  static const surfaceBrightLight = Color(0xFFF9F9FF);
+  static const surfaceDimLight = Color(0xFFD9DADB);
+  static const surfaceBrightLight = Color(0xFFF8F9FA);
   static const surfaceContainerLowestLight = Color(0xFFFFFFFF);
-  static const surfaceContainerLowLight = Color(0xFFF2F3FD);
-  static const surfaceContainerLight = Color(0xFFECEDF7);
-  static const surfaceContainerHighLight = Color(0xFFE6E7F2);
-  static const surfaceContainerHighestLight = Color(0xFFE1E2EC);
+  static const surfaceContainerLowLight = Color(0xFFF3F4F5);
+  static const surfaceContainerLight = Color(0xFFEDEEEF);
+  static const surfaceContainerHighLight = Color(0xFFE7E8E9);
+  static const surfaceContainerHighestLight = Color(0xFFE1E3E4);
 
-  static const onSurfaceLight = Color(0xFF191B23);
-  static const onSurfaceVariantLight = Color(0xFF424754);
-  static const inverseSurfaceLight = Color(0xFF2E3038);
-  static const inverseOnSurfaceLight = Color(0xFFEFF0FA);
+  static const onSurfaceLight = Color(0xFF191C1D);
+  static const onSurfaceVariantLight = Color(0xFF434654);
+  static const inverseSurfaceLight = Color(0xFF2E3132);
+  static const inverseOnSurfaceLight = Color(0xFFF0F1F2);
 
-  static const outlineLight = Color(0xFF727785);
-  static const outlineVariantLight = Color(0xFFC2C6D6);
+  static const outlineLight = Color(0xFF737685);
+  static const outlineVariantLight = Color(0xFFC3C6D6);
 
-  static const primaryLight = Color(0xFF0058BE);
+  static const primaryLight = Color(0xFF003D9B);
   static const onPrimaryLight = Color(0xFFFFFFFF);
-  static const primaryContainerLight = Color(0xFF2170E4);
-  static const onPrimaryContainerLight = Color(0xFFFEFCFF);
-  static const primaryFixedLight = Color(0xFFD8E2FF);
-  static const primaryFixedDimLight = Color(0xFFADC6FF);
-  static const onPrimaryFixedLight = Color(0xFF001A42);
+  static const primaryContainerLight = Color(0xFF0052CC);
+  static const onPrimaryContainerLight = Color(0xFFC4D2FF);
+  static const primaryFixedLight = Color(0xFFDAE2FF);
+  static const primaryFixedDimLight = Color(0xFFB2C5FF);
+  static const onPrimaryFixedLight = Color(0xFF001848);
 
-  static const secondaryLight = Color(0xFF8127CF);
+  static const secondaryLight = Color(0xFF4C5E83);
   static const onSecondaryLight = Color(0xFFFFFFFF);
-  static const secondaryContainerLight = Color(0xFF9C48EA);
-  static const onSecondaryContainerLight = Color(0xFFFFFBFF);
-  static const secondaryFixedLight = Color(0xFFF0DBFF);
-  static const secondaryFixedDimLight = Color(0xFFDDB7FF);
+  static const secondaryContainerLight = Color(0xFFBFD2FD);
+  static const onSecondaryContainerLight = Color(0xFF475A7E);
+  static const secondaryFixedLight = Color(0xFFD7E2FF);
+  static const secondaryFixedDimLight = Color(0xFFB4C7F1);
 
-  static const tertiaryLight = Color(0xFF924700);
+  static const tertiaryLight = Color(0xFF004E32);
   static const onTertiaryLight = Color(0xFFFFFFFF);
-  static const tertiaryContainerLight = Color(0xFFB75B00);
+  static const tertiaryContainerLight = Color(0xFF006844);
 
   static const errorLight = Color(0xFFBA1A1A);
   static const onErrorLight = Color(0xFFFFFFFF);
   static const errorContainerLight = Color(0xFFFFDAD6);
   static const onErrorContainerLight = Color(0xFF93000A);
 
-  static const successLight = Color(0xFF2E7D32);
-  static const pendingLight = Color(0xFFED6C02);
+  static const successLight = Color(0xFF10B981);
+  static const pendingLight = Color(0xFFF59E0B);
 
   static const surfaceVariantLight = Color(0xFFE1E2EC);
   static const surfaceTintLight = Color(0xFF005AC2);
@@ -195,8 +195,8 @@ abstract final class AppColors {
   static Color get glassHighlight => isDark ? glassHighlightDark : glassHighlightLight;
 
   // ── Brand gradient (Talenta/Lark-style corporate header band) ────────────
-  static const brandStart = Color(0xFF0B5FD6);
-  static const brandMid = Color(0xFF2170E4);
-  static const brandEnd = Color(0xFF5B8DEF);
-  static Color get pageBg => isDark ? backgroundDark : const Color(0xFFF4F6FB);
+  static const brandStart = Color(0xFF003D9B);
+  static const brandMid = Color(0xFF0052CC);
+  static const brandEnd = Color(0xFF3B82F6);
+  static Color get pageBg => isDark ? backgroundDark : const Color(0xFFF8F9FA);
 }
