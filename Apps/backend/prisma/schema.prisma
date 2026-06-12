@@ -153,6 +153,7 @@ enum ReportType {
 enum ExportFormat {
   XLSX
   CSV
+  PDF
 }
 
 enum HolidayStatus {
@@ -163,6 +164,8 @@ enum HolidayStatus {
 enum NotificationType {
   leave_request_new
   export_completed
+  leave_approved
+  leave_rejected
 }
 
 enum LeaveSource {
@@ -306,8 +309,22 @@ model User {
   employees        Employee[]
   approvedLeaves   LeaveRequest[]   @relation("LeaveApprover")
   requestedExports ExportJob[]      @relation("ExportRequester")
+  deviceTokens     DeviceToken[]
 
   @@map("users")
+}
+
+model DeviceToken {
+  id        String   @id @default(uuid())
+  userId    String
+  token     String   @unique
+  platform  String // 'android' | 'ios'
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("device_tokens")
 }
 
 model RoleAssignment {

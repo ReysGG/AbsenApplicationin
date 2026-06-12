@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/providers.dart';
+import '../../core/services/local_db.dart';
 import '../../shared/data/attendance_repository.dart';
 import '../../shared/models/attendance_record.dart';
 import '../../shared/models/enums.dart';
@@ -20,7 +21,9 @@ class CheckinFlowState {
     this.livenessPassed = false,
     this.latitude,
     this.longitude,
+    this.locationId,
     this.mockLocationDetected = false,
+    this.savedOffline = false,
   });
 
   final CheckFlowKind kind;
@@ -31,7 +34,12 @@ class CheckinFlowState {
   final bool livenessPassed;
   final double? latitude;
   final double? longitude;
+  final String? locationId;
   final bool mockLocationDetected;
+
+  /// True when the last submit was queued locally because the device was
+  /// offline (or the network call failed).
+  final bool savedOffline;
 
   CheckinFlowState copyWith({
     CheckFlowKind? kind,
@@ -42,7 +50,9 @@ class CheckinFlowState {
     bool? livenessPassed,
     double? latitude,
     double? longitude,
+    String? locationId,
     bool? mockLocationDetected,
+    bool? savedOffline,
   }) {
     return CheckinFlowState(
       kind: kind ?? this.kind,
@@ -53,7 +63,9 @@ class CheckinFlowState {
       livenessPassed: livenessPassed ?? this.livenessPassed,
       latitude: latitude ?? this.latitude,
       longitude: longitude ?? this.longitude,
+      locationId: locationId ?? this.locationId,
       mockLocationDetected: mockLocationDetected ?? this.mockLocationDetected,
+      savedOffline: savedOffline ?? this.savedOffline,
     );
   }
 
@@ -81,12 +93,14 @@ class CheckinFlowController extends StateNotifier<CheckinFlowState> {
     required double lat,
     required double lng,
     required bool verified,
+    String? locationId,
     bool mockDetected = false,
   }) {
     state = state.copyWith(
       latitude: lat,
       longitude: lng,
       locationVerified: verified,
+      locationId: locationId,
       gpsReady: true,
       mockLocationDetected: mockDetected,
     );
@@ -96,19 +110,75 @@ class CheckinFlowController extends StateNotifier<CheckinFlowState> {
     state = state.copyWith(faceVerified: faceVerified, livenessPassed: liveness);
   }
 
-  /// Submits the verified attendance to the repository.
+  /// Submits the verified attendance.
+  ///
+  /// When the device has no connectivity (or the network call throws a network
+  /// error) the submission is queued in the local SQLite DB and a synthetic
+  /// "saved offline" record is returned with `savedOffline` set on the state.
   Future<AttendanceRecord> submit() async {
     final repo = _ref.read(attendanceRepositoryProvider);
+    final now = DateTime.now();
     final submission = AttendanceSubmission(
       workMode: state.workMode,
       latitude: state.latitude ?? 0,
       longitude: state.longitude ?? 0,
       faceVerified: state.faceVerified,
       livenessPassed: state.livenessPassed,
+      locationId: state.locationId,
+      isMocked: state.mockLocationDetected,
+      capturedAt: now,
     );
-    return state.kind == CheckFlowKind.checkIn
-        ? repo.checkIn(submission)
-        : repo.checkOut(submission);
+
+    final type =
+        state.kind == CheckFlowKind.checkIn ? 'checkin' : 'checkout';
+
+    // If we already know we're offline, queue immediately without a round-trip.
+    final online = await _ref.read(syncServiceProvider).isOnline();
+    if (!online) {
+      return _queueOffline(submission, type, now);
+    }
+
+    try {
+      return state.kind == CheckFlowKind.checkIn
+          ? await repo.checkIn(submission)
+          : await repo.checkOut(submission);
+    } catch (e) {
+      // Network failures → queue offline so the user isn't blocked.
+      if (_isNetworkError(e)) {
+        return _queueOffline(submission, type, now);
+      }
+      rethrow;
+    }
+  }
+
+  Future<AttendanceRecord> _queueOffline(
+      AttendanceSubmission submission, String type, DateTime capturedAt) async {
+    await LocalDb.instance.insert(submission.toJson(), type, capturedAt);
+    state = state.copyWith(savedOffline: true);
+    // Synthetic record so the success screen has something to show.
+    return AttendanceRecord(
+      id: 'offline-${capturedAt.millisecondsSinceEpoch}',
+      date: DateTime(capturedAt.year, capturedAt.month, capturedAt.day),
+      status: AttendanceStatus.present,
+      workMode: submission.workMode,
+      shiftName: 'Tersimpan Offline',
+      checkInAt: state.kind == CheckFlowKind.checkIn ? capturedAt : null,
+      checkOutAt: state.kind == CheckFlowKind.checkOut ? capturedAt : null,
+      checkInLat: submission.latitude,
+      checkInLng: submission.longitude,
+      faceStatus: VerificationStatus.passed,
+      geofenceValid: state.locationVerified,
+      syncStatus: SyncStatus.pending,
+    );
+  }
+
+  bool _isNetworkError(Object e) {
+    final s = e.toString().toLowerCase();
+    return s.contains('koneksi') ||
+        s.contains('network') ||
+        s.contains('timeout') ||
+        s.contains('socket') ||
+        s.contains('connection');
   }
 }
 

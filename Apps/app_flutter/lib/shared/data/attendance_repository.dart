@@ -14,6 +14,7 @@ class AttendanceSubmission {
     required this.livenessPassed,
     this.locationId,
     this.capturedAt,
+    this.isMocked = false,
   });
 
   final WorkMode workMode;
@@ -23,6 +24,38 @@ class AttendanceSubmission {
   final bool livenessPassed;
   final String? locationId;
   final DateTime? capturedAt;
+
+  /// True when the GPS fix was reported by the OS as a mock/spoofed location.
+  final bool isMocked;
+
+  /// Serializes to the same shape the backend expects, for offline queueing.
+  Map<String, dynamic> toJson() => {
+        'workMode': workMode.name,
+        'latitude': latitude,
+        'longitude': longitude,
+        'faceVerified': faceVerified,
+        'livenessPassed': livenessPassed,
+        'isMocked': isMocked,
+        if (locationId != null) 'locationId': locationId,
+        if (capturedAt != null) 'capturedAt': capturedAt!.toUtc().toIso8601String(),
+      };
+
+  factory AttendanceSubmission.fromJson(Map<String, dynamic> j) =>
+      AttendanceSubmission(
+        workMode: WorkMode.values.firstWhere(
+          (m) => m.name == j['workMode'],
+          orElse: () => WorkMode.wfo,
+        ),
+        latitude: (j['latitude'] as num?)?.toDouble() ?? 0,
+        longitude: (j['longitude'] as num?)?.toDouble() ?? 0,
+        faceVerified: j['faceVerified'] as bool? ?? false,
+        livenessPassed: j['livenessPassed'] as bool? ?? false,
+        isMocked: j['isMocked'] as bool? ?? false,
+        locationId: j['locationId'] as String?,
+        capturedAt: j['capturedAt'] != null
+            ? DateTime.tryParse(j['capturedAt'] as String)
+            : null,
+      );
 }
 
 /// Today's attendance state for the home screen.

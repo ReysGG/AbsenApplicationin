@@ -42,10 +42,16 @@ final routerProvider = Provider<GoRouter>((ref) {
       }
 
       final loggedIn = auth.status == AuthStatus.authenticated;
-      final onAuthScreen = loc == AppRoutes.login || loc == AppRoutes.splash;
 
-      if (!loggedIn) return onAuthScreen ? null : AppRoutes.login;
-      if (loggedIn && onAuthScreen) return AppRoutes.home;
+      // Session resolved — splash is no longer a valid resting place.
+      if (!loggedIn) {
+        // Unauthenticated: only the login screen is allowed.
+        return loc == AppRoutes.login ? null : AppRoutes.login;
+      }
+      // Authenticated: bounce away from splash/login into the app.
+      if (loc == AppRoutes.splash || loc == AppRoutes.login) {
+        return AppRoutes.home;
+      }
       return null;
     },
     routes: [

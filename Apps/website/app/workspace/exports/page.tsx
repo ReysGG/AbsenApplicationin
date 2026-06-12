@@ -49,7 +49,7 @@ import { Button } from "@/components/ui/button";
 // ---------------------------------------------------------------------------
 
 type ExportStatus = "Queued" | "Processing" | "Completed" | "Failed" | "Expired";
-type ExportFormat = "XLSX" | "CSV";
+type ExportFormat = "XLSX" | "CSV" | "PDF";
 
 interface ExportJob {
   id: string;

@@ -1,0 +1,30 @@
+{
+  "_comment": "PLACEHOLDER / EXAMPLE ONLY. To enable Firebase Cloud Messaging (push notifications), download the real google-services.json from the Firebase console (Project Settings > Your apps > Android app) and save it as android/app/google-services.json. The Android app package name must be 'com.example.app_flutter' (see applicationId in android/app/build.gradle.kts). The google-services Gradle plugin is applied automatically only when that file exists, so the app builds and runs normally without it (push simply stays inactive).",
+  "project_info": {
+    "project_number": "000000000000",
+    "project_id": "attendx-placeholder",
+    "storage_bucket": "attendx-placeholder.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:000000000000:android:0000000000000000000000",
+        "android_client_info": {
+          "package_name": "com.example.app_flutter"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "PLACEHOLDER_API_KEY_REPLACE_WITH_REAL"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

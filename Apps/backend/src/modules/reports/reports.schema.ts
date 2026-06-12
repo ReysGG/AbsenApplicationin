@@ -55,7 +55,7 @@ export const exportQuerySchema = z.object({
     .string()
     .regex(dateRegex, 'Format tanggal harus YYYY-MM-DD')
     .optional(),
-  format: z.enum(['xlsx', 'csv']).default('xlsx'),
+  format: z.enum(['xlsx', 'csv', 'pdf']).default('xlsx'),
   report_type: z
     .enum([
       'AttendanceSummary',

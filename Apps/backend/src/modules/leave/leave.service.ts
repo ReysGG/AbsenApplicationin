@@ -24,6 +24,8 @@ import {
 } from '../../config/supabaseStorage'
 import type { ScopeFilter } from '../../types/auth'
 import type { CreateLeaveInput, RejectLeaveInput, UploadAttachmentInput } from './leave.schema'
+import { createNotification } from '../notifications/notifications.service'
+import { sendPushToUser } from '../../lib/fcm'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -267,6 +269,49 @@ async function assertNoOverlap(
     throw new ConflictError(
       'Permintaan cuti tumpang tindih dengan permintaan Pending atau Approved yang sudah ada (R11.9)',
     )
+  }
+}
+
+/**
+ * Notify the employee that their leave request was approved/rejected.
+ *
+ * id mapping (see schema): LeaveRequest.employeeId → Employee.id; the employee
+ * links to the app User via Employee.userId → User.id; that User carries both
+ * `id` (used by sendPushToUser) and `authUserId` (used by createNotification's
+ * recipientAuthUserId). Best-effort — never blocks the approve/reject op.
+ */
+async function notifyLeaveDecision(params: {
+  workspaceId: string
+  employeeId: string
+  leaveId: string
+  decision: 'leave_approved' | 'leave_rejected'
+}): Promise<void> {
+  try {
+    const employee = await prisma.employee.findFirst({
+      where: { id: params.employeeId, workspaceId: params.workspaceId },
+      select: { userId: true, user: { select: { id: true, authUserId: true } } },
+    })
+    const appUser = employee?.user
+    if (!appUser) return
+
+    await createNotification({
+      workspaceId: params.workspaceId,
+      recipientAuthUserId: appUser.authUserId,
+      type: params.decision,
+      refId: params.leaveId,
+    })
+
+    const approved = params.decision === 'leave_approved'
+    await sendPushToUser(
+      appUser.id,
+      approved ? 'Cuti Disetujui' : 'Cuti Ditolak',
+      approved
+        ? 'Pengajuan cuti/izin Anda telah disetujui.'
+        : 'Pengajuan cuti/izin Anda ditolak.',
+      { type: params.decision, leaveRequestId: params.leaveId },
+    )
+  } catch {
+    // Non-critical — notification/push failures must not break the decision.
   }
 }
 
@@ -549,6 +594,14 @@ export async function approveLeaveRequest(params: {
   })
 
   const item = mapLeaveRequest(updated as Parameters<typeof mapLeaveRequest>[0])
+
+  await notifyLeaveDecision({
+    workspaceId,
+    employeeId: leave.employeeId,
+    leaveId,
+    decision: 'leave_approved',
+  })
+
   return { ...item, conflictWarning: hasConflict }
 }
 
@@ -631,6 +684,13 @@ export async function rejectLeaveRequest(params: {
     ipAddress,
     userAgent,
     requestId,
+  })
+
+  await notifyLeaveDecision({
+    workspaceId,
+    employeeId: leave.employeeId,
+    leaveId,
+    decision: 'leave_rejected',
   })
 
   return mapLeaveRequest(updated as Parameters<typeof mapLeaveRequest>[0])

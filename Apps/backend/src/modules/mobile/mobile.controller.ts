@@ -9,7 +9,6 @@ import { sendSuccess } from '../../lib/response'
 import { UnauthenticatedError, ValidationError } from '../../lib/errors'
 import * as service from './mobile.service'
 import type { CheckInput, CreateLeaveInput } from './mobile.service'
-
 function requireEmployee(req: Request) {
   if (!req.employee) throw new UnauthenticatedError('Autentikasi diperlukan')
   return req.employee
@@ -77,6 +76,7 @@ function parseCheckInput(body: unknown): CheckInput {
     livenessPassed: Boolean(b.livenessPassed),
     locationId: typeof b.locationId === 'string' ? b.locationId : null,
     capturedAt: typeof b.capturedAt === 'string' ? b.capturedAt : null,
+    isMocked: Boolean(b.isMocked),
   }
 }
 
@@ -171,6 +171,34 @@ export async function markAllNotificationsReadHandler(req: Request, res: Respons
   try {
     const data = await service.markAllNotificationsRead(requireEmployee(req), req.user!.authUserId)
     sendSuccess(res, data, 'Semua notifikasi ditandai dibaca')
+  } catch (err) {
+    next(err)
+  }
+}
+
+export async function registerDeviceTokenHandler(req: Request, res: Response, next: NextFunction) {
+  try {
+    const b = (req.body ?? {}) as Record<string, unknown>
+    const token = typeof b.token === 'string' ? b.token.trim() : ''
+    const platform = typeof b.platform === 'string' ? b.platform.trim() : ''
+    if (!token || !platform) {
+      throw new ValidationError('token dan platform diperlukan')
+    }
+    await service.registerDeviceToken(requireEmployee(req), token, platform)
+    sendSuccess(res, null, 'Token perangkat terdaftar', 201)
+  } catch (err) {
+    next(err)
+  }
+}
+
+export async function deleteDeviceTokenHandler(req: Request, res: Response, next: NextFunction) {
+  try {
+    const b = (req.body ?? {}) as Record<string, unknown>
+    const token = typeof b.token === 'string' ? b.token.trim() : ''
+    if (token) {
+      await service.removeDeviceToken(token)
+    }
+    sendSuccess(res, null, 'Token perangkat dihapus')
   } catch (err) {
     next(err)
   }

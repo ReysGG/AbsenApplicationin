@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/providers.dart';
@@ -6,7 +7,9 @@ import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_spacing.dart';
 import '../../core/theme/app_typography.dart';
 import '../../core/utils/formatters.dart';
-import '../../core/widgets/app_card.dart';
+import '../../core/widgets/aurora_background.dart';
+import '../../core/widgets/glass_card.dart';
+import '../../core/widgets/lottie_icon.dart';
 import '../../core/widgets/status_badge.dart';
 import '../../shared/models/enums.dart';
 import '../../shared/models/shift.dart';
@@ -30,46 +33,70 @@ class _ScheduleScreenState extends ConsumerState<ScheduleScreen> {
     final async = ref.watch(_weekProvider);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Jadwal Shift')),
-      body: async.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => Center(child: Text(e.toString())),
-        data: (shifts) {
-          final selected = shifts[_selectedIndex];
-          return Column(
-            children: [
-              // Calendar ribbon
-              SizedBox(
-                height: 88,
-                child: ListView.builder(
-                  scrollDirection: Axis.horizontal,
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: AppSpacing.md, vertical: AppSpacing.sm),
-                  itemCount: shifts.length,
-                  itemBuilder: (_, i) => _DayPill(
-                    shift: shifts[i],
-                    selected: i == _selectedIndex,
-                    isToday: _isToday(shifts[i].date),
-                    onTap: () => setState(() => _selectedIndex = i),
+      backgroundColor: Colors.transparent,
+      appBar: AppBar(
+        title: const Text('Jadwal Shift'),
+        backgroundColor: Colors.transparent,
+      ),
+      body: AuroraBackground(
+        child: async.when(
+          loading: () => const Center(child: LottieIcon(LottieIcon.loading)),
+          error: (e, _) => Center(child: Text(e.toString())),
+          data: (shifts) {
+            final selected = shifts[_selectedIndex];
+            return Column(
+              children: [
+                // Calendar ribbon
+                SizedBox(
+                  height: 96,
+                  child: ListView.builder(
+                    scrollDirection: Axis.horizontal,
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: AppSpacing.md, vertical: AppSpacing.sm),
+                    itemCount: shifts.length,
+                    itemBuilder: (_, i) => _DayPill(
+                      shift: shifts[i],
+                      selected: i == _selectedIndex,
+                      isToday: _isToday(shifts[i].date),
+                      onTap: () => setState(() => _selectedIndex = i),
+                    ),
                   ),
                 ),
-              ),
-              const Divider(height: 1),
-              Expanded(
-                child: ListView(
-                  padding: const EdgeInsets.all(AppSpacing.md),
-                  children: [
-                    Text(Formatters.fullDate(selected.date),
-                        style: AppTypography.labelMd
-                            .copyWith(color: AppColors.onSurfaceVariant)),
-                    const SizedBox(height: AppSpacing.sm),
-                    _ShiftDetailCard(shift: selected),
-                  ],
+                Expanded(
+                  child: ListView(
+                    padding: const EdgeInsets.all(AppSpacing.md),
+                    children: [
+                      Text(Formatters.fullDate(selected.date),
+                          style: AppTypography.labelMd
+                              .copyWith(color: AppColors.onSurfaceVariant)),
+                      const SizedBox(height: AppSpacing.sm),
+                      // Re-animates whenever the selected day changes.
+                      AnimatedSwitcher(
+                        duration: 320.ms,
+                        switchInCurve: Curves.easeOut,
+                        switchOutCurve: Curves.easeIn,
+                        transitionBuilder: (child, anim) => FadeTransition(
+                          opacity: anim,
+                          child: SlideTransition(
+                            position: Tween<Offset>(
+                              begin: const Offset(0, 0.06),
+                              end: Offset.zero,
+                            ).animate(anim),
+                            child: child,
+                          ),
+                        ),
+                        child: _ShiftDetailCard(
+                          key: ValueKey(selected.date),
+                          shift: selected,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-            ],
-          );
-        },
+              ],
+            );
+          },
+        ),
       ),
     );
   }
@@ -94,21 +121,39 @@ class _DayPill extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final bg = selected ? AppColors.primary : AppColors.surface;
     final fg = selected ? AppColors.onPrimary : AppColors.onSurface;
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
+    final dotColor = shift.isDayOff
+        ? AppColors.outline
+        : (shift.workMode == WorkMode.wfo
+            ? AppColors.primary
+            : AppColors.secondary);
+
+    Widget pill = AnimatedScale(
+      scale: selected ? 1.08 : 1,
+      duration: 240.ms,
+      curve: Curves.easeOutBack,
+      child: AnimatedContainer(
+        duration: 240.ms,
+        curve: Curves.easeOut,
         width: 56,
         margin: const EdgeInsets.only(right: AppSpacing.sm),
         decoration: BoxDecoration(
-          color: bg,
+          color: selected ? AppColors.primary : AppColors.glassFill,
           borderRadius: BorderRadius.circular(AppRadius.lg),
           border: Border.all(
             color: isToday && !selected
                 ? AppColors.primary
-                : AppColors.surfaceContainerHigh,
+                : AppColors.glassBorderSoft,
           ),
+          boxShadow: selected
+              ? [
+                  BoxShadow(
+                    color: AppColors.glassShadow,
+                    blurRadius: 16,
+                    offset: Offset(0, 6),
+                  ),
+                ]
+              : null,
         ),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -124,11 +169,7 @@ class _DayPill extends StatelessWidget {
               width: 6,
               height: 6,
               decoration: BoxDecoration(
-                color: shift.isDayOff
-                    ? AppColors.outline
-                    : (shift.workMode == WorkMode.wfo
-                        ? AppColors.primary
-                        : AppColors.secondary),
+                color: dotColor,
                 shape: BoxShape.circle,
               ),
             ),
@@ -136,23 +177,39 @@ class _DayPill extends StatelessWidget {
         ),
       ),
     );
+
+    // Subtle pulse on today's pill to draw the eye.
+    if (isToday) {
+      pill = pill
+          .animate(onPlay: (c) => c.repeat(reverse: true))
+          .scaleXY(
+            begin: 1,
+            end: 1.04,
+            duration: 1100.ms,
+            curve: Curves.easeInOut,
+          );
+    }
+
+    return GestureDetector(onTap: onTap, child: pill);
   }
 }
 
 class _ShiftDetailCard extends StatelessWidget {
-  const _ShiftDetailCard({required this.shift});
+  const _ShiftDetailCard({super.key, required this.shift});
   final Shift shift;
 
   @override
   Widget build(BuildContext context) {
     if (shift.isDayOff) {
-      return AppCard(
+      return GlassCard(
+        animate: false,
         child: Row(
           children: [
             CircleAvatar(
               radius: 22,
-              backgroundColor: AppColors.surfaceContainerHigh,
-              child: const Icon(Icons.weekend_outlined,
+              backgroundColor: AppColors.surfaceContainerHigh
+                  .withValues(alpha: 0.6),
+              child: Icon(Icons.weekend_outlined,
                   color: AppColors.onSurfaceVariant),
             ),
             const SizedBox(width: AppSpacing.md),
@@ -162,7 +219,8 @@ class _ShiftDetailCard extends StatelessWidget {
       );
     }
 
-    return AppCard(
+    return GlassCard(
+      animate: false,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -205,7 +263,7 @@ class _ShiftDetailCard extends StatelessWidget {
   Widget _timeBox(String label, String value, IconData icon) => Container(
         padding: const EdgeInsets.all(AppSpacing.md),
         decoration: BoxDecoration(
-          color: AppColors.surfaceContainerLow,
+          color: AppColors.surfaceContainerLow.withValues(alpha: 0.6),
           borderRadius: BorderRadius.circular(AppRadius.lg),
         ),
         child: Column(

@@ -13,7 +13,7 @@ export type ReportType =
   | "LeaveAndPermit"
   | "DepartmentAttendance";
 
-export type ExportFormat = "xlsx" | "csv";
+export type ExportFormat = "xlsx" | "csv" | "pdf";
 
 export type ExportStatus =
   | "Queued"

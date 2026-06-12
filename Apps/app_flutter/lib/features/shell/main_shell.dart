@@ -1,7 +1,10 @@
+import 'dart:ui';
+
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/theme/app_colors.dart';
+import '../../core/theme/app_spacing.dart';
 import '../../core/theme/app_typography.dart';
 
 /// Bottom-navigation shell hosting the 5 primary tabs:
@@ -31,34 +34,11 @@ class MainShell extends StatelessWidget {
     final current = navigationShell.currentIndex;
     return Scaffold(
       body: navigationShell,
-      bottomNavigationBar: Container(
-        decoration: const BoxDecoration(
-          color: AppColors.surface,
-          boxShadow: [
-            BoxShadow(
-              color: Color(0x0D000000),
-              blurRadius: 4,
-              offset: Offset(0, -2),
-            ),
-          ],
-        ),
-        child: SafeArea(
-          top: false,
-          child: Padding(
-            padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceAround,
-              children: [
-                for (var i = 0; i < _tabs.length; i++)
-                  _NavItem(
-                    spec: _tabs[i],
-                    selected: i == current,
-                    onTap: () => _onTap(i),
-                  ),
-              ],
-            ),
-          ),
-        ),
+      extendBody: true, // content flows behind the translucent nav bar
+      bottomNavigationBar: _GlassNavBar(
+        tabs: _tabs,
+        current: current,
+        onTap: _onTap,
       ),
     );
   }
@@ -71,7 +51,72 @@ class _TabSpec {
   final String label;
 }
 
-class _NavItem extends StatelessWidget {
+/// Glass bottom nav bar: backdrop-blurred container + pill indicator that
+/// moves with a spring curve. Each icon bounces on selection.
+class _GlassNavBar extends StatelessWidget {
+  const _GlassNavBar({
+    required this.tabs,
+    required this.current,
+    required this.onTap,
+  });
+
+  final List<_TabSpec> tabs;
+  final int current;
+  final void Function(int) onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final bottomPadding = MediaQuery.of(context).padding.bottom;
+
+    return ClipRect(
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+        child: Container(
+          decoration: BoxDecoration(
+            color: AppColors.glassFillStrong,
+            border: Border(
+              top: BorderSide(
+                color: AppColors.glassBorder.withValues(alpha: 0.5),
+                width: 1,
+              ),
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: AppColors.glassShadow,
+                blurRadius: 24,
+                offset: Offset(0, -4),
+              ),
+            ],
+          ),
+          child: SafeArea(
+            top: false,
+            child: Padding(
+              padding: EdgeInsets.only(
+                top: 6,
+                bottom: bottomPadding > 0 ? 2 : 8,
+                left: 4,
+                right: 4,
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceAround,
+                children: [
+                  for (var i = 0; i < tabs.length; i++)
+                    _NavItem(
+                      spec: tabs[i],
+                      selected: i == current,
+                      onTap: () => onTap(i),
+                    ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _NavItem extends StatefulWidget {
   const _NavItem({
     required this.spec,
     required this.selected,
@@ -83,36 +128,110 @@ class _NavItem extends StatelessWidget {
   final VoidCallback onTap;
 
   @override
+  State<_NavItem> createState() => _NavItemState();
+}
+
+class _NavItemState extends State<_NavItem> with SingleTickerProviderStateMixin {
+  late final AnimationController _bounce;
+  bool _prevSelected = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _bounce = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 380),
+    );
+    _prevSelected = widget.selected;
+  }
+
+  @override
+  void didUpdateWidget(_NavItem old) {
+    super.didUpdateWidget(old);
+    // Trigger bounce only on the moment of selection.
+    if (widget.selected && !_prevSelected) {
+      _bounce.forward(from: 0);
+    }
+    _prevSelected = widget.selected;
+  }
+
+  @override
+  void dispose() {
+    _bounce.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final color =
-        selected ? AppColors.onSecondaryContainer : AppColors.onSurfaceVariant;
+    final selected = widget.selected;
+    final labelColor =
+        selected ? AppColors.primary : AppColors.onSurfaceVariant;
+    final iconColor =
+        selected ? AppColors.onPrimary : AppColors.onSurfaceVariant;
+
     return Expanded(
-      child: InkWell(
-        borderRadius: BorderRadius.circular(9999),
-        onTap: onTap,
+      child: GestureDetector(
+        onTap: widget.onTap,
+        behavior: HitTestBehavior.opaque,
         child: AnimatedContainer(
-          duration: const Duration(milliseconds: 200),
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeOutCubic,
           padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 4),
           margin: const EdgeInsets.symmetric(horizontal: 2),
           decoration: BoxDecoration(
             color: selected
-                ? AppColors.secondaryContainer
+                ? AppColors.primary.withValues(alpha: 0.13)
                 : Colors.transparent,
-            borderRadius: BorderRadius.circular(9999),
+            borderRadius: BorderRadius.circular(AppRadius.full),
           ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(selected ? spec.activeIcon : spec.icon,
-                  color: selected ? AppColors.onSecondary : color, size: 24),
-              const SizedBox(height: 2),
-              Text(
-                spec.label,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
+              // Icon with spring-bounce scale on selection
+              AnimatedBuilder(
+                animation: _bounce,
+                builder: (context, child) {
+                  // Spring: overshoot then settle using easeOutBack applied
+                  // to the bounce controller value.
+                  final t = Curves.easeOutBack.transform(_bounce.value);
+                  final scale = selected
+                      ? 1.0 + 0.28 * (1 - (t - 1).abs().clamp(0.0, 1.0))
+                      : 1.0;
+                  return Transform.scale(
+                    scale: scale,
+                    child: child,
+                  );
+                },
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 300),
+                  curve: Curves.easeOutCubic,
+                  width: 32,
+                  height: 32,
+                  decoration: BoxDecoration(
+                    color: selected
+                        ? AppColors.primary
+                        : Colors.transparent,
+                    borderRadius: BorderRadius.circular(AppRadius.full),
+                  ),
+                  child: Icon(
+                    selected ? widget.spec.activeIcon : widget.spec.icon,
+                    color: iconColor,
+                    size: 22,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 3),
+              AnimatedDefaultTextStyle(
+                duration: const Duration(milliseconds: 200),
                 style: AppTypography.labelSm.copyWith(
-                  color: selected ? AppColors.onSecondary : color,
+                  color: labelColor,
                   letterSpacing: 0,
+                  fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
+                ),
+                child: Text(
+                  widget.spec.label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
             ],

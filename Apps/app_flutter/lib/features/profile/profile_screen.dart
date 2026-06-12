@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -6,7 +7,9 @@ import '../../core/router/app_routes.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_spacing.dart';
 import '../../core/theme/app_typography.dart';
-import '../../core/widgets/app_card.dart';
+import '../../core/widgets/brand_header.dart';
+import '../../core/widgets/pressable.dart';
+import '../../core/widgets/solid_card.dart';
 import '../../core/widgets/status_badge.dart';
 import '../auth/auth_controller.dart';
 
@@ -17,100 +20,164 @@ class ProfileScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final profile = ref.watch(authControllerProvider).profile;
 
+    final menuItems = <_MenuData>[
+      _MenuData(
+        icon: Icons.sync,
+        label: 'Sinkronisasi Offline',
+        onTap: () => context.push(AppRoutes.syncStatus),
+      ),
+      _MenuData(
+        icon: Icons.notifications_outlined,
+        label: 'Notifikasi',
+        onTap: () => context.push(AppRoutes.notifications),
+      ),
+      _MenuData(
+        icon: Icons.help_outline,
+        label: 'Bantuan',
+        onTap: () {},
+      ),
+    ];
+
     return Scaffold(
-      appBar: AppBar(title: const Text('Profil')),
-      body: ListView(
-        padding: const EdgeInsets.all(AppSpacing.md),
+      backgroundColor: AppColors.pageBg,
+      body: Column(
         children: [
-          // Profile header bento
-          AppCard(
-            child: Column(
+          BrandHeader(
+            title: 'Profil',
+            subtitle: profile?.workspaceName ?? 'AttendX',
+          ),
+          Expanded(
+            child: ListView(
+              padding: const EdgeInsets.fromLTRB(
+                  AppSpacing.md, AppSpacing.md, AppSpacing.md, AppSpacing.xl),
               children: [
-                Stack(
-                  alignment: Alignment.bottomRight,
-                  children: [
-                    CircleAvatar(
-                      radius: 40,
-                      backgroundColor: AppColors.primaryFixed,
-                      child: Text(
-                        profile?.firstName.characters.first ?? 'A',
-                        style: AppTypography.display
-                            .copyWith(color: AppColors.primary),
+                // ── Profile header ──────────────────────────────────────────
+                SolidCard(
+                  child: Column(
+                    children: [
+                      Stack(
+                        alignment: Alignment.bottomRight,
+                        children: [
+                          // Avatar with subtle brand ring/glow.
+                          Container(
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              gradient: const LinearGradient(
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                                colors: [
+                                  AppColors.brandStart,
+                                  AppColors.brandEnd,
+                                ],
+                              ),
+                              boxShadow: [
+                                BoxShadow(
+                                  color:
+                                      AppColors.brandMid.withValues(alpha: 0.25),
+                                  blurRadius: 24,
+                                  spreadRadius: 2,
+                                ),
+                              ],
+                            ),
+                            padding: const EdgeInsets.all(3),
+                            child: CircleAvatar(
+                              radius: 40,
+                              backgroundColor: AppColors.primaryFixed,
+                              child: Text(
+                                profile?.firstName.characters.first ?? 'A',
+                                style: AppTypography.display
+                                    .copyWith(color: AppColors.brandMid),
+                              ),
+                            ),
+                          ),
+                          // Verified check badge — pops in.
+                          Container(
+                            padding: const EdgeInsets.all(4),
+                            decoration: BoxDecoration(
+                              color: AppColors.success,
+                              shape: BoxShape.circle,
+                              border:
+                                  Border.all(color: Colors.white, width: 2),
+                            ),
+                            child: const Icon(Icons.check,
+                                size: 14, color: Colors.white),
+                          )
+                              .animate()
+                              .scaleXY(
+                                begin: 0,
+                                delay: 350.ms,
+                                duration: 400.ms,
+                                curve: Curves.easeOutBack,
+                              )
+                              .fadeIn(duration: 200.ms, delay: 350.ms),
+                        ],
                       ),
-                    ),
-                    Container(
-                      padding: const EdgeInsets.all(4),
-                      decoration: const BoxDecoration(
-                        color: AppColors.success,
-                        shape: BoxShape.circle,
+                      const SizedBox(height: AppSpacing.md),
+                      Text(profile?.fullName ?? '-',
+                          style: AppTypography.headlineMd),
+                      Text(profile?.position ?? '-',
+                          style: AppTypography.bodyMd
+                              .copyWith(color: AppColors.onSurfaceVariant)),
+                      const SizedBox(height: AppSpacing.sm),
+                      StatusBadge(
+                        label: profile?.faceEnrolled == true
+                            ? 'Wajah Terdaftar'
+                            : 'Wajah Belum Terdaftar',
+                        color: profile?.faceEnrolled == true
+                            ? AppColors.success
+                            : AppColors.pending,
+                        icon: Icons.face,
                       ),
-                      child: const Icon(Icons.check,
-                          size: 14, color: AppColors.onPrimary),
-                    ),
-                  ],
+                      const SizedBox(height: AppSpacing.md),
+                      const Divider(),
+                      _info('Kode Karyawan', profile?.employeeCode ?? '-'),
+                      _info('Email', profile?.email ?? '-'),
+                      _info('Divisi', profile?.department ?? '-'),
+                      _info('Perusahaan', profile?.workspaceName ?? '-'),
+                    ],
+                  ),
                 ),
                 const SizedBox(height: AppSpacing.md),
-                Text(profile?.fullName ?? '-',
-                    style: AppTypography.headlineMd),
-                Text(profile?.position ?? '-',
-                    style: AppTypography.bodyMd
-                        .copyWith(color: AppColors.onSurfaceVariant)),
-                const SizedBox(height: AppSpacing.sm),
-                StatusBadge(
-                  label: profile?.faceEnrolled == true
-                      ? 'Wajah Terdaftar'
-                      : 'Wajah Belum Terdaftar',
-                  color: profile?.faceEnrolled == true
-                      ? AppColors.success
-                      : AppColors.pending,
-                  icon: Icons.face,
-                ),
+
+                // ── Menu ────────────────────────────────────────────────────
+                SolidCard(
+                  entrance: false,
+                  padding: EdgeInsets.zero,
+                  child: Column(
+                    children: [
+                      for (var i = 0; i < menuItems.length; i++) ...[
+                        if (i > 0) const Divider(height: 1),
+                        _MenuTile(data: menuItems[i], index: i),
+                      ],
+                    ],
+                  ),
+                )
+                    .animate(delay: 120.ms)
+                    .fadeIn(duration: 320.ms)
+                    .slideY(begin: 0.06, curve: Curves.easeOut),
                 const SizedBox(height: AppSpacing.md),
-                const Divider(),
-                _info('Kode Karyawan', profile?.employeeCode ?? '-'),
-                _info('Email', profile?.email ?? '-'),
-                _info('Divisi', profile?.department ?? '-'),
-                _info('Perusahaan', profile?.workspaceName ?? '-'),
-              ],
-            ),
-          ),
-          const SizedBox(height: AppSpacing.md),
 
-          // Menu
-          AppCard(
-            padding: EdgeInsets.zero,
-            child: Column(
-              children: [
-                _MenuTile(
-                  icon: Icons.sync,
-                  label: 'Sinkronisasi Offline',
-                  onTap: () => context.push(AppRoutes.syncStatus),
-                ),
-                const Divider(height: 1),
-                _MenuTile(
-                  icon: Icons.notifications_outlined,
-                  label: 'Notifikasi',
-                  onTap: () => context.push(AppRoutes.notifications),
-                ),
-                const Divider(height: 1),
-                _MenuTile(
-                  icon: Icons.help_outline,
-                  label: 'Bantuan',
-                  onTap: () {},
-                ),
+                // ── Logout ──────────────────────────────────────────────────
+                Pressable(
+                  child: OutlinedButton.icon(
+                    onPressed: () => _confirmLogout(context, ref),
+                    icon: Icon(Icons.logout, color: AppColors.error),
+                    label: Text('Keluar',
+                        style: TextStyle(color: AppColors.error)),
+                    style: OutlinedButton.styleFrom(
+                      minimumSize: const Size.fromHeight(52),
+                      backgroundColor: Colors.white,
+                      side: BorderSide(color: AppColors.error),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(AppRadius.lg),
+                      ),
+                    ),
+                  ),
+                )
+                    .animate(delay: 200.ms)
+                    .fadeIn(duration: 320.ms, curve: Curves.easeOut)
+                    .slideY(begin: 0.06, duration: 320.ms, curve: Curves.easeOut),
               ],
-            ),
-          ),
-          const SizedBox(height: AppSpacing.md),
-
-          OutlinedButton.icon(
-            onPressed: () => _confirmLogout(context, ref),
-            icon: const Icon(Icons.logout, color: AppColors.error),
-            label: const Text('Keluar',
-                style: TextStyle(color: AppColors.error)),
-            style: OutlinedButton.styleFrom(
-              minimumSize: const Size.fromHeight(52),
-              side: const BorderSide(color: AppColors.error),
             ),
           ),
         ],
@@ -123,7 +190,8 @@ class ProfileScreen extends ConsumerWidget {
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Keluar dari akun?'),
-        content: const Text('Kamu perlu masuk kembali untuk melakukan absensi.'),
+        content:
+            const Text('Kamu perlu masuk kembali untuk melakukan absensi.'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
@@ -158,8 +226,10 @@ class ProfileScreen extends ConsumerWidget {
       );
 }
 
-class _MenuTile extends StatelessWidget {
-  const _MenuTile({
+// ── Menu data + tile ─────────────────────────────────────────────────────────
+
+class _MenuData {
+  const _MenuData({
     required this.icon,
     required this.label,
     required this.onTap,
@@ -167,14 +237,24 @@ class _MenuTile extends StatelessWidget {
   final IconData icon;
   final String label;
   final VoidCallback onTap;
+}
+
+class _MenuTile extends StatelessWidget {
+  const _MenuTile({required this.data, required this.index});
+  final _MenuData data;
+  final int index;
 
   @override
   Widget build(BuildContext context) {
     return ListTile(
-      leading: Icon(icon, color: AppColors.onSurfaceVariant),
-      title: Text(label, style: AppTypography.labelMd),
-      trailing: const Icon(Icons.chevron_right, color: AppColors.outline),
-      onTap: onTap,
-    );
+      leading: Icon(data.icon, color: AppColors.onSurfaceVariant),
+      title: Text(data.label, style: AppTypography.labelMd),
+      trailing: Icon(Icons.chevron_right, color: AppColors.outline),
+      onTap: data.onTap,
+      splashColor: AppColors.surfaceContainerLow,
+    )
+        .animate(delay: (160 + 70 * index).ms)
+        .fadeIn(duration: 280.ms, curve: Curves.easeOut)
+        .slideX(begin: 0.06, duration: 300.ms, curve: Curves.easeOut);
   }
 }

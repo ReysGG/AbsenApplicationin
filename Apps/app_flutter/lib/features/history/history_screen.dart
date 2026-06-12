@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -8,7 +9,9 @@ import '../../core/theme/app_spacing.dart';
 import '../../core/theme/app_typography.dart';
 import '../../core/utils/formatters.dart';
 import '../../core/utils/status_styles.dart';
-import '../../core/widgets/app_card.dart';
+import '../../core/widgets/brand_header.dart';
+import '../../core/widgets/lottie_icon.dart';
+import '../../core/widgets/solid_card.dart';
 import '../../core/widgets/status_badge.dart';
 import '../../shared/models/attendance_record.dart';
 import '../../shared/models/enums.dart';
@@ -29,57 +32,65 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
     final async = ref.watch(historyProvider);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Riwayat Presensi')),
+      backgroundColor: AppColors.pageBg,
       body: Column(
         children: [
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(
-                horizontal: AppSpacing.md, vertical: AppSpacing.sm),
-            child: Row(
-              children: [
-                _FilterChip(
-                  label: 'Semua',
-                  selected: _filter == null,
-                  onTap: () => setState(() => _filter = null),
-                ),
-                for (final s in [
-                  AttendanceStatus.present,
-                  AttendanceStatus.late,
-                  AttendanceStatus.absent,
-                ])
-                  _FilterChip(
-                    label: s.label,
-                    selected: _filter == s,
-                    onTap: () => setState(() => _filter = s),
-                  ),
-              ],
-            ),
-          ),
+          const BrandHeader(title: 'Riwayat Presensi'),
           Expanded(
-            child: async.when(
-              loading: () =>
-                  const Center(child: CircularProgressIndicator()),
-              error: (e, _) => Center(child: Text(e.toString())),
-              data: (records) {
-                final filtered = _filter == null
-                    ? records
-                    : records.where((r) => r.status == _filter).toList();
-                if (filtered.isEmpty) {
-                  return const _EmptyHistory();
-                }
-                return RefreshIndicator(
-                  onRefresh: () async => ref.refresh(historyProvider.future),
-                  child: ListView.separated(
-                    padding: const EdgeInsets.all(AppSpacing.md),
-                    itemCount: filtered.length,
-                    itemBuilder: (_, i) => _HistoryCard(record: filtered[i]),
-                    separatorBuilder: (_, _) =>
-                        const SizedBox(height: AppSpacing.sm),
+            child: Column(
+          children: [
+            SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.symmetric(
+                  horizontal: AppSpacing.md, vertical: AppSpacing.md),
+              child: Row(
+                children: [
+                  _FilterChip(
+                    label: 'Semua',
+                    selected: _filter == null,
+                    onTap: () => setState(() => _filter = null),
                   ),
-                );
-              },
+                  for (final s in [
+                    AttendanceStatus.present,
+                    AttendanceStatus.late,
+                    AttendanceStatus.absent,
+                  ])
+                    _FilterChip(
+                      label: s.label,
+                      selected: _filter == s,
+                      onTap: () => setState(() => _filter = s),
+                    ),
+                ],
+              ),
             ),
+            Expanded(
+              child: async.when(
+                loading: () =>
+                    const Center(child: LottieIcon(LottieIcon.loading)),
+                error: (e, _) => Center(child: Text(e.toString())),
+                data: (records) {
+                  final filtered = _filter == null
+                      ? records
+                      : records.where((r) => r.status == _filter).toList();
+                  if (filtered.isEmpty) {
+                    return const _EmptyHistory();
+                  }
+                  return RefreshIndicator(
+                    onRefresh: () async => ref.refresh(historyProvider.future),
+                    child: ListView.separated(
+                      padding: const EdgeInsets.all(AppSpacing.md),
+                      itemCount: filtered.length,
+                      itemBuilder: (_, i) =>
+                          _HistoryCard(record: filtered[i], index: i),
+                      separatorBuilder: (_, _) =>
+                          const SizedBox(height: AppSpacing.sm),
+                    ),
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
           ),
         ],
       ),
@@ -88,14 +99,15 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
 }
 
 class _HistoryCard extends StatelessWidget {
-  const _HistoryCard({required this.record});
+  const _HistoryCard({required this.record, required this.index});
   final AttendanceRecord record;
+  final int index;
 
   @override
   Widget build(BuildContext context) {
-    return AppCard(
-      onTap: () => context
-          .push('${AppRoutes.attendanceDetail}?id=${record.id}'),
+    final card = SolidCard(
+      entrance: false,
+      onTap: () => context.push('${AppRoutes.attendanceDetail}?id=${record.id}'),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -143,8 +155,8 @@ class _HistoryCard extends StatelessWidget {
               const SizedBox(width: 4),
               Text(
                 '${record.workMode.label} · ${record.locationName ?? '-'}',
-                style: AppTypography.labelSm
-                    .copyWith(color: AppColors.onSurfaceVariant, letterSpacing: 0),
+                style: AppTypography.labelSm.copyWith(
+                    color: AppColors.onSurfaceVariant, letterSpacing: 0),
               ),
               const Spacer(),
               if (record.syncStatus != SyncStatus.synced)
@@ -158,6 +170,19 @@ class _HistoryCard extends StatelessWidget {
         ],
       ),
     );
+
+    // Hero shares the card surface with the detail header.
+    final hero = Hero(
+      tag: 'attendance-${record.id}',
+      // Avoid blur/material artifacts mid-flight.
+      flightShuttleBuilder: (_, _, _, _, _) => card,
+      child: card,
+    );
+
+    return hero
+        .animate(delay: (60 * index).ms)
+        .fadeIn(duration: 320.ms, curve: Curves.easeOut)
+        .slideY(begin: 0.08, curve: Curves.easeOut);
   }
 }
 
@@ -181,8 +206,8 @@ class _TimeChunk extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(label,
-                style: AppTypography.labelSm
-                    .copyWith(color: AppColors.onSurfaceVariant, letterSpacing: 0)),
+                style: AppTypography.labelSm.copyWith(
+                    color: AppColors.onSurfaceVariant, letterSpacing: 0)),
             Text(value, style: AppTypography.labelMd),
           ],
         ),
@@ -205,14 +230,21 @@ class _FilterChip extends StatelessWidget {
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.only(right: AppSpacing.sm),
-      child: ChoiceChip(
-        label: Text(label),
-        selected: selected,
-        onSelected: (_) => onTap(),
-        showCheckmark: false,
-        selectedColor: AppColors.primary,
-        labelStyle: AppTypography.labelMd.copyWith(
-          color: selected ? AppColors.onPrimary : AppColors.onSurfaceVariant,
+      child: AnimatedScale(
+        scale: selected ? 1.06 : 1,
+        duration: 200.ms,
+        curve: Curves.easeOutBack,
+        child: ChoiceChip(
+          label: Text(label),
+          selected: selected,
+          onSelected: (_) => onTap(),
+          showCheckmark: false,
+          selectedColor: AppColors.brandMid,
+          backgroundColor: Colors.white,
+          side: BorderSide(color: AppColors.outlineVariant.withValues(alpha: 0.5)),
+          labelStyle: AppTypography.labelMd.copyWith(
+            color: selected ? Colors.white : AppColors.onSurfaceVariant,
+          ),
         ),
       ),
     );
@@ -228,13 +260,13 @@ class _EmptyHistory extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Icon(Icons.event_busy, size: 48, color: AppColors.outline),
+          const LottieIcon(LottieIcon.empty, size: 160),
           const SizedBox(height: AppSpacing.sm),
           Text('Belum ada riwayat presensi',
               style: AppTypography.bodyMd
                   .copyWith(color: AppColors.onSurfaceVariant)),
         ],
-      ),
+      ).animate().fadeIn(duration: 360.ms),
     );
   }
 }

@@ -146,6 +146,15 @@ export async function mobileLogoutHandler(
   next: NextFunction,
 ): Promise<void> {
   try {
+    // Best-effort: drop the device's FCM token if the client supplied one.
+    const body = (req.body ?? {}) as { token?: unknown }
+    if (typeof body.token === 'string' && body.token.trim()) {
+      try {
+        await (prisma as any).deviceToken.deleteMany({ where: { token: body.token.trim() } })
+      } catch {
+        // Non-critical — token cleanup must not block logout.
+      }
+    }
     try {
       await auth.api.signOut({ headers: req.headers as Record<string, string> })
     } catch {

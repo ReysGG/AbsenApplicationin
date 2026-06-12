@@ -55,6 +55,11 @@ services:
       # at the website (host port 10000), not the backend's own port.
       APP_URL: ${NEXT_PUBLIC_APP_URL:-http://localhost:10000}
       RUN_SEED: ${RUN_SEED:-true}
+      # Firebase Cloud Messaging (optional). Push auto-disabled if unset.
+      # Paste the service-account JSON (single line) into FIREBASE_SERVICE_ACCOUNT_JSON
+      # in your host .env, OR mount a file and set FIREBASE_SERVICE_ACCOUNT_PATH.
+      FIREBASE_SERVICE_ACCOUNT_JSON: ${FIREBASE_SERVICE_ACCOUNT_JSON:-}
+      FIREBASE_SERVICE_ACCOUNT_PATH: ${FIREBASE_SERVICE_ACCOUNT_PATH:-}
     ports:
       - "10001:4000"
     healthcheck:

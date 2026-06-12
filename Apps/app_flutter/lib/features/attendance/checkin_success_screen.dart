@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -8,7 +9,9 @@ import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_spacing.dart';
 import '../../core/theme/app_typography.dart';
 import '../../core/utils/formatters.dart';
-import '../../core/widgets/app_card.dart';
+import '../../core/widgets/aurora_background.dart';
+import '../../core/widgets/glass_card.dart';
+import '../../core/widgets/lottie_icon.dart';
 import '../../shared/models/attendance_record.dart';
 import '../attendance/checkin_flow_controller.dart';
 
@@ -25,51 +28,70 @@ class CheckinSuccessScreen extends ConsumerWidget {
         : ref.watch(_detailProvider(recordId!));
 
     return Scaffold(
-      backgroundColor: AppColors.background,
-      body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(AppSpacing.md),
-          child: Column(
-            children: [
-              const Spacer(),
-              Container(
-                width: 96,
-                height: 96,
-                decoration: BoxDecoration(
-                  color: AppColors.success.withValues(alpha: 0.12),
-                  shape: BoxShape.circle,
-                ),
-                child: const Icon(Icons.check_circle,
-                    color: AppColors.success, size: 64),
-              ),
-              const SizedBox(height: AppSpacing.lg),
-              Text(
-                isCheckout ? 'Check-out Berhasil!' : 'Check-in Berhasil!',
-                style: AppTypography.display,
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: AppSpacing.xs),
-              Text(
-                'Kehadiranmu telah tercatat dengan aman.',
-                style: AppTypography.bodyMd
-                    .copyWith(color: AppColors.onSurfaceVariant),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: AppSpacing.lg),
-              if (detailAsync != null)
-                detailAsync.when(
-                  loading: () => const CircularProgressIndicator(),
-                  error: (_, _) => const SizedBox.shrink(),
-                  data: (r) => _SummaryCard(record: r, isCheckout: isCheckout),
-                ),
-              const Spacer(),
-              FilledButton(
-                onPressed: () => context.go(AppRoutes.home),
-                style:
-                    FilledButton.styleFrom(minimumSize: const Size.fromHeight(52)),
-                child: const Text('Kembali ke Beranda'),
-              ),
-            ],
+      backgroundColor: Colors.transparent,
+      body: AuroraBackground(
+        child: SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.all(AppSpacing.md),
+            child: Column(
+              children: [
+                const Spacer(),
+                // Celebration checkmark — plays once, large + centered.
+                SizedBox(
+                  width: 160,
+                  height: 160,
+                  child: const LottieIcon(
+                    LottieIcon.success,
+                    size: 160,
+                    repeat: false,
+                  ),
+                )
+                    .animate()
+                    .scaleXY(
+                      begin: 0.5,
+                      end: 1,
+                      duration: 520.ms,
+                      curve: Curves.elasticOut,
+                    )
+                    .fadeIn(duration: 240.ms),
+                const SizedBox(height: AppSpacing.sm),
+                Text(
+                  isCheckout ? 'Check-out Berhasil!' : 'Check-in Berhasil!',
+                  style: AppTypography.display,
+                  textAlign: TextAlign.center,
+                )
+                    .animate(delay: 360.ms)
+                    .fadeIn(duration: 300.ms)
+                    .scaleXY(begin: 0.92, end: 1, curve: Curves.easeOutBack),
+                const SizedBox(height: AppSpacing.xs),
+                Text(
+                  'Kehadiranmu telah tercatat dengan aman.',
+                  style: AppTypography.bodyMd
+                      .copyWith(color: AppColors.onSurfaceVariant),
+                  textAlign: TextAlign.center,
+                ).animate(delay: 480.ms).fadeIn(duration: 320.ms).slideY(
+                      begin: 0.2,
+                      curve: Curves.easeOut,
+                    ),
+                const SizedBox(height: AppSpacing.lg),
+                if (detailAsync != null)
+                  detailAsync.when(
+                    loading: () => const SizedBox.shrink(),
+                    error: (_, _) => const SizedBox.shrink(),
+                    data: (r) => _SummaryCard(record: r, isCheckout: isCheckout),
+                  ),
+                const Spacer(),
+                FilledButton(
+                  onPressed: () => context.go(AppRoutes.home),
+                  style: FilledButton.styleFrom(
+                      minimumSize: const Size.fromHeight(52)),
+                  child: const Text('Kembali ke Beranda'),
+                ).animate(delay: 620.ms).fadeIn(duration: 320.ms).slideY(
+                      begin: 0.3,
+                      curve: Curves.easeOut,
+                    ),
+              ],
+            ),
           ),
         ),
       ),
@@ -90,7 +112,8 @@ class _SummaryCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final time = isCheckout ? record.checkOutAt : record.checkInAt;
-    return AppCard(
+    final Widget card = GlassCard(
+      animate: false,
       child: Column(
         children: [
           Container(
@@ -122,6 +145,10 @@ class _SummaryCard extends StatelessWidget {
         ],
       ),
     );
+    return card.animate(delay: 560.ms).fadeIn(duration: 360.ms).slideY(
+          begin: 0.18,
+          curve: Curves.easeOut,
+        );
   }
 
   Widget _row(String label, String value) => Row(

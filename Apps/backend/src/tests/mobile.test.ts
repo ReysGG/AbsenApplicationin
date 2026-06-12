@@ -122,6 +122,7 @@ const validInput = {
   longitude: 106.8456,
   faceVerified: true,
   livenessPassed: true,
+  isMocked: false,
 }
 
 beforeEach(() => {

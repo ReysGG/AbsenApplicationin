@@ -11,6 +11,7 @@
 import { prisma } from '../../config/prisma'
 import { NotFoundError, ValidationError, ConflictError } from '../../lib/errors'
 import type { MobileEmployee } from '../../types/auth'
+import { createNotification } from '../notifications/notifications.service'
 
 // ---------------------------------------------------------------------------
 // DTO shapes (mirror Flutter models)
@@ -283,6 +284,7 @@ export interface CheckInput {
   livenessPassed: boolean
   locationId?: string | null
   capturedAt?: string | null
+  isMocked: boolean
 }
 
 function workModeToDb(mode: string): 'WFO' | 'WFH' {
@@ -368,6 +370,45 @@ export async function checkIn(
     throw new ValidationError('Verifikasi wajah/liveness gagal. Coba ulangi.')
   }
 
+  // GPS spoofing detection. If the client reports a mocked location, record the
+  // raw attempt then reject the check-in entirely.
+  const spoofingStatus: 'Clean' | 'Detected' = input.isMocked ? 'Detected' : 'Clean'
+
+  // Offline sync classification. If the capture happened on-device more than
+  // 2 minutes before the server received it, mark the row as SyncedLate and
+  // preserve the original device timestamp.
+  const serverNow = new Date()
+  const capturedAtDate = input.capturedAt ? new Date(input.capturedAt) : null
+  const isLateSync =
+    capturedAtDate != null &&
+    !Number.isNaN(capturedAtDate.getTime()) &&
+    Math.abs(serverNow.getTime() - capturedAtDate.getTime()) > 2 * 60 * 1000
+  const syncStatus: 'Synced' | 'SyncedLate' = isLateSync ? 'SyncedLate' : 'Synced'
+
+  // Write the raw attempt log (R6.10) — best-effort, never blocks the op.
+  try {
+    await (prisma as any).attendanceRawLog.create({
+      data: {
+        workspaceId: employee.workspaceId,
+        employeeId: employee.id,
+        eventType: 'check_in',
+        rawPayloadJson: JSON.parse(JSON.stringify(input)),
+        deviceTime: capturedAtDate ?? serverNow,
+        faceResult: faceCheckStatus,
+        geofenceResult: geofenceStatus,
+        spoofingResult: spoofingStatus,
+      },
+    })
+  } catch {
+    // Non-critical — raw-log persistence must never break the check-in.
+  }
+
+  if (input.isMocked) {
+    throw new ValidationError(
+      'Lokasi palsu (mock location) terdeteksi. Nonaktifkan aplikasi fake GPS untuk melanjutkan.',
+    )
+  }
+
   const checkInData = {
     shiftId,
     checkInAt: now,
@@ -377,10 +418,10 @@ export async function checkIn(
     workMode: workModeToDb(input.workMode),
     faceCheckStatus,
     geofenceStatus,
-    spoofingStatus: 'Clean' as const,
-    syncStatus: 'Synced' as const,
-    originalCheckInAt: now,
-    syncedAt: now,
+    spoofingStatus,
+    syncStatus,
+    originalCheckInAt: isLateSync && capturedAtDate ? capturedAtDate : now,
+    syncedAt: serverNow,
     status,
   }
 
@@ -556,7 +597,57 @@ export async function createMyLeaveRequest(
       status: 'Pending',
     },
   })) as LeaveRow
+
+  // Notify workspace approver(s) of the new request — best-effort.
+  try {
+    // Resolve the workspace stakeholder's auth user id to receive the notice.
+    const stakeholder = await prisma.roleAssignment.findFirst({
+      where: { workspaceId: employee.workspaceId, role: 'stakeholder' },
+      include: { user: { select: { authUserId: true } } },
+    })
+    const recipientAuthUserId = stakeholder?.user?.authUserId
+    if (recipientAuthUserId) {
+      await createNotification({
+        workspaceId: employee.workspaceId,
+        recipientAuthUserId,
+        type: 'leave_request_new',
+        refId: created.id,
+      })
+    }
+  } catch {
+    // Non-critical — notification failure must not block the submission.
+  }
+
   return toLeaveDto(created)
+}
+
+// ---------------------------------------------------------------------------
+// Device tokens (FCM push registration)
+// ---------------------------------------------------------------------------
+
+/**
+ * Register (upsert) a device's FCM token for this employee's user account.
+ * Tokens are unique; re-registering an existing token rebinds it to the
+ * current user and updates the platform.
+ */
+export async function registerDeviceToken(
+  employee: MobileEmployee,
+  token: string,
+  platform: string,
+): Promise<void> {
+  if (!employee.userId) {
+    throw new ValidationError('Akun tidak terhubung ke pengguna')
+  }
+  await (prisma as any).deviceToken.upsert({
+    where: { token },
+    update: { userId: employee.userId, platform },
+    create: { userId: employee.userId, token, platform },
+  })
+}
+
+/** Remove a device token (e.g. on logout). Best-effort — no error if absent. */
+export async function removeDeviceToken(token: string): Promise<void> {
+  await (prisma as any).deviceToken.deleteMany({ where: { token } })
 }
 
 // ---------------------------------------------------------------------------

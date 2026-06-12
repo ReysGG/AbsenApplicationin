@@ -43,6 +43,8 @@ import {
   notificationsHandler,
   markNotificationReadHandler,
   markAllNotificationsReadHandler,
+  registerDeviceTokenHandler,
+  deleteDeviceTokenHandler,
 } from './mobile.controller'
 
 const router = Router()
@@ -69,5 +71,7 @@ router.get('/mobile/me/schedule', ...guard, scheduleHandler)
 router.get('/mobile/me/notifications', ...guard, notificationsHandler)
 router.post('/mobile/me/notifications/read-all', ...guard, markAllNotificationsReadHandler)
 router.post('/mobile/me/notifications/:id/read', ...guard, markNotificationReadHandler)
+router.post('/mobile/me/device-token', ...guard, registerDeviceTokenHandler)
+router.delete('/mobile/me/device-token', ...guard, deleteDeviceTokenHandler)
 
 export default router

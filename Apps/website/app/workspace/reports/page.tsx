@@ -646,6 +646,7 @@ function LaporanTab() {
               <SelectContent>
                 <SelectItem value="xlsx">Excel (.xlsx)</SelectItem>
                 <SelectItem value="csv">CSV (.csv)</SelectItem>
+                <SelectItem value="pdf">PDF (.pdf)</SelectItem>
               </SelectContent>
             </Select>
           </div>

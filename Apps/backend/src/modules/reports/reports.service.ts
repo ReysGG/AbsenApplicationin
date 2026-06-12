@@ -16,6 +16,7 @@ import { prisma } from '../../config/prisma'
 import { writeAudit } from '../../lib/audit'
 import { ValidationError } from '../../lib/errors'
 import { generateXLSX, generateCSV } from '../../lib/excelExport'
+import { generatePDF } from '../../lib/pdfExport'
 import { getStorageClient } from '../../config/supabaseStorage'
 import type { ScopeFilter } from '../../types/auth'
 import type { ReportQuery, ExportQuery } from './reports.schema'
@@ -514,7 +515,7 @@ export async function exportReport(params: {
   const reportType = query.report_type
 
   // 3. Map format to Prisma enum value
-  const prismaFormat = format === 'xlsx' ? 'XLSX' : 'CSV'
+  const prismaFormat = format === 'xlsx' ? 'XLSX' : format === 'pdf' ? 'PDF' : 'CSV'
   // 4. Map report_type string to Prisma enum value
   const prismaReportType = reportType as
     | 'AttendanceSummary'
@@ -583,6 +584,22 @@ export async function exportReport(params: {
     buffer = await generateXLSX(rows, 'Laporan Absensi')
     mimeType = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
     fileExt = 'xlsx'
+  } else if (format === 'pdf') {
+    const workspace = await prisma.workspace.findUnique({
+      where: { id: workspaceId },
+      select: { name: true },
+    })
+    const period =
+      query.start_date || query.end_date
+        ? `${query.start_date ?? '...'} s/d ${query.end_date ?? '...'}`
+        : 'Semua periode'
+    buffer = await generatePDF(rows, {
+      title: 'Laporan Absensi',
+      period,
+      workspaceName: workspace?.name,
+    })
+    mimeType = 'application/pdf'
+    fileExt = 'pdf'
   } else {
     buffer = generateCSV(rows)
     mimeType = 'text/csv; charset=utf-8'

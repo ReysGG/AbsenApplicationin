@@ -144,7 +144,7 @@ export async function markAllNotificationsRead(params: {
 export async function createNotification(params: {
   workspaceId: string
   recipientAuthUserId: string
-  type: 'leave_request_new' | 'export_completed'
+  type: 'leave_request_new' | 'export_completed' | 'leave_approved' | 'leave_rejected'
   refId?: string
 }): Promise<void> {
   await (prisma as any).notification.create({

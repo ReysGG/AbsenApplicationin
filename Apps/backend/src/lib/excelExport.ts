@@ -1,13 +1,13 @@
 /**
  * excelExport.ts — Generate CSV and XLSX buffers from attendance report data.
  *
- * Pure Node.js implementation — no external library dependencies.
- *
  * CSV:  semicolon-delimited with UTF-8 BOM for Indonesian Excel compatibility.
- * XLSX: for v1, identical to CSV but with xlsx mime type (Excel opens CSVs natively).
+ * XLSX: real binary OOXML workbook via exceljs.
  *
  * Requirements: 12.4, 12.7, 12.9
  */
+
+import ExcelJS from 'exceljs'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -89,23 +89,55 @@ export function generateCSV(rows: ReportRow[]): Buffer {
 }
 
 // ---------------------------------------------------------------------------
-// XLSX generation (v1: CSV-as-XLSX — Excel opens CSVs natively)
+// XLSX generation (real OOXML workbook via exceljs)
 // ---------------------------------------------------------------------------
 
 /**
- * Generate a minimal XLSX buffer.
+ * Generate a real .xlsx workbook buffer.
  *
- * For v1, this returns the same content as generateCSV but is presented with
- * the XLSX MIME type. Excel opens semicolon-delimited CSVs natively.
- *
- * A future version can replace this with a real binary OOXML writer without
- * changing the public interface.
+ * One worksheet with a bold header row, data rows mapped from ReportRow[], and
+ * auto-ish column widths derived from the longest cell in each column.
  *
  * Requirements: 12.7
  */
 export async function generateXLSX(
   rows: ReportRow[],
-  _sheetName = 'Laporan',
+  sheetName = 'Laporan',
 ): Promise<Buffer> {
-  return generateCSV(rows)
+  const workbook = new ExcelJS.Workbook()
+  workbook.creator = 'AttendX'
+  workbook.created = new Date()
+
+  const worksheet = workbook.addWorksheet(sheetName)
+
+  // Define columns from HEADERS
+  worksheet.columns = HEADERS.map((h) => ({
+    header: h.label,
+    key: h.key as string,
+  }))
+
+  // Bold header row
+  worksheet.getRow(1).font = { bold: true }
+
+  // Data rows
+  for (const row of rows) {
+    const values: Record<string, string> = {}
+    for (const h of HEADERS) {
+      values[h.key as string] = String(row[h.key] ?? '')
+    }
+    worksheet.addRow(values)
+  }
+
+  // Auto-ish column widths: max of header label and any cell value, capped.
+  HEADERS.forEach((h, idx) => {
+    let maxLen = h.label.length
+    for (const row of rows) {
+      const len = String(row[h.key] ?? '').length
+      if (len > maxLen) maxLen = len
+    }
+    worksheet.getColumn(idx + 1).width = Math.min(Math.max(maxLen + 2, 10), 50)
+  })
+
+  const arrayBuffer = await workbook.xlsx.writeBuffer()
+  return Buffer.from(arrayBuffer as ArrayBuffer)
 }
