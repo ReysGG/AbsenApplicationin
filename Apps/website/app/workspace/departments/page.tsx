@@ -418,7 +418,7 @@ export default function DepartmentsPage() {
                   <div className="flex flex-col items-center gap-2 text-gray-400">
                     <Building2 className="w-12 h-12 text-gray-300" />
                     <p className="text-sm font-medium">Belum ada departemen</p>
-                    <p className="text-xs">Klik "Tambah Departemen" untuk mulai.</p>
+                    <p className="text-xs">Klik &quot;Tambah Departemen&quot; untuk mulai.</p>
                   </div>
                 </td>
               </tr>
@@ -513,7 +513,7 @@ export default function DepartmentsPage() {
           <DialogHeader>
             <DialogTitle>Edit Departemen</DialogTitle>
             <DialogDescription>
-              Ubah nama departemen "{editTarget?.name}".
+              Ubah nama departemen &quot;{editTarget?.name}&quot;.
             </DialogDescription>
           </DialogHeader>
           <form onSubmit={editForm.handleSubmit(handleEdit)} className="space-y-4 pt-2">

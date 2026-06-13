@@ -265,7 +265,7 @@ docker compose config                     # validasi compose
 ## Catatan & Batasan
 
 - **Mobile tidak di-Docker** — hanya butuh tahu `API_BASE_URL` saat build.
-- Backend menerapkan schema dengan `prisma db push` (bukan migrations).
+- Backend memakai `prisma db push` untuk pengembangan, dan kini menyertakan **baseline migration** (`prisma/migrations/0_init`) untuk produksi — lihat `Apps/backend/prisma/MIGRATIONS.md` (alur `migrate deploy` + `migrate resolve --applied 0_init`).
 - **Caveat secure storage (mesin ini):** `flutter_secure_storage` memakai native-assets hook yang gagal bila Flutter SDK berada di path berisi spasi (`C:\Users\David Boy\flutter`). Akibatnya `flutter test` dan `flutter build apk` gagal (`'C:\Users\David' is not recognized...`); `flutter analyze` tetap jalan. Perbaikan: pindahkan SDK ke path tanpa spasi (mis. `C:\flutter`), lalu `flutter pub get`. Kode aplikasi sudah benar.
 - Verifikasi wajah & liveness di mobile: implementasi penuh face-recognition (embedding) belum termasuk; lihat `docs/plans/2026-06-09-attendx-flutter-mobile.md`.
 - Hanya user yang punya data `Employee` tertaut yang bisa login mobile (HR murni tanpa employee record tidak bisa).

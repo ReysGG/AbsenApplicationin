@@ -1,822 +1,877 @@
 /**
- * mobile.service.ts — self-service business logic for the mobile app.
+ * mobile.service.ts — business logic + DTO mappers for the mobile API.
  *
- * Every function is scoped to a single employee (the authenticated mobile
- * user). Nothing here reads or writes other employees' data.
+ * All DTO field names + lowercase enum strings MUST match the Flutter
+ * `ApiMappers` (Apps/app_flutter/lib/shared/data/api_mappers.dart). Mobile
+ * endpoints are strictly self-scoped to the authenticated employee.
  *
- * The DTO shapes returned here are the contract consumed by the Flutter app
- * (see Apps/app_flutter/lib/shared/models). Keep field names in sync.
+ * Requirements: 1.1, 5.x, 6.x, 7.x, 11.x, 21.x
  */
 
 import { prisma } from '../../config/prisma'
-import { NotFoundError, ValidationError, ConflictError } from '../../lib/errors'
+import { ConflictError, NotFoundError, ValidationError } from '../../lib/errors'
 import type { MobileEmployee } from '../../types/auth'
-import { createNotification } from '../notifications/notifications.service'
+import type { CheckSubmissionInput, LeaveCreateInput } from './mobile.schema'
+import { evaluateCheckInIntegrity, evaluateCapturedAt, isValidCoordinate } from './mobile.integrity'
 
 // ---------------------------------------------------------------------------
-// DTO shapes (mirror Flutter models)
+// Time / geo helpers
 // ---------------------------------------------------------------------------
 
-export interface AttendanceDto {
-  id: string
-  date: string // ISO date (yyyy-MM-dd)
-  status: string // present | late | absent | pendingCheckout | missingCheckout | leave | invalid
-  workMode: string // wfo | wfh
-  shiftName: string
-  checkInAt: string | null
-  checkOutAt: string | null
-  checkInLat: number | null
-  checkInLng: number | null
-  checkOutLat: number | null
-  checkOutLng: number | null
-  locationName: string | null
-  faceStatus: string // passed | failed | pending | notRequired
-  geofenceValid: boolean
-  syncStatus: string // synced | pending | syncing | failed
+const JAKARTA_OFFSET_MS = 7 * 60 * 60 * 1000
+
+/** UTC midnight of the Asia/Jakarta (UTC+7) calendar date of [d]. */
+function jakartaDateOnly(d: Date): Date {
+  const j = new Date(d.getTime() + JAKARTA_OFFSET_MS)
+  return new Date(Date.UTC(j.getUTCFullYear(), j.getUTCMonth(), j.getUTCDate()))
 }
 
-export interface ShiftDto {
-  id: string
-  name: string
-  startTime: string // HH:mm
-  endTime: string // HH:mm
-  gracePeriodMinutes: number
-  checkoutToleranceMinutes: number
-  workDays: string[]
+/** Minutes since midnight in Asia/Jakarta local time. */
+function jakartaMinutesOfDay(d: Date): number {
+  const j = new Date(d.getTime() + JAKARTA_OFFSET_MS)
+  return j.getUTCHours() * 60 + j.getUTCMinutes()
 }
 
-export interface LocationDto {
-  id: string
-  name: string
-  type: string
-  address: string | null
-  latitude: number
-  longitude: number
-  radiusMeters: number
+/** Day-of-week (0=Sun..6=Sat) in Asia/Jakarta local time. */
+function jakartaWeekday(d: Date): number {
+  return new Date(d.getTime() + JAKARTA_OFFSET_MS).getUTCDay()
 }
 
-// ---------------------------------------------------------------------------
-// Enum mapping helpers (backend PascalCase → Flutter camelCase)
-// ---------------------------------------------------------------------------
-
-const STATUS_MAP: Record<string, string> = {
-  Present: 'present',
-  Late: 'late',
-  Absent: 'absent',
-  PendingCheckout: 'pendingCheckout',
-  MissingCheckout: 'missingCheckout',
-  Leave: 'leave',
-  Invalid: 'invalid',
-  Duplicate: 'invalid',
+function parseHmToMinutes(hm: string): number {
+  const [h, m] = hm.split(':')
+  return (parseInt(h, 10) || 0) * 60 + (parseInt(m ?? '0', 10) || 0)
 }
 
-const WORKMODE_MAP: Record<string, string> = {
-  WFO: 'wfo',
-  WFH: 'wfh',
-  Hybrid: 'wfo',
-}
-
-const FACE_MAP: Record<string, string> = {
-  Passed: 'passed',
-  Failed: 'failed',
-  Skipped: 'notRequired',
-}
-
-const SYNC_MAP: Record<string, string> = {
-  Synced: 'synced',
-  SyncedLate: 'synced',
-  Pending: 'pending',
-}
-
-interface AttendanceLogRow {
-  id: string
-  attendanceDate: Date
-  status: string
-  workMode: string | null
-  checkInAt: Date | null
-  checkOutAt: Date | null
-  checkInLatitude: number | null
-  checkInLongitude: number | null
-  checkOutLatitude: number | null
-  checkOutLongitude: number | null
-  faceCheckStatus: string | null
-  geofenceStatus: string | null
-  syncStatus: string
-  shift?: { name: string } | null
-  location?: { name: string } | null
-}
-
-function toAttendanceDto(log: AttendanceLogRow): AttendanceDto {
-  return {
-    id: log.id,
-    date: log.attendanceDate.toISOString().slice(0, 10),
-    status: STATUS_MAP[log.status] ?? 'invalid',
-    workMode: log.workMode ? WORKMODE_MAP[log.workMode] ?? 'wfo' : 'wfo',
-    shiftName: log.shift?.name ?? 'Tanpa Shift',
-    checkInAt: log.checkInAt?.toISOString() ?? null,
-    checkOutAt: log.checkOutAt?.toISOString() ?? null,
-    checkInLat: log.checkInLatitude,
-    checkInLng: log.checkInLongitude,
-    checkOutLat: log.checkOutLatitude,
-    checkOutLng: log.checkOutLongitude,
-    locationName: log.location?.name ?? null,
-    faceStatus: log.faceCheckStatus ? FACE_MAP[log.faceCheckStatus] ?? 'notRequired' : 'notRequired',
-    geofenceValid: log.geofenceStatus == null || log.geofenceStatus === 'Valid',
-    syncStatus: SYNC_MAP[log.syncStatus] ?? 'synced',
-  }
-}
-
-const ATTENDANCE_INCLUDE = {
-  shift: { select: { name: true } },
-  location: { select: { name: true } },
-} as const
-
-// ---------------------------------------------------------------------------
-// Date helpers
-// ---------------------------------------------------------------------------
-
-function startOfDay(d: Date): Date {
-  return new Date(d.getFullYear(), d.getMonth(), d.getDate())
-}
-
-/** Parse "HH:mm" into minutes since midnight. */
-function parseHm(hm: string): number {
-  const [h, m] = hm.split(':').map((x) => parseInt(x, 10))
-  return (h || 0) * 60 + (m || 0)
-}
-
-/**
- * Great-circle distance in meters between two coordinates (Haversine).
- * Used to enforce the geofence radius server-side — never trust the client.
- */
-function haversineMeters(
+function distanceMeters(
   lat1: number,
   lng1: number,
   lat2: number,
   lng2: number,
 ): number {
-  const R = 6371000 // Earth radius in metres
-  const toRad = (deg: number) => (deg * Math.PI) / 180
+  const R = 6371000
+  const toRad = (x: number) => (x * Math.PI) / 180
   const dLat = toRad(lat2 - lat1)
   const dLng = toRad(lng2 - lng1)
   const a =
     Math.sin(dLat / 2) ** 2 +
     Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2
-  return 2 * R * Math.asin(Math.min(1, Math.sqrt(a)))
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
 }
 
 // ---------------------------------------------------------------------------
-// Reads
+// Enum mappers (DB PascalCase → Flutter lowercase)
 // ---------------------------------------------------------------------------
 
-/** Today's attendance log for this employee (or null). */
-export async function getToday(employee: MobileEmployee): Promise<{ today: AttendanceDto | null }> {
-  const todayStart = startOfDay(new Date())
-  const tomorrow = new Date(todayStart)
-  tomorrow.setDate(tomorrow.getDate() + 1)
-
-  // Prefer the actually-checked-in row over an absent-job placeholder for the
-  // same day. Fallback to whatever exists if there's no check-in yet.
-  const log = ((await prisma.attendanceLog.findFirst({
-    where: {
-      employeeId: employee.id,
-      workspaceId: employee.workspaceId,
-      attendanceDate: { gte: todayStart, lt: tomorrow },
-      checkInAt: { not: null },
-    },
-    include: ATTENDANCE_INCLUDE,
-    orderBy: { checkInAt: 'desc' },
-  })) ?? (await prisma.attendanceLog.findFirst({
-    where: {
-      employeeId: employee.id,
-      workspaceId: employee.workspaceId,
-      attendanceDate: { gte: todayStart, lt: tomorrow },
-    },
-    include: ATTENDANCE_INCLUDE,
-  }))) as AttendanceLogRow | null
-
-  return { today: log ? toAttendanceDto(log) : null }
+function mapStatus(s: string | null): string {
+  switch (s) {
+    case 'Present':
+      return 'present'
+    case 'Late':
+      return 'late'
+    case 'Absent':
+      return 'absent'
+    case 'PendingCheckout':
+      return 'pendingCheckout'
+    case 'MissingCheckout':
+      return 'missingCheckout'
+    case 'Leave':
+      return 'leave'
+    default:
+      return 'invalid'
+  }
 }
 
-/** Attendance history (most recent first, capped). */
-export async function getHistory(
-  employee: MobileEmployee,
-  limit = 60,
-): Promise<AttendanceDto[]> {
-  const logs = (await prisma.attendanceLog.findMany({
-    where: { employeeId: employee.id, workspaceId: employee.workspaceId },
-    include: ATTENDANCE_INCLUDE,
-    orderBy: { attendanceDate: 'desc' },
-    take: limit,
-  })) as AttendanceLogRow[]
-  return logs.map(toAttendanceDto)
+function mapWorkMode(m: string | null): string {
+  return m === 'WFH' ? 'wfh' : 'wfo'
 }
 
-/** A single attendance record by id (must belong to this employee). */
-export async function getAttendanceDetail(
-  employee: MobileEmployee,
-  id: string,
-): Promise<AttendanceDto> {
-  const log = (await prisma.attendanceLog.findFirst({
-    where: { id, employeeId: employee.id, workspaceId: employee.workspaceId },
-    include: ATTENDANCE_INCLUDE,
-  })) as AttendanceLogRow | null
-  if (!log) throw new NotFoundError('Data presensi')
-  return toAttendanceDto(log)
+function mapFaceStatus(s: string | null): string {
+  switch (s) {
+    case 'Passed':
+      return 'passed'
+    case 'Failed':
+      return 'failed'
+    default:
+      return 'notRequired'
+  }
 }
 
-/** The employee's assigned shift (or null). */
-export async function getMyShift(employee: MobileEmployee): Promise<ShiftDto | null> {
-  if (!employee.assignedShiftId) return null
-  const shift = await prisma.shift.findFirst({
-    where: { id: employee.assignedShiftId, workspaceId: employee.workspaceId },
-  })
-  if (!shift) return null
+function mapSyncStatus(s: string | null): string {
+  return s === 'Pending' ? 'pending' : 'synced'
+}
+
+function mapLeaveStatus(s: string | null): string {
+  switch (s) {
+    case 'Approved':
+      return 'approved'
+    case 'Rejected':
+      return 'rejected'
+    case 'Cancelled':
+      return 'cancelled'
+    default:
+      return 'pending'
+  }
+}
+
+// ---------------------------------------------------------------------------
+// DTO builders
+// ---------------------------------------------------------------------------
+
+/* eslint-disable @typescript-eslint/no-explicit-any */
+type AnyLog = any
+
+function attendanceDto(log: AnyLog): Record<string, unknown> {
+  return {
+    id: log.id,
+    date: (log.attendanceDate as Date).toISOString(),
+    status: mapStatus(log.status),
+    workMode: mapWorkMode(log.workMode),
+    shiftName: log.shift?.name ?? 'Tanpa Shift',
+    checkInAt: (log.checkInAt as Date | null)?.toISOString() ?? null,
+    checkOutAt: (log.checkOutAt as Date | null)?.toISOString() ?? null,
+    checkInLat: log.checkInLatitude ?? null,
+    checkInLng: log.checkInLongitude ?? null,
+    checkOutLat: log.checkOutLatitude ?? null,
+    checkOutLng: log.checkOutLongitude ?? null,
+    locationName: log.location?.name ?? null,
+    faceStatus: mapFaceStatus(log.faceCheckStatus),
+    geofenceValid: log.geofenceStatus == null ? true : log.geofenceStatus === 'Valid',
+    syncStatus: mapSyncStatus(log.syncStatus),
+  }
+}
+
+function locationDto(loc: AnyLog): Record<string, unknown> {
+  return {
+    id: loc.id,
+    name: loc.name,
+    latitude: loc.latitude,
+    longitude: loc.longitude,
+    radiusMeters: loc.radiusMeters,
+    address: loc.address ?? null,
+  }
+}
+
+function shiftDto(shift: AnyLog): Record<string, unknown> {
   return {
     id: shift.id,
     name: shift.name,
     startTime: shift.startTime,
     endTime: shift.endTime,
-    gracePeriodMinutes: shift.gracePeriodMinutes,
-    checkoutToleranceMinutes: shift.checkoutToleranceMinutes,
-    workDays: shift.workDays,
+    gracePeriodMinutes: shift.gracePeriodMinutes ?? 10,
   }
 }
 
-/**
- * Locations the employee may check in at: their assigned office plus any
- * WFH-approved locations linked to them.
- */
-export async function getMyLocations(employee: MobileEmployee): Promise<LocationDto[]> {
-  const wfh = await prisma.employeeWfhLocation.findMany({
-    where: { employeeId: employee.id },
-    select: { locationId: true },
-  })
-  const ids = [
-    ...(employee.assignedLocationId ? [employee.assignedLocationId] : []),
-    ...wfh.map((w) => w.locationId),
-  ]
-  if (ids.length === 0) return []
+function leaveDto(lr: AnyLog): Record<string, unknown> {
+  let attachmentName: string | null = null
+  if (lr.attachmentUrl) {
+    const parts = String(lr.attachmentUrl).split('/')
+    attachmentName = parts[parts.length - 1] || null
+  }
+  return {
+    id: lr.id,
+    type: lr.type,
+    startDate: (lr.startDate as Date).toISOString(),
+    endDate: (lr.endDate as Date).toISOString(),
+    reason: lr.reason ?? '',
+    status: mapLeaveStatus(lr.status),
+    attachmentName,
+    submittedAt: (lr.createdAt as Date).toISOString(),
+    reviewerNote: lr.notes ?? lr.conflictNote ?? null,
+  }
+}
 
-  const locations = await prisma.location.findMany({
-    where: { id: { in: ids }, workspaceId: employee.workspaceId, status: 'Active' },
+function notificationDto(n: AnyLog): Record<string, unknown> {
+  const meta = notificationMeta(n.type as string)
+  return {
+    id: n.id,
+    title: meta.title,
+    body: meta.body,
+    createdAt: (n.createdAt as Date).toISOString(),
+    kind: meta.kind,
+    read: n.isRead ?? false,
+  }
+}
+
+function notificationMeta(type: string): {
+  title: string
+  body: string
+  kind: string
+} {
+  switch (type) {
+    case 'leave_approved':
+      return {
+        title: 'Pengajuan Disetujui',
+        body: 'Pengajuan izin/cuti kamu telah disetujui.',
+        kind: 'approval',
+      }
+    case 'leave_rejected':
+      return {
+        title: 'Pengajuan Ditolak',
+        body: 'Pengajuan izin/cuti kamu ditolak.',
+        kind: 'approval',
+      }
+    case 'export_completed':
+      return {
+        title: 'Ekspor Selesai',
+        body: 'Berkas ekspor kamu sudah siap.',
+        kind: 'info',
+      }
+    default:
+      return {
+        title: 'Notifikasi',
+        body: 'Ada pembaruan baru.',
+        kind: 'info',
+      }
+  }
+}
+
+const attendanceInclude = {
+  shift: { select: { name: true } },
+  location: { select: { name: true } },
+} as const
+
+// ---------------------------------------------------------------------------
+// Profile
+// ---------------------------------------------------------------------------
+
+export async function buildProfile(
+  emp: MobileEmployee,
+): Promise<Record<string, unknown>> {
+  const workspace = await prisma.workspace.findUnique({
+    where: { id: emp.workspaceId },
+    select: { name: true },
   })
-  return locations.map((l) => ({
-    id: l.id,
-    name: l.name,
-    type: l.type as string,
-    address: l.address ?? null,
-    latitude: l.latitude,
-    longitude: l.longitude,
-    radiusMeters: l.radiusMeters,
-  }))
+  return {
+    id: emp.id,
+    fullName: emp.fullName,
+    email: emp.email,
+    employeeCode: emp.employeeCode,
+    position: emp.position ?? '',
+    department: emp.departmentName ?? '',
+    workspaceName: workspace?.name ?? '',
+    faceEnrolled: emp.faceProfileStatus === 'Registered',
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Attendance reads
+// ---------------------------------------------------------------------------
+
+export async function getToday(
+  emp: MobileEmployee,
+): Promise<{ today: Record<string, unknown> | null }> {
+  const today = jakartaDateOnly(new Date())
+  const log = await prisma.attendanceLog.findFirst({
+    where: { employeeId: emp.id, attendanceDate: today },
+    include: attendanceInclude,
+  })
+  return { today: log ? attendanceDto(log) : null }
+}
+
+export async function getHistory(
+  emp: MobileEmployee,
+): Promise<Record<string, unknown>[]> {
+  const logs = await prisma.attendanceLog.findMany({
+    where: { employeeId: emp.id },
+    include: attendanceInclude,
+    orderBy: { attendanceDate: 'desc' },
+    take: 60,
+  })
+  return logs.map(attendanceDto)
+}
+
+export async function getDetail(
+  emp: MobileEmployee,
+  id: string,
+): Promise<Record<string, unknown>> {
+  const log = await prisma.attendanceLog.findFirst({
+    where: { id, employeeId: emp.id },
+    include: attendanceInclude,
+  })
+  if (!log) throw new NotFoundError('Data presensi tidak ditemukan')
+  return attendanceDto(log)
+}
+
+// ---------------------------------------------------------------------------
+// Shift + schedule
+// ---------------------------------------------------------------------------
+
+export async function getTodayShift(
+  emp: MobileEmployee,
+): Promise<Record<string, unknown> | null> {
+  if (!emp.assignedShiftId) return null
+  const shift = await prisma.shift.findUnique({
+    where: { id: emp.assignedShiftId },
+  })
+  return shift ? shiftDto(shift) : null
+}
+
+export async function getSchedule(
+  emp: MobileEmployee,
+): Promise<Record<string, unknown>[]> {
+  const shift = emp.assignedShiftId
+    ? await prisma.shift.findUnique({ where: { id: emp.assignedShiftId } })
+    : null
+
+  // Build Monday..Sunday for the current Jakarta week.
+  const now = new Date()
+  const todayJakarta = jakartaDateOnly(now)
+  const weekday = jakartaWeekday(now) // 0=Sun..6=Sat
+  const mondayOffset = weekday === 0 ? -6 : 1 - weekday
+  const monday = new Date(
+    todayJakarta.getTime() + mondayOffset * 24 * 60 * 60 * 1000,
+  )
+
+  const dayWorkMode = mapWorkMode(emp.workMode === 'WFH' ? 'WFH' : 'WFO')
+  const workDays: string[] = (shift?.workDays as string[] | undefined) ?? []
+
+  const days: Record<string, unknown>[] = []
+  for (let i = 0; i < 7; i++) {
+    const date = new Date(monday.getTime() + i * 24 * 60 * 60 * 1000)
+    const dow = date.getUTCDay() // monday-based array but real weekday
+    const isWeekend = dow === 0 || dow === 6
+    // If the shift declares workDays, treat days outside it as day-off.
+    const dayName = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][dow]
+    const outsideWorkDays =
+      workDays.length > 0 && !workDays.includes(dayName)
+    const isDayOff = isWeekend || outsideWorkDays || shift == null
+
+    days.push({
+      id: `${emp.id}-${date.toISOString().slice(0, 10)}`,
+      name: isDayOff ? 'Libur' : (shift?.name ?? 'Tanpa Shift'),
+      date: date.toISOString(),
+      startTime: shift?.startTime ?? '08:00',
+      endTime: shift?.endTime ?? '17:00',
+      workMode: dayWorkMode,
+      gracePeriodMinutes: shift?.gracePeriodMinutes ?? 10,
+      isDayOff,
+    })
+  }
+  return days
+}
+
+// ---------------------------------------------------------------------------
+// Locations
+// ---------------------------------------------------------------------------
+
+export async function getAssignedLocations(
+  emp: MobileEmployee,
+): Promise<Record<string, unknown>[]> {
+  const out: Record<string, unknown>[] = []
+  const seen = new Set<string>()
+
+  if (emp.assignedLocationId) {
+    const office = await prisma.location.findUnique({
+      where: { id: emp.assignedLocationId },
+    })
+    if (office && office.status === 'Active') {
+      out.push(locationDto(office))
+      seen.add(office.id)
+    }
+  }
+
+  const wfh = await prisma.employeeWfhLocation.findMany({
+    where: { employeeId: emp.id },
+    include: { location: true },
+  })
+  for (const row of wfh) {
+    const loc = (row as { location?: AnyLog }).location
+    if (loc && !seen.has(loc.id)) {
+      out.push(locationDto(loc))
+      seen.add(loc.id)
+    }
+  }
+
+  return out
 }
 
 // ---------------------------------------------------------------------------
 // Check-in / Check-out
 // ---------------------------------------------------------------------------
 
-export interface CheckInput {
-  workMode: 'wfo' | 'wfh'
-  latitude: number
-  longitude: number
-  faceVerified: boolean
-  livenessPassed: boolean
-  locationId?: string | null
-  capturedAt?: string | null
-  isMocked: boolean
-}
-
-function workModeToDb(mode: string): 'WFO' | 'WFH' {
-  return mode === 'wfh' ? 'WFH' : 'WFO'
-}
-
-/**
- * Submit a check-in. Computes Present/Late from the assigned shift's grace
- * period. Rejects a second check-in on the same day.
- */
-export async function checkIn(
-  employee: MobileEmployee,
-  input: CheckInput,
-): Promise<AttendanceDto> {
-  const now = input.capturedAt ? new Date(input.capturedAt) : new Date()
-  const todayStart = startOfDay(now)
-  const tomorrow = new Date(todayStart)
-  tomorrow.setDate(tomorrow.getDate() + 1)
-
-  // Find any same-day record (placeholder or real). Reject only if a real
-  // check-in is already present (checkInAt set).
-  const existing = await prisma.attendanceLog.findFirst({
-    where: {
-      employeeId: employee.id,
-      workspaceId: employee.workspaceId,
-      attendanceDate: { gte: todayStart, lt: tomorrow },
-    },
-    orderBy: [{ checkInAt: 'desc' }],
-  })
-  if (existing?.checkInAt) {
-    throw new ConflictError('Anda sudah check-in hari ini')
-  }
-
-  // Determine status from shift grace period.
-  let status: 'Present' | 'Late' = 'Present'
-  const shiftId: string | null = employee.assignedShiftId
-  if (employee.assignedShiftId) {
-    const shift = await prisma.shift.findUnique({ where: { id: employee.assignedShiftId } })
-    if (shift) {
-      const nowMinutes = now.getHours() * 60 + now.getMinutes()
-      const lateThreshold = parseHm(shift.startTime) + shift.gracePeriodMinutes
-      if (nowMinutes > lateThreshold) status = 'Late'
-    }
-  }
-
-  // Server-side geofence validation. Never trust a client-side flag.
-  // Resolve the location: explicit body locationId → assigned location.
-  // For WFH the radius is wider (PRD default 150m); WFO defaults to 100m.
-  // Outside the radius → reject the check-in entirely.
-  let geofenceStatus: 'Valid' | 'Invalid' | 'Outside' | null = null
-  let resolvedLocationId = input.locationId ?? employee.assignedLocationId ?? null
-  if (resolvedLocationId) {
-    const location = await prisma.location.findFirst({
-      where: {
-        id: resolvedLocationId,
-        workspaceId: employee.workspaceId,
-        status: 'Active',
-      },
+async function loadGeofenceCandidates(emp: MobileEmployee): Promise<AnyLog[]> {
+  const candidates: AnyLog[] = []
+  const seen = new Set<string>()
+  if (emp.assignedLocationId) {
+    const office = await prisma.location.findFirst({
+      where: { id: emp.assignedLocationId, status: 'Active' },
     })
-    if (!location) {
-      throw new ValidationError('Lokasi tidak ditemukan atau tidak aktif')
+    if (office) {
+      candidates.push(office)
+      seen.add(office.id)
     }
-    const distance = haversineMeters(
-      input.latitude,
-      input.longitude,
-      location.latitude,
-      location.longitude,
-    )
-    if (distance > location.radiusMeters) {
-      throw new ValidationError(
-        `Lokasi Anda berada di luar radius ${location.radiusMeters} m (jarak ${Math.round(distance)} m). Mendekat ke titik absen sebelum check-in.`,
-      )
+  }
+  // Fall back to any active workspace location if none assigned.
+  if (candidates.length === 0) {
+    const fallback = await prisma.location.findFirst({
+      where: { workspaceId: emp.workspaceId, status: 'Active' },
+    })
+    if (fallback && !seen.has(fallback.id)) {
+      candidates.push(fallback)
+      seen.add(fallback.id)
     }
-    geofenceStatus = 'Valid'
-  } else if (input.workMode === 'wfo') {
-    // WFO without an assigned/explicit location is a config error.
-    throw new ValidationError('Lokasi kantor belum diatur untuk akun ini')
   }
+  return candidates
+}
 
-  const faceCheckStatus: 'Passed' | 'Failed' =
-    input.faceVerified && input.livenessPassed ? 'Passed' : 'Failed'
-  if (faceCheckStatus === 'Failed') {
-    throw new ValidationError('Verifikasi wajah/liveness gagal. Coba ulangi.')
-  }
-
-  // GPS spoofing detection. If the client reports a mocked location, record the
-  // raw attempt then reject the check-in entirely.
-  const spoofingStatus: 'Clean' | 'Detected' = input.isMocked ? 'Detected' : 'Clean'
-
-  // Offline sync classification. If the capture happened on-device more than
-  // 2 minutes before the server received it, mark the row as SyncedLate and
-  // preserve the original device timestamp.
-  const serverNow = new Date()
-  const capturedAtDate = input.capturedAt ? new Date(input.capturedAt) : null
-  const isLateSync =
-    capturedAtDate != null &&
-    !Number.isNaN(capturedAtDate.getTime()) &&
-    Math.abs(serverNow.getTime() - capturedAtDate.getTime()) > 2 * 60 * 1000
-  const syncStatus: 'Synced' | 'SyncedLate' = isLateSync ? 'SyncedLate' : 'Synced'
-
-  // Write the raw attempt log (R6.10) — best-effort, never blocks the op.
+async function writeRawLog(
+  emp: MobileEmployee,
+  eventType: 'check_in' | 'check_out',
+  body: CheckSubmissionInput,
+  now: Date,
+  extra: {
+    faceResult?: string
+    geofenceResult?: string
+    spoofingResult?: string
+    resultingAttendanceLogId?: string | null
+    isDuplicate?: boolean
+    isInvalidSequence?: boolean
+    /** Server-side evaluation details persisted for audit/anomaly review. */
+    evaluation?: Record<string, unknown>
+  },
+): Promise<void> {
   try {
-    await (prisma as any).attendanceRawLog.create({
+    await prisma.attendanceRawLog.create({
       data: {
-        workspaceId: employee.workspaceId,
-        employeeId: employee.id,
-        eventType: 'check_in',
-        rawPayloadJson: JSON.parse(JSON.stringify(input)),
-        deviceTime: capturedAtDate ?? serverNow,
-        faceResult: faceCheckStatus,
-        geofenceResult: geofenceStatus,
-        spoofingResult: spoofingStatus,
+        workspaceId: emp.workspaceId,
+        employeeId: emp.id,
+        eventType,
+        // Persist the raw client payload PLUS the server's evaluation so fraud
+        // attempts (e.g. forged face booleans, clock skew) are auditable.
+        rawPayloadJson: {
+          ...(body as unknown as Record<string, unknown>),
+          _serverEvaluation: extra.evaluation ?? null,
+        } as unknown as object,
+        deviceTime: now,
+        faceResult: extra.faceResult ?? null,
+        geofenceResult: extra.geofenceResult ?? null,
+        spoofingResult: extra.spoofingResult ?? null,
+        isDuplicate: extra.isDuplicate ?? false,
+        isInvalidSequence: extra.isInvalidSequence ?? false,
+        resultingAttendanceLogId: extra.resultingAttendanceLogId ?? null,
       },
     })
   } catch {
-    // Non-critical — raw-log persistence must never break the check-in.
+    // best-effort
+  }
+}
+
+export async function checkIn(
+  emp: MobileEmployee,
+  body: CheckSubmissionInput,
+): Promise<Record<string, unknown>> {
+  const serverNow = new Date()
+  const workMode: 'WFO' | 'WFH' = body.workMode === 'wfh' ? 'WFH' : 'WFO'
+
+  // 1. Server-side integrity gate (audit §14): the server — not the client —
+  //    decides face/liveness/spoof from the provided signals, validates the
+  //    coordinates, and applies basic anti-replay on capturedAt. Every attempt
+  //    (pass or reject) is recorded to AttendanceRawLog for audit.
+  const integrity = evaluateCheckInIntegrity(
+    {
+      workMode,
+      latitude: body.latitude,
+      longitude: body.longitude,
+      isMocked: body.isMocked,
+      faceVerified: body.faceVerified,
+      livenessPassed: body.livenessPassed,
+      livenessChecksPassed: body.livenessChecksPassed,
+      livenessChecksTotal: body.livenessChecksTotal,
+      faceMatchScore: body.faceMatchScore,
+      capturedAtIso: body.capturedAt,
+    },
+    serverNow,
+  )
+  const now = integrity.capturedAt
+  const attendanceDate = jakartaDateOnly(now)
+
+  if (!integrity.ok) {
+    await writeRawLog(emp, 'check_in', body, now, {
+      faceResult: integrity.faceResult,
+      spoofingResult: integrity.spoofingResult,
+      evaluation: {
+        clockSkewMs: integrity.clockSkewMs,
+        anomalies: integrity.anomalies,
+        rejected: true,
+        reason: integrity.reason,
+      },
+    })
+    throw new ValidationError(integrity.reason ?? 'Check-in ditolak.')
   }
 
-  if (input.isMocked) {
-    throw new ValidationError(
-      'Lokasi palsu (mock location) terdeteksi. Nonaktifkan aplikasi fake GPS untuk melanjutkan.',
-    )
+  // 3. Same-day handling: reject a real duplicate, but reuse an absentJob
+  //    placeholder (a row for today that has no checkInAt yet).
+  const existing = await prisma.attendanceLog.findFirst({
+    where: { employeeId: emp.id, attendanceDate },
+  })
+  if (existing && existing.checkInAt) {
+    await writeRawLog(emp, 'check_in', body, now, {
+      faceResult: integrity.faceResult,
+      spoofingResult: integrity.spoofingResult,
+      isDuplicate: true,
+      resultingAttendanceLogId: existing.id,
+      evaluation: {
+        clockSkewMs: integrity.clockSkewMs,
+        anomalies: [...integrity.anomalies, 'duplicate_check_in'],
+        rejected: true,
+        reason: 'Sudah check-in hari ini.',
+      },
+    })
+    throw new ConflictError('Kamu sudah check-in hari ini.')
   }
 
-  const checkInData = {
-    shiftId,
+  // 4. Geofence (WFO only).
+  let geofenceStatus: 'Valid' | 'Outside' = 'Valid'
+  let locationId: string | null = body.locationId ?? null
+
+  if (workMode === 'WFO') {
+    const candidates = await loadGeofenceCandidates(emp)
+    if (candidates.length > 0) {
+      let nearest = candidates[0]
+      let nearestDist = distanceMeters(
+        body.latitude,
+        body.longitude,
+        nearest.latitude,
+        nearest.longitude,
+      )
+      for (const c of candidates.slice(1)) {
+        const d = distanceMeters(
+          body.latitude,
+          body.longitude,
+          c.latitude,
+          c.longitude,
+        )
+        if (d < nearestDist) {
+          nearest = c
+          nearestDist = d
+        }
+      }
+      if (nearestDist > nearest.radiusMeters) {
+        await writeRawLog(emp, 'check_in', body, now, {
+          faceResult: integrity.faceResult,
+          geofenceResult: 'Outside',
+          spoofingResult: integrity.spoofingResult,
+          evaluation: {
+            clockSkewMs: integrity.clockSkewMs,
+            anomalies: [...integrity.anomalies, 'geofence_outside'],
+            rejected: true,
+            distanceMeters: Math.round(nearestDist),
+            radiusMeters: nearest.radiusMeters,
+          },
+        })
+        throw new ValidationError('Kamu berada di luar radius lokasi kerja.')
+      }
+      locationId = nearest.id
+      geofenceStatus = 'Valid'
+    }
+  }
+
+  // 5. Shift + late calculation.
+  const shift = emp.assignedShiftId
+    ? await prisma.shift.findUnique({ where: { id: emp.assignedShiftId } })
+    : null
+  let status: 'Present' | 'Late' = 'Present'
+  if (shift) {
+    const threshold =
+      parseHmToMinutes(shift.startTime) + (shift.gracePeriodMinutes ?? 10)
+    if (jakartaMinutesOfDay(now) > threshold) status = 'Late'
+  }
+
+  // 6. Persist — update a placeholder row if present, otherwise create.
+  const data = {
+    shiftId: shift?.id ?? null,
     checkInAt: now,
-    checkInLatitude: input.latitude,
-    checkInLongitude: input.longitude,
-    locationId: resolvedLocationId,
-    workMode: workModeToDb(input.workMode),
-    faceCheckStatus,
+    checkInLatitude: body.latitude,
+    checkInLongitude: body.longitude,
+    locationId,
+    workMode,
+    faceCheckStatus: 'Passed' as const,
     geofenceStatus,
-    spoofingStatus,
-    syncStatus,
-    originalCheckInAt: isLateSync && capturedAtDate ? capturedAtDate : now,
-    syncedAt: serverNow,
+    spoofingStatus: 'Clean' as const,
+    syncStatus: 'Synced' as const,
+    originalCheckInAt: now,
+    syncedAt: now,
     status,
   }
 
-  // A same-day row may already exist as a placeholder (e.g. absentJob marks
-  // the employee Absent before they clock in). Update that row in place rather
-  // than creating a duplicate; otherwise create a fresh record.
-  const saved = (existing
+  const saved = existing
     ? await prisma.attendanceLog.update({
         where: { id: existing.id },
-        data: checkInData,
-        include: ATTENDANCE_INCLUDE,
+        data,
+        include: attendanceInclude,
       })
     : await prisma.attendanceLog.create({
         data: {
-          workspaceId: employee.workspaceId,
-          employeeId: employee.id,
-          attendanceDate: todayStart,
-          ...checkInData,
+          workspaceId: emp.workspaceId,
+          employeeId: emp.id,
+          attendanceDate,
+          ...data,
         },
-        include: ATTENDANCE_INCLUDE,
-      })) as AttendanceLogRow
-  return toAttendanceDto(saved)
+        include: attendanceInclude,
+      })
+
+  await writeRawLog(emp, 'check_in', body, now, {
+    faceResult: integrity.faceResult,
+    geofenceResult: geofenceStatus,
+    spoofingResult: integrity.spoofingResult,
+    resultingAttendanceLogId: saved.id,
+    evaluation: {
+      clockSkewMs: integrity.clockSkewMs,
+      anomalies: integrity.anomalies,
+      rejected: false,
+    },
+  })
+
+  return attendanceDto(saved)
 }
 
-/** Submit a check-out for today's open record. */
 export async function checkOut(
-  employee: MobileEmployee,
-  input: CheckInput,
-): Promise<AttendanceDto> {
-  const now = input.capturedAt ? new Date(input.capturedAt) : new Date()
-  const todayStart = startOfDay(now)
-  const tomorrow = new Date(todayStart)
-  tomorrow.setDate(tomorrow.getDate() + 1)
+  emp: MobileEmployee,
+  body: CheckSubmissionInput,
+): Promise<Record<string, unknown>> {
+  const serverNow = new Date()
+  const cap = evaluateCapturedAt(body.capturedAt, serverNow)
+  const now = cap.capturedAt
+  const attendanceDate = jakartaDateOnly(now)
+  const skewAnomalies: string[] = []
+  if (cap.malformed) skewAnomalies.push('captured_at_malformed')
+  if (cap.suspicious) skewAnomalies.push('clock_skew_suspicious')
 
-  const open = await prisma.attendanceLog.findFirst({
-    where: {
-      employeeId: employee.id,
-      workspaceId: employee.workspaceId,
-      attendanceDate: { gte: todayStart, lt: tomorrow },
-      checkInAt: { not: null },
-    },
-    orderBy: { checkInAt: 'desc' },
+  if (body.isMocked) {
+    await writeRawLog(emp, 'check_out', body, now, {
+      spoofingResult: 'Detected',
+      evaluation: { anomalies: [...skewAnomalies, 'mock_gps'], rejected: true },
+    })
+    throw new ValidationError(
+      'Lokasi palsu (mock GPS) terdeteksi. Check-out dibatalkan.',
+    )
+  }
+
+  if (cap.futureInvalid) {
+    await writeRawLog(emp, 'check_out', body, now, {
+      spoofingResult: 'Suspected',
+      evaluation: { anomalies: [...skewAnomalies, 'captured_at_future'], rejected: true },
+    })
+    throw new ValidationError('Waktu pengambilan tidak valid (di masa depan).')
+  }
+
+  if (!isValidCoordinate(body.latitude, body.longitude)) {
+    await writeRawLog(emp, 'check_out', body, now, {
+      spoofingResult: 'Suspected',
+      evaluation: { anomalies: [...skewAnomalies, 'coordinates_invalid'], rejected: true },
+    })
+    throw new ValidationError('Koordinat lokasi tidak valid.')
+  }
+
+  const log = await prisma.attendanceLog.findFirst({
+    where: { employeeId: emp.id, attendanceDate },
   })
-  if (!open) {
-    throw new ValidationError('Belum ada check-in hari ini')
+  if (!log || !log.checkInAt) {
+    // Out-of-order event: check-out without a prior check-in → flag anomaly.
+    await writeRawLog(emp, 'check_out', body, now, {
+      spoofingResult: cap.suspicious ? 'Suspected' : 'Clean',
+      isInvalidSequence: true,
+      evaluation: { anomalies: [...skewAnomalies, 'checkout_without_checkin'], rejected: true },
+    })
+    throw new ValidationError('Belum ada check-in hari ini.')
   }
-  if (open.checkOutAt) {
-    throw new ConflictError('Anda sudah check-out hari ini')
+  if (log.checkOutAt) {
+    await writeRawLog(emp, 'check_out', body, now, {
+      spoofingResult: cap.suspicious ? 'Suspected' : 'Clean',
+      isDuplicate: true,
+      resultingAttendanceLogId: log.id,
+      evaluation: { anomalies: [...skewAnomalies, 'duplicate_check_out'], rejected: true },
+    })
+    throw new ConflictError('Kamu sudah check-out hari ini.')
   }
 
-  const updated = (await prisma.attendanceLog.update({
-    where: { id: open.id },
+  const updated = await prisma.attendanceLog.update({
+    where: { id: log.id },
     data: {
       checkOutAt: now,
-      checkOutLatitude: input.latitude,
-      checkOutLongitude: input.longitude,
+      checkOutLatitude: body.latitude,
+      checkOutLongitude: body.longitude,
     },
-    include: ATTENDANCE_INCLUDE,
-  })) as AttendanceLogRow
-  return toAttendanceDto(updated)
+    include: attendanceInclude,
+  })
+
+  await writeRawLog(emp, 'check_out', body, now, {
+    faceResult: body.faceVerified ? 'Passed' : 'Skipped',
+    spoofingResult: cap.suspicious ? 'Suspected' : 'Clean',
+    resultingAttendanceLogId: updated.id,
+    evaluation: { clockSkewMs: cap.skewMs, anomalies: skewAnomalies, rejected: false },
+  })
+
+  return attendanceDto(updated)
 }
 
 // ---------------------------------------------------------------------------
-// Leave requests (self-service)
+// Leave
 // ---------------------------------------------------------------------------
 
-export interface LeaveDto {
-  id: string
-  type: string // annual | sick | personal | other
-  startDate: string // yyyy-MM-dd
-  endDate: string // yyyy-MM-dd
-  reason: string
-  status: string // pending | approved | rejected | cancelled
-  attachmentName: string | null
-  submittedAt: string | null
-  reviewerNote: string | null
-}
-
-// The dashboard stores leave `type` as a free string seeded from LeaveType.
-// Mobile uses a small enum; map both directions with a passthrough fallback.
-const LEAVE_TYPE_TO_MOBILE: Record<string, string> = {
-  annual: 'annual',
-  'cuti tahunan': 'annual',
-  sick: 'sick',
-  sakit: 'sick',
-  personal: 'personal',
-  'izin pribadi': 'personal',
-}
-const LEAVE_STATUS_MAP: Record<string, string> = {
-  Pending: 'pending',
-  Approved: 'approved',
-  Rejected: 'rejected',
-  Cancelled: 'cancelled',
-}
-
-interface LeaveRow {
-  id: string
-  type: string
-  startDate: Date
-  endDate: Date
-  reason: string | null
-  status: string
-  attachmentUrl: string | null
-  notes: string | null
-  createdAt: Date
-}
-
-function toLeaveDto(row: LeaveRow): LeaveDto {
-  return {
-    id: row.id,
-    type: LEAVE_TYPE_TO_MOBILE[row.type.toLowerCase()] ?? 'other',
-    startDate: row.startDate.toISOString().slice(0, 10),
-    endDate: row.endDate.toISOString().slice(0, 10),
-    reason: row.reason ?? '',
-    status: LEAVE_STATUS_MAP[row.status] ?? 'pending',
-    attachmentName: row.attachmentUrl ? row.attachmentUrl.split('/').pop() ?? null : null,
-    submittedAt: row.createdAt.toISOString(),
-    reviewerNote: row.notes ?? null,
-  }
-}
-
-export async function getMyLeaveRequests(employee: MobileEmployee): Promise<LeaveDto[]> {
-  const rows = (await prisma.leaveRequest.findMany({
-    where: { employeeId: employee.id, workspaceId: employee.workspaceId },
-    orderBy: { createdAt: 'desc' },
+export async function getLeaveRequests(
+  emp: MobileEmployee,
+): Promise<Record<string, unknown>[]> {
+  const items = await prisma.leaveRequest.findMany({
+    where: { employeeId: emp.id },
+    orderBy: { startDate: 'desc' },
     take: 60,
-  })) as LeaveRow[]
-  return rows.map(toLeaveDto)
-}
-
-export interface CreateLeaveInput {
-  type: string // annual | sick | personal | other
-  startDate: string // yyyy-MM-dd
-  endDate: string // yyyy-MM-dd
-  reason: string
+  })
+  return items.map(leaveDto)
 }
 
 export async function createMyLeaveRequest(
-  employee: MobileEmployee,
-  input: CreateLeaveInput,
-): Promise<LeaveDto> {
-  const start = new Date(`${input.startDate}T00:00:00.000Z`)
-  const end = new Date(`${input.endDate}T00:00:00.000Z`)
+  emp: MobileEmployee,
+  input: LeaveCreateInput,
+): Promise<Record<string, unknown>> {
+  const start = new Date(input.startDate)
+  const end = new Date(input.endDate)
   if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
-    throw new ValidationError('Tanggal tidak valid')
+    throw new ValidationError('Format tanggal tidak valid.')
   }
   if (end < start) {
-    throw new ValidationError('Tanggal selesai tidak boleh sebelum tanggal mulai')
+    throw new ValidationError('Tanggal selesai tidak boleh sebelum tanggal mulai.')
   }
 
-  // Reject overlap with an existing Pending/Approved request (R11.9).
+  // Reject overlap with an existing Pending/Approved request (R11).
   const overlap = await prisma.leaveRequest.findFirst({
     where: {
-      employeeId: employee.id,
-      workspaceId: employee.workspaceId,
+      employeeId: emp.id,
       status: { in: ['Pending', 'Approved'] },
       startDate: { lte: end },
       endDate: { gte: start },
     },
   })
   if (overlap) {
-    throw new ConflictError('Sudah ada pengajuan pada rentang tanggal tersebut')
+    throw new ConflictError(
+      'Sudah ada pengajuan pada rentang tanggal tersebut.',
+    )
   }
 
-  const created = (await prisma.leaveRequest.create({
+  const created = await prisma.leaveRequest.create({
     data: {
-      workspaceId: employee.workspaceId,
-      employeeId: employee.id,
+      workspaceId: emp.workspaceId,
+      employeeId: emp.id,
       type: input.type,
       startDate: start,
       endDate: end,
-      reason: input.reason || null,
+      reason: input.reason,
       status: 'Pending',
     },
-  })) as LeaveRow
+  })
 
-  // Notify workspace approver(s) of the new request — best-effort.
+  // Best-effort: notify workspace HR (stakeholder / support_admin) of the new
+  // request so the dashboard stays in sync.
   try {
-    // Resolve the workspace stakeholder's auth user id to receive the notice.
-    const stakeholder = await prisma.roleAssignment.findFirst({
-      where: { workspaceId: employee.workspaceId, role: 'stakeholder' },
+    const hrAssignments = await prisma.roleAssignment.findMany({
+      where: {
+        workspaceId: emp.workspaceId,
+        role: { in: ['stakeholder', 'support_admin'] },
+      },
       include: { user: { select: { authUserId: true } } },
     })
-    const recipientAuthUserId = stakeholder?.user?.authUserId
-    if (recipientAuthUserId) {
-      await createNotification({
-        workspaceId: employee.workspaceId,
-        recipientAuthUserId,
-        type: 'leave_request_new',
-        refId: created.id,
+    const recipients = new Set<string>()
+    for (const ra of hrAssignments) {
+      const authId = (ra as { user?: { authUserId?: string } }).user?.authUserId
+      if (authId) recipients.add(authId)
+    }
+    if (recipients.size > 0) {
+      await prisma.notification.createMany({
+        data: [...recipients].map((authUserId) => ({
+          workspaceId: emp.workspaceId,
+          recipientAuthUserId: authUserId,
+          type: 'leave_request_new' as const,
+          refId: created.id,
+        })),
       })
     }
   } catch {
-    // Non-critical — notification failure must not block the submission.
+    // best-effort
   }
 
-  return toLeaveDto(created)
+  return leaveDto(created)
 }
 
-// ---------------------------------------------------------------------------
-// Device tokens (FCM push registration)
-// ---------------------------------------------------------------------------
-
-/**
- * Register (upsert) a device's FCM token for this employee's user account.
- * Tokens are unique; re-registering an existing token rebinds it to the
- * current user and updates the platform.
- */
-export async function registerDeviceToken(
-  employee: MobileEmployee,
-  token: string,
-  platform: string,
-): Promise<void> {
-  if (!employee.userId) {
-    throw new ValidationError('Akun tidak terhubung ke pengguna')
-  }
-  await (prisma as any).deviceToken.upsert({
-    where: { token },
-    update: { userId: employee.userId, platform },
-    create: { userId: employee.userId, token, platform },
+/** Cancels the employee's own Pending leave request. */
+export async function cancelMyLeaveRequest(
+  emp: MobileEmployee,
+  id: string,
+): Promise<Record<string, unknown>> {
+  const existing = await prisma.leaveRequest.findFirst({
+    where: { id, employeeId: emp.id },
   })
-}
-
-/** Remove a device token (e.g. on logout). Best-effort — no error if absent. */
-export async function removeDeviceToken(token: string): Promise<void> {
-  await (prisma as any).deviceToken.deleteMany({ where: { token } })
-}
-
-// ---------------------------------------------------------------------------
-// Schedule (upcoming shift days derived from the assigned shift)
-// ---------------------------------------------------------------------------
-
-export interface ScheduleDayDto {
-  id: string
-  name: string
-  date: string // yyyy-MM-dd
-  startTime: string // HH:mm
-  endTime: string // HH:mm
-  workMode: string // wfo | wfh
-  gracePeriodMinutes: number
-  isDayOff: boolean
-}
-
-const WEEKDAY_NAMES = [
-  'SUNDAY',
-  'MONDAY',
-  'TUESDAY',
-  'WEDNESDAY',
-  'THURSDAY',
-  'FRIDAY',
-  'SATURDAY',
-]
-
-/** The next `days` calendar days, marking off-days when not in the shift's workDays. */
-export async function getMySchedule(
-  employee: MobileEmployee,
-  days = 14,
-): Promise<ScheduleDayDto[]> {
-  if (!employee.assignedShiftId) return []
-  const shift = await prisma.shift.findUnique({ where: { id: employee.assignedShiftId } })
-  if (!shift) return []
-
-  const workMode = WORKMODE_MAP[employee.workMode] ?? 'wfo'
-  const result: ScheduleDayDto[] = []
-  const base = startOfDay(new Date())
-  for (let i = 0; i < days; i++) {
-    const date = new Date(base)
-    date.setDate(base.getDate() + i)
-    const dayName = WEEKDAY_NAMES[date.getDay()]
-    const isDayOff = !shift.workDays.includes(dayName)
-    result.push({
-      id: `${shift.id}-${date.toISOString().slice(0, 10)}`,
-      name: shift.name,
-      date: date.toISOString().slice(0, 10),
-      startTime: shift.startTime,
-      endTime: shift.endTime,
-      workMode,
-      gracePeriodMinutes: shift.gracePeriodMinutes,
-      isDayOff,
-    })
+  if (!existing) {
+    throw new NotFoundError('Pengajuan tidak ditemukan')
   }
-  return result
+  if (existing.status !== 'Pending') {
+    throw new ConflictError('Hanya pengajuan berstatus menunggu yang bisa dibatalkan.')
+  }
+  const updated = await prisma.leaveRequest.update({
+    where: { id: existing.id },
+    data: { status: 'Cancelled' },
+  })
+  return leaveDto(updated)
 }
 
 // ---------------------------------------------------------------------------
 // Notifications
 // ---------------------------------------------------------------------------
 
-export interface NotificationDto {
-  id: string
-  title: string
-  body: string
-  createdAt: string
-  kind: string // reminder | approval | sync | info
-  read: boolean
+async function resolveAuthUserId(emp: MobileEmployee): Promise<string | null> {
+  if (!emp.userId) return null
+  const user = await prisma.user.findUnique({
+    where: { id: emp.userId },
+    select: { authUserId: true },
+  })
+  return user?.authUserId ?? null
 }
 
-const NOTIF_PRESENTATION: Record<string, { title: string; body: string; kind: string }> = {
-  leave_request_new: {
-    title: 'Pengajuan diterima',
-    body: 'Pengajuan izin/cuti Anda sedang diproses.',
-    kind: 'approval',
-  },
-  export_completed: {
-    title: 'Laporan siap',
-    body: 'Ekspor laporan Anda telah selesai.',
-    kind: 'info',
-  },
-}
-
-export async function getMyNotifications(
-  employee: MobileEmployee,
-  authUserId: string,
-): Promise<NotificationDto[]> {
-  const rows = (await prisma.notification.findMany({
-    where: {
-      workspaceId: employee.workspaceId,
-      recipientAuthUserId: authUserId,
-    },
-    orderBy: [{ isRead: 'asc' }, { createdAt: 'desc' }],
+export async function getNotifications(
+  emp: MobileEmployee,
+): Promise<Record<string, unknown>[]> {
+  const authUserId = await resolveAuthUserId(emp)
+  if (!authUserId) return []
+  const items = await prisma.notification.findMany({
+    where: { workspaceId: emp.workspaceId, recipientAuthUserId: authUserId },
+    orderBy: { createdAt: 'desc' },
     take: 50,
-  })) as Array<{ id: string; type: string; isRead: boolean; createdAt: Date }>
-
-  return rows.map((n) => {
-    const p = NOTIF_PRESENTATION[n.type] ?? {
-      title: 'Notifikasi',
-      body: '',
-      kind: 'info',
-    }
-    return {
-      id: n.id,
-      title: p.title,
-      body: p.body,
-      kind: p.kind,
-      read: n.isRead,
-      createdAt: n.createdAt.toISOString(),
-    }
   })
+  return items.map(notificationDto)
 }
 
-/**
- * Cancel a Pending leave request that the employee owns.
- * Only the originating employee can cancel, and only while still Pending —
- * once approved/rejected the dashboard owns the lifecycle.
- */
-export async function cancelMyLeaveRequest(
-  employee: MobileEmployee,
-  id: string,
-): Promise<LeaveDto> {
-  const existing = await prisma.leaveRequest.findFirst({
-    where: { id, employeeId: employee.id, workspaceId: employee.workspaceId },
-  })
-  if (!existing) throw new NotFoundError('Pengajuan')
-  if (existing.status !== 'Pending') {
-    throw new ConflictError('Hanya pengajuan berstatus Pending yang dapat dibatalkan')
-  }
-  const updated = (await prisma.leaveRequest.update({
-    where: { id },
-    data: { status: 'Cancelled' },
-  })) as LeaveRow
-  return toLeaveDto(updated)
-}
-
-/** Mark a single notification as read (must belong to the authenticated user). */
 export async function markNotificationRead(
-  employee: MobileEmployee,
-  authUserId: string,
-  notificationId: string,
+  emp: MobileEmployee,
+  id: string,
 ): Promise<void> {
-  const found = await prisma.notification.findFirst({
-    where: {
-      id: notificationId,
-      workspaceId: employee.workspaceId,
-      recipientAuthUserId: authUserId,
-    },
-  })
-  if (!found) throw new NotFoundError('Notifikasi')
-  await prisma.notification.update({
-    where: { id: notificationId },
+  const authUserId = await resolveAuthUserId(emp)
+  if (!authUserId) return
+  await prisma.notification.updateMany({
+    where: { id, recipientAuthUserId: authUserId },
     data: { isRead: true },
   })
 }
 
-/** Mark all notifications as read for the current user. */
-export async function markAllNotificationsRead(
-  employee: MobileEmployee,
-  authUserId: string,
-): Promise<{ count: number }> {
-  const result = await prisma.notification.updateMany({
-    where: {
-      workspaceId: employee.workspaceId,
-      recipientAuthUserId: authUserId,
-      isRead: false,
-    },
-    data: { isRead: true },
+// ---------------------------------------------------------------------------
+// Device tokens (FCM)
+// ---------------------------------------------------------------------------
+
+export async function registerDeviceToken(
+  emp: MobileEmployee,
+  token: string,
+  platform: string,
+): Promise<void> {
+  if (!emp.userId) throw new ValidationError('Akun tidak memiliki user id.')
+  await prisma.deviceToken.upsert({
+    where: { token },
+    create: { userId: emp.userId, token, platform },
+    update: { userId: emp.userId, platform },
   })
-  return { count: result.count }
+}
+
+export async function deleteDeviceToken(token: string): Promise<void> {
+  try {
+    await prisma.deviceToken.deleteMany({ where: { token } })
+  } catch {
+    // best-effort
+  }
 }

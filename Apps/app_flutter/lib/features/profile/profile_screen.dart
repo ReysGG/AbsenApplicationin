@@ -44,24 +44,9 @@ class ProfileScreen extends ConsumerWidget {
                         children: [
                           // Avatar with subtle brand ring/glow.
                           Container(
-                            decoration: BoxDecoration(
+                            decoration: const BoxDecoration(
                               shape: BoxShape.circle,
-                              gradient: const LinearGradient(
-                                begin: Alignment.topLeft,
-                                end: Alignment.bottomRight,
-                                colors: [
-                                  AppColors.brandStart,
-                                  AppColors.brandEnd,
-                                ],
-                              ),
-                              boxShadow: [
-                                BoxShadow(
-                                  color:
-                                      AppColors.brandMid.withValues(alpha: 0.25),
-                                  blurRadius: 24,
-                                  spreadRadius: 2,
-                                ),
-                              ],
+                              color: AppColors.brandMid,
                             ),
                             padding: const EdgeInsets.all(3),
                             child: CircleAvatar(
@@ -112,63 +97,137 @@ class ProfileScreen extends ConsumerWidget {
                             : AppColors.pending,
                         icon: Icons.face,
                       ),
-                      const SizedBox(height: AppSpacing.md),
-                      const Divider(),
-                      _info('Kode Karyawan', profile?.employeeCode ?? '-'),
-                      _info('Email', profile?.email ?? '-'),
-                      _info('Divisi', profile?.department ?? '-'),
-                      _info('Perusahaan', profile?.workspaceName ?? '-'),
+                      const SizedBox(height: AppSpacing.sm),
                     ],
                   ),
                 ),
                 const SizedBox(height: AppSpacing.md),
 
-                // ── Menu ────────────────────────────────────────────────────
-                SolidCard(
-                  entrance: false,
-                  padding: EdgeInsets.zero,
-                  child: Column(
-                    children: [
-                      ListTile(
-                        leading: Icon(Icons.security, color: AppColors.onSurfaceVariant),
-                        title: const Text('Kunci Aplikasi (Sidik Jari / PIN)', style: AppTypography.labelMd),
-                        trailing: Switch(
-                          value: ref.watch(authControllerProvider).isAppLockEnabled,
-                          onChanged: (value) async {
-                            await ref.read(authControllerProvider.notifier).setAppLockEnabled(value);
-                          },
-                          activeThumbColor: AppColors.primary,
+                // ── Informasi Pribadi ──────────────────────────────────────
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.only(left: AppSpacing.xs, bottom: AppSpacing.xs),
+                      child: Text(
+                        'Informasi Pribadi',
+                        style: AppTypography.titleLg.copyWith(
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.onSurface,
                         ),
-                        splashColor: AppColors.surfaceContainerLow,
                       ),
-                      const Divider(height: 1),
-                      ListTile(
-                        leading: Icon(Icons.sync, color: AppColors.onSurfaceVariant),
-                        title: const Text('Sinkronisasi Offline', style: AppTypography.labelMd),
-                        trailing: Icon(Icons.chevron_right, color: AppColors.outline),
-                        onTap: () => context.push(AppRoutes.syncStatus),
-                        splashColor: AppColors.surfaceContainerLow,
+                    ),
+                    SolidCard(
+                      child: Column(
+                        children: [
+                          _info('Email Utama', profile?.email ?? '-'),
+                          const Divider(height: AppSpacing.md),
+                          _info('Nomor Telepon', '+62 812-3456-7890'),
+                        ],
                       ),
-                      const Divider(height: 1),
-                      ListTile(
-                        leading: Icon(Icons.notifications_outlined, color: AppColors.onSurfaceVariant),
-                        title: const Text('Notifikasi', style: AppTypography.labelMd),
-                        trailing: Icon(Icons.chevron_right, color: AppColors.outline),
-                        onTap: () => context.push(AppRoutes.notifications),
-                        splashColor: AppColors.surfaceContainerLow,
+                    ),
+                  ],
+                )
+                    .animate(delay: 60.ms)
+                    .fadeIn(duration: 320.ms)
+                    .slideY(begin: 0.06, curve: Curves.easeOut),
+                const SizedBox(height: AppSpacing.md),
+
+                // ── Informasi Karyawan ──────────────────────────────────────
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.only(left: AppSpacing.xs, bottom: AppSpacing.xs),
+                      child: Text(
+                        'Informasi Karyawan',
+                        style: AppTypography.titleLg.copyWith(
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.onSurface,
+                        ),
                       ),
-                      const Divider(height: 1),
-                      ListTile(
-                        leading: Icon(Icons.help_outline, color: AppColors.onSurfaceVariant),
-                        title: const Text('Bantuan', style: AppTypography.labelMd),
-                        trailing: Icon(Icons.chevron_right, color: AppColors.outline),
-                        onTap: () {},
-                        splashColor: AppColors.surfaceContainerLow,
+                    ),
+                    SolidCard(
+                      child: Column(
+                        children: [
+                          _info('Departemen', profile?.department ?? '-'),
+                          const Divider(height: AppSpacing.md),
+                          _info('Posisi', profile?.position ?? '-'),
+                          const Divider(height: AppSpacing.md),
+                          _info('Kode Karyawan', profile?.employeeCode ?? '-'),
+                          const Divider(height: AppSpacing.md),
+                          _info('Perusahaan', profile?.workspaceName ?? '-'),
+                        ],
                       ),
-                    ],
-                  ),
+                    ),
+                  ],
                 )
                     .animate(delay: 120.ms)
+                    .fadeIn(duration: 320.ms)
+                    .slideY(begin: 0.06, curve: Curves.easeOut),
+                const SizedBox(height: AppSpacing.md),
+
+                // ── Pengaturan ──────────────────────────────────────────────
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.only(left: AppSpacing.xs, bottom: AppSpacing.xs),
+                      child: Text(
+                        'Pengaturan',
+                        style: AppTypography.titleLg.copyWith(
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.onSurface,
+                        ),
+                      ),
+                    ),
+                    SolidCard(
+                      entrance: false,
+                      padding: EdgeInsets.zero,
+                      child: Column(
+                        children: [
+                          ListTile(
+                            leading: Icon(Icons.security, color: AppColors.onSurfaceVariant),
+                            title: const Text('Kunci Aplikasi (Sidik Jari / PIN)', style: AppTypography.labelMd),
+                            trailing: Switch(
+                              value: ref.watch(authControllerProvider).isAppLockEnabled,
+                              onChanged: (value) async {
+                                await ref.read(authControllerProvider.notifier).setAppLockEnabled(value);
+                              },
+                              activeThumbColor: AppColors.primary,
+                            ),
+                            splashColor: AppColors.surfaceContainerLow,
+                          ),
+                          const Divider(height: 1),
+                          ListTile(
+                            leading: Icon(Icons.sync, color: AppColors.onSurfaceVariant),
+                            title: const Text('Sinkronisasi Offline', style: AppTypography.labelMd),
+                            trailing: Icon(Icons.chevron_right, color: AppColors.outline),
+                            onTap: () => context.push(AppRoutes.syncStatus),
+                            splashColor: AppColors.surfaceContainerLow,
+                          ),
+                          const Divider(height: 1),
+                          ListTile(
+                            leading: Icon(Icons.notifications_outlined, color: AppColors.onSurfaceVariant),
+                            title: const Text('Notifikasi', style: AppTypography.labelMd),
+                            trailing: Icon(Icons.chevron_right, color: AppColors.outline),
+                            onTap: () => context.push(AppRoutes.notifications),
+                            splashColor: AppColors.surfaceContainerLow,
+                          ),
+                          const Divider(height: 1),
+                          ListTile(
+                            leading: Icon(Icons.help_outline, color: AppColors.onSurfaceVariant),
+                            title: const Text('Bantuan', style: AppTypography.labelMd),
+                            trailing: Icon(Icons.chevron_right, color: AppColors.outline),
+                            onTap: () {},
+                            splashColor: AppColors.surfaceContainerLow,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                )
+                    .animate(delay: 180.ms)
                     .fadeIn(duration: 320.ms)
                     .slideY(begin: 0.06, curve: Curves.easeOut),
                 const SizedBox(height: AppSpacing.md),
@@ -190,7 +249,7 @@ class ProfileScreen extends ConsumerWidget {
                     ),
                   ),
                 )
-                    .animate(delay: 200.ms)
+                    .animate(delay: 240.ms)
                     .fadeIn(duration: 320.ms, curve: Curves.easeOut)
                     .slideY(begin: 0.06, duration: 320.ms, curve: Curves.easeOut),
               ],

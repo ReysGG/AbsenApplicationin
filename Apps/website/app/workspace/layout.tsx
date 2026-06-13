@@ -23,6 +23,7 @@ import { createServerApiClient } from "@/lib/apiClient";
 import { canAccessDashboard } from "@/lib/permissionGuards";
 import { Sidebar } from "@/components/dashboard/Sidebar";
 import { NotificationBell } from "@/components/dashboard/NotificationBell";
+import { ToastProvider } from "@/components/ui/toast";
 import type { DashboardUser } from "@/types/dashboard";
 
 export const metadata: Metadata = {
@@ -106,7 +107,8 @@ export default async function WorkspaceLayout({
 
   // 4. Render layout dengan sidebar + konten
   return (
-    <div className="min-h-screen bg-gray-50 flex">
+    <ToastProvider>
+      <div className="min-h-screen bg-gray-50 flex">
       {/* Sidebar navigasi (fixed, 240px) */}
       <Sidebar user={dashboardUser} />
 
@@ -153,5 +155,6 @@ export default async function WorkspaceLayout({
         <main className="flex-1 overflow-y-auto p-6 lg:p-8">{children}</main>
       </div>
     </div>
+    </ToastProvider>
   );
 }

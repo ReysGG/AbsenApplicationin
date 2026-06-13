@@ -3,27 +3,19 @@
 import { NumberTicker } from "@/components/ui/number-ticker";
 import { AnimatedList } from "@/components/ui/animated-list";
 import { BorderBeam } from "@/components/ui/border-beam";
-import { ShimmerButton } from "@/components/ui/shimmer-button";
 import { useState, useEffect, useCallback } from "react";
 import {
   Users,
   UserCheck,
   UserX,
   Clock,
-  Calendar,
-  Download,
   RefreshCw,
-  MoreHorizontal,
-  ArrowUpRight,
-  ArrowDownRight,
   MapPin,
   Smartphone,
   CheckCircle2,
   XCircle,
   AlertCircle,
   HeartPulse,
-  Server,
-  Building2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { StatusBadge } from "./StatusBadge";
@@ -78,11 +70,11 @@ interface DepartmentBreakdownItem {
 interface StatCard {
   title: string;
   value: number;
-  change: number;
-  changeLabel: string;
   icon: React.ReactNode;
   color: string;
   gradient: string;
+  /** Per-card sparkline series (real data from the attendance trend). */
+  trend: number[];
 }
 
 interface Activity {
@@ -221,43 +213,45 @@ function livePreviewToTableRow(item: LivePreviewItem): AttendanceRow {
   };
 }
 
-function summaryToStats(summary: DashboardSummary): StatCard[] {
+function summaryToStats(
+  summary: DashboardSummary,
+  trend: AttendanceTrend | null
+): StatCard[] {
+  const present = trend?.series.present ?? [];
+  const late = trend?.series.late ?? [];
+  const absent = trend?.series.absent ?? [];
   return [
     {
       title: "Total Karyawan",
       value: summary.totalEmployees,
-      change: 0,
-      changeLabel: "vs bulan lalu",
       icon: <Users size={22} />,
       color: "stat-icon--navy",
       gradient: "stat-bg--navy",
+      trend: [],
     },
     {
       title: "Hadir Hari Ini",
       value: summary.presentToday,
-      change: 0,
-      changeLabel: "vs kemarin",
       icon: <UserCheck size={22} />,
       color: "stat-icon--cyan",
       gradient: "stat-bg--cyan",
+      trend: present,
     },
     {
       title: "Tidak Hadir",
       value: summary.absent,
-      change: 0,
-      changeLabel: "vs kemarin",
       icon: <UserX size={22} />,
       color: "stat-icon--error",
       gradient: "stat-bg--error",
+      trend: absent,
     },
     {
       title: "Terlambat",
       value: summary.lateToday,
-      change: 0,
-      changeLabel: "vs kemarin",
       icon: <Clock size={22} />,
       color: "stat-icon--warn",
       gradient: "stat-bg--warn",
+      trend: late,
     },
   ];
 }
@@ -279,14 +273,6 @@ function deptBreakdownToProgress(
     };
   });
 }
-
-// ── Quick Actions (static) ───────────────────────────────────────────────────
-
-const quickActions = [
-  { label: "Rekap Harian", icon: <Calendar size={16} />, href: "#" },
-  { label: "Export Excel", icon: <Download size={16} />, href: "#" },
-  { label: "Sync Data", icon: <RefreshCw size={16} />, href: "#" },
-];
 
 // ── Skeleton helpers ──────────────────────────────────────────────────────────
 
@@ -463,12 +449,8 @@ export default function DashboardPage() {
   }, [fetchDashboardData]);
 
   // Derived UI data
-  const stats: StatCard[] = summary ? summaryToStats(summary) : [];
+  const stats: StatCard[] = summary ? summaryToStats(summary, trend) : [];
   const activities: Activity[] = livePreview.map(livePreviewToActivity);
-  const weeklyData: number[] =
-    trend && trend.series.present.length > 0
-      ? trend.series.present
-      : [0];
   const progressItems =
     deptBreakdown.length > 0
       ? deptBreakdownToProgress(deptBreakdown)
@@ -484,12 +466,6 @@ export default function DashboardPage() {
           <p className="admin-page-subtitle">{today}</p>
         </div>
         <div className="admin-page-actions">
-          {quickActions.map((a) => (
-            <button key={a.label} className="admin-action-btn">
-              {a.icon}
-              <span className="hidden sm:inline">{a.label}</span>
-            </button>
-          ))}
           <button
             className="admin-action-btn"
             onClick={fetchDashboardData}
@@ -498,13 +474,6 @@ export default function DashboardPage() {
             <RefreshCw size={16} />
             <span className="hidden sm:inline">Refresh</span>
           </button>
-          <ShimmerButton
-            className="admin-primary-btn"
-            shimmerColor="#818cf8"
-            background="linear-gradient(135deg,#6366f1,#8b5cf6)"
-          >
-            + Tambah Data
-          </ShimmerButton>
         </div>
       </div>
 
@@ -539,30 +508,13 @@ export default function DashboardPage() {
                   </p>
                 </div>
 
-                {/* Bottom row: Trend and Sparkline */}
-                <div className="flex items-center justify-between w-full gap-2 mt-4">
-                  <div className="admin-stat-change">
-                    {s.change >= 0 ? (
-                      <ArrowUpRight size={14} className="text-emerald-600" />
-                    ) : (
-                      <ArrowDownRight size={14} className="text-rose-600" />
-                    )}
-                    <span
-                      className={
-                        s.change >= 0 ? "text-emerald-400" : "text-rose-400"
-                      }
-                    >
-                      {Math.abs(s.change)}%
-                    </span>
-                    <span className="text-slate-500">{s.changeLabel}</span>
+                {/* Bottom row: per-card sparkline from the real 7-day trend.
+                    Hidden for cards without a meaningful daily series. */}
+                {s.trend.length >= 2 && (
+                  <div className="admin-stat-chart mt-4">
+                    <MiniChart data={s.trend} color="#34D399" />
                   </div>
-                </div>
-                <div className="admin-stat-chart">
-                  <MiniChart
-                    data={weeklyData.length >= 2 ? weeklyData : [0, 0]}
-                    color={s.change >= 0 ? "#10B981" : "#ba1a1a"}
-                  />
-                </div>
+                )}
               </div>
             ))}
       </div>
@@ -573,9 +525,6 @@ export default function DashboardPage() {
         <div className="admin-card">
           <div className="admin-card-header">
             <h2 className="admin-card-title">Distribusi Kehadiran</h2>
-            <button className="admin-card-action">
-              <MoreHorizontal size={16} />
-            </button>
           </div>
           <DonutChart
             presentCount={summary?.presentToday}
@@ -654,50 +603,63 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* System Info */}
+        {/* Operational Summary — all values sourced from the real dashboard summary */}
         <div className="admin-card">
           <div className="admin-card-header">
-            <h2 className="admin-card-title">Info Sistem</h2>
+            <h2 className="admin-card-title">Ringkasan Operasional</h2>
           </div>
-          <div className="admin-sys-grid">
-            {[
-              { label: "Server Uptime", val: "99.9%", icon: <Server size={18} className="text-[#047857]" />, trend: "+0.1%" },
-              { label: "Total Check-in", val: summary ? String(summary.presentToday + summary.lateToday) : "–", icon: <MapPin size={18} className="text-[#047857]" />, trend: "" },
-              { label: "Lokasi Aktif", val: "12", icon: <Building2 size={18} className="text-[#047857]" />, trend: "0" },
-              { label: "Device Terdaftar", val: "312", icon: <Smartphone size={18} className="text-[#047857]" />, trend: "+3" },
-            ].map((s) => (
-              <div key={s.label} className="admin-sys-card">
-                <span className="admin-sys-icon flex items-center justify-center">{s.icon}</span>
-                <div>
-                  <p className="admin-sys-val">{s.val}</p>
-                  <p className="admin-sys-label">{s.label}</p>
-                  {s.trend && <p className="admin-sys-trend text-emerald-600">{s.trend}</p>}
+          {loadingSummary ? (
+            <div className="admin-sys-grid animate-pulse">
+              {Array.from({ length: 4 }).map((_, i) => (
+                <div key={i} className="admin-sys-card">
+                  <div className="h-8 w-8 rounded bg-slate-700" />
+                  <div className="flex-1 space-y-1">
+                    <div className="h-4 w-12 rounded bg-slate-700" />
+                    <div className="h-3 w-20 rounded bg-slate-700" />
+                  </div>
                 </div>
-              </div>
-            ))}
-          </div>
-
-          {/* Resource bars */}
-          <div className="mt-auto pt-4 space-y-3">
-            {[
-              { label: "CPU Usage", val: 34, color: "#022C22" },
-              { label: "Memory", val: 70, color: "#047857" },
-              { label: "Storage", val: 48, color: "#34D399" },
-            ].map((r) => (
-              <div key={r.label}>
-                <div className="flex justify-between text-xs mb-1" style={{ color: "#75777e" }}>
-                  <span>{r.label}</span>
-                  <span>{r.val}%</span>
+              ))}
+            </div>
+          ) : errorSummary || !summary ? (
+            <p className="text-slate-500 text-sm text-center py-8">
+              Gagal memuat ringkasan
+            </p>
+          ) : (
+            <div className="admin-sys-grid">
+              {[
+                {
+                  label: "Total Check-in",
+                  val: String(summary.presentToday + summary.lateToday),
+                  icon: <UserCheck size={18} className="text-[#047857]" />,
+                },
+                {
+                  label: "Sedang Cuti",
+                  val: String(summary.onLeave),
+                  icon: <HeartPulse size={18} className="text-[#047857]" />,
+                },
+                {
+                  label: "Belum Checkout",
+                  val: String(summary.pendingCheckout),
+                  icon: <Clock size={18} className="text-[#047857]" />,
+                },
+                {
+                  label: "Tanpa Shift",
+                  val: String(summary.unassignedShift),
+                  icon: <AlertCircle size={18} className="text-[#047857]" />,
+                },
+              ].map((s) => (
+                <div key={s.label} className="admin-sys-card">
+                  <span className="admin-sys-icon flex items-center justify-center">
+                    {s.icon}
+                  </span>
+                  <div>
+                    <p className="admin-sys-val">{s.val}</p>
+                    <p className="admin-sys-label">{s.label}</p>
+                  </div>
                 </div>
-                <div className="h-1.5 rounded-full overflow-hidden" style={{ background: "#eceef0" }}>
-                  <div
-                    className="h-full rounded-full transition-all duration-1000"
-                    style={{ width: `${r.val}%`, background: r.color }}
-                  />
-                </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </div>
       </div>
 
@@ -711,16 +673,6 @@ export default function DashboardPage() {
                 ? "Memuat data..."
                 : `Menampilkan ${recentAttendance.length} karyawan terkini`}
             </p>
-          </div>
-          <div className="flex items-center gap-2">
-            <button className="admin-action-btn text-xs">
-              <Download size={14} />
-              Export
-            </button>
-            <button className="admin-action-btn text-xs">
-              Lihat Semua
-              <ArrowUpRight size={14} />
-            </button>
           </div>
         </div>
         {loadingTable ? (
@@ -741,7 +693,6 @@ export default function DashboardPage() {
                   <th>Status</th>
                   <th>Lokasi</th>
                   <th>Device</th>
-                  <th></th>
                 </tr>
               </thead>
               <tbody>
@@ -774,11 +725,6 @@ export default function DashboardPage() {
                         <Smartphone size={12} />
                         {row.device}
                       </span>
-                    </td>
-                    <td>
-                      <button className="admin-table-action">
-                        <MoreHorizontal size={15} />
-                      </button>
                     </td>
                   </tr>
                 ))}

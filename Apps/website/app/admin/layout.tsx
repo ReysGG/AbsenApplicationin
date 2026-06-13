@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { createServerApiClient } from "@/lib/apiClient";
 import AdminShell from "./_components/AdminShell";
+import { ToastProvider } from "@/components/ui/toast";
 
 /** Global roles allowed into the platform admin console. */
 const PLATFORM_ROLES = ["super_admin", "admin_platform"];
@@ -68,5 +69,9 @@ export default async function AdminLayout({
     initials: getInitials(session.user.name || "", session.user.email),
   };
 
-  return <AdminShell user={user}>{children}</AdminShell>;
+  return (
+    <ToastProvider>
+      <AdminShell user={user}>{children}</AdminShell>
+    </ToastProvider>
+  );
 }

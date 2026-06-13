@@ -1,17 +1,14 @@
-import 'dart:ui';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 
 import '../theme/app_colors.dart';
 import '../theme/app_spacing.dart';
 
-/// Frosted-glass card with a translucent gradient fill, gradient border, and a
-/// subtle top-edge highlight for the "glossy" look.
+/// Clean, flat card — solid white surface, hairline border, soft shadow.
 ///
-/// Performance: by default this uses a cheap translucent gradient fill (NO
-/// per-card backdrop blur), so it stays smooth even in long lists. Set
-/// [useBlur] true for a true backdrop-blur on a single hero card only.
+/// (Previously a frosted-glass card with gradient fill + gloss highlight.
+/// Flattened for a more professional, restrained look. The API is unchanged so
+/// existing screens keep working; [useBlur]/[blurSigma] are now no-ops.)
 class GlassCard extends StatelessWidget {
   const GlassCard({
     super.key,
@@ -29,8 +26,6 @@ class GlassCard extends StatelessWidget {
   final EdgeInsetsGeometry padding;
   final VoidCallback? onTap;
   final double blurSigma;
-
-  /// True = real backdrop blur (expensive). Reserve for a single hero card.
   final bool useBlur;
   final double borderRadius;
   final Color? fillColor;
@@ -40,82 +35,28 @@ class GlassCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final inner = Container(
+    Widget card = Container(
+      padding: padding,
       decoration: BoxDecoration(
+        color: fillColor ?? AppColors.surface,
         borderRadius: BorderRadius.circular(borderRadius),
-        // Frosted translucent gradient — reads as glass without a blur pass.
-        gradient: fillColor == null
-            ? LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [
-                  AppColors.glassFillStrong,
-                  AppColors.glassFill,
-                ],
-              )
-            : null,
-        color: fillColor,
-        border: GradientBoxBorder(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [
-              AppColors.glassBorder,
-              AppColors.glassBorderSoft,
-            ],
-          ),
-          width: 1.5,
-        ),
+        border: Border.all(color: AppColors.cardBorder),
         boxShadow: [
           BoxShadow(
-            color: AppColors.glassShadow,
-            blurRadius: 20,
-            offset: Offset(0, 8),
+            color: AppColors.cardShadow,
+            blurRadius: 16,
+            offset: const Offset(0, 3),
           ),
         ],
       ),
-      child: Stack(
-        children: [
-          // Top-edge gloss highlight
-          Positioned(
-            top: 0,
-            left: 8,
-            right: 8,
-            height: 1,
-            child: Container(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [
-                    Colors.transparent,
-                    AppColors.glassHighlight,
-                    Colors.transparent,
-                  ],
-                ),
-              ),
-            ),
-          ),
-          Padding(padding: padding, child: child),
-        ],
-      ),
-    );
-
-    Widget card = RepaintBoundary(
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(borderRadius),
-        child: useBlur
-            ? BackdropFilter(
-                filter: ImageFilter.blur(sigmaX: blurSigma, sigmaY: blurSigma),
-                child: inner,
-              )
-            : inner,
-      ),
+      child: child,
     );
 
     if (animate) {
       card = card
           .animate()
-          .fadeIn(duration: 280.ms, curve: Curves.easeOut)
-          .slideY(begin: 0.05, duration: 280.ms, curve: Curves.easeOut);
+          .fadeIn(duration: 240.ms, curve: Curves.easeOut)
+          .slideY(begin: 0.04, duration: 240.ms, curve: Curves.easeOut);
     }
 
     if (onTap == null) return card;
@@ -125,15 +66,14 @@ class GlassCard extends StatelessWidget {
       child: InkWell(
         borderRadius: BorderRadius.circular(borderRadius),
         onTap: onTap,
-        splashColor: AppColors.glassFill,
-        highlightColor: AppColors.glassFillStrong.withValues(alpha: 0.1),
         child: card,
       ),
     );
   }
 }
 
-/// A [BoxBorder] that renders a gradient stroke.
+/// Retained for API compatibility with any remaining imports. Renders a plain
+/// solid border stroke.
 class GradientBoxBorder extends BoxBorder {
   const GradientBoxBorder({required this.gradient, required this.width});
 
@@ -165,7 +105,6 @@ class GradientBoxBorder extends BoxBorder {
       ..strokeWidth = width
       ..style = PaintingStyle.stroke
       ..shader = gradient.createShader(rect);
-
     if (borderRadius != null) {
       canvas.drawRRect(borderRadius.toRRect(rect.deflate(width / 2)), paint);
     } else {

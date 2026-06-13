@@ -34,10 +34,18 @@ import {
   listTicketsHandler,
   replyTicketHandler,
   setTicketStatusHandler,
+  platformMetricsHandler,
+  platformRegistrationsHandler,
+  platformTopTenantsHandler,
 } from './platform.controller'
 
 const router = Router()
 const guard = [authenticate, requirePlatformAdmin()]
+
+// Dashboard metrics (real cross-tenant aggregates)
+router.get('/platform/metrics', ...guard, platformMetricsHandler)
+router.get('/platform/registrations', ...guard, platformRegistrationsHandler)
+router.get('/platform/top-tenants', ...guard, platformTopTenantsHandler)
 
 // Tenants
 router.get('/platform/tenants', ...guard, listTenantsHandler)

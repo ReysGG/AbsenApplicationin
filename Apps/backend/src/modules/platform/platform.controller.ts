@@ -46,6 +46,32 @@ export async function updateTenantStatusHandler(req: Request, res: Response, nex
   }
 }
 
+// ── Dashboard metrics ─────────────────────────────────────────────────────────
+
+export async function platformMetricsHandler(_req: Request, res: Response, next: NextFunction) {
+  try {
+    sendSuccess(res, await service.getPlatformMetrics(new Date()))
+  } catch (err) {
+    next(err)
+  }
+}
+
+export async function platformRegistrationsHandler(_req: Request, res: Response, next: NextFunction) {
+  try {
+    sendSuccess(res, await service.getRecentRegistrations(new Date()))
+  } catch (err) {
+    next(err)
+  }
+}
+
+export async function platformTopTenantsHandler(_req: Request, res: Response, next: NextFunction) {
+  try {
+    sendSuccess(res, await service.getTopTenants())
+  } catch (err) {
+    next(err)
+  }
+}
+
 // ── Invoices ─────────────────────────────────────────────────────────────────
 
 export async function listInvoicesHandler(_req: Request, res: Response, next: NextFunction) {

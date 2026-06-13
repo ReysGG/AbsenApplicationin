@@ -14,7 +14,9 @@ import {
 } from "lucide-react";
 import { SignOutButton } from "@/components/sign-out-button";
 import { cn } from "@/lib/utils";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { createClientApiClient } from "@/lib/apiClient";
+import { APP_VERSION } from "@/lib/appVersion";
 
 interface NavItem {
   label: string;
@@ -49,7 +51,6 @@ const platformNavItems: NavItem[] = [
     label: "Support Tickets",
     href: "/admin/tickets",
     icon: <Ticket size={18} />,
-    badge: "14",
   },
   {
     label: "Admin Users",
@@ -145,6 +146,31 @@ export default function AdminSidebar({
     initials: string;
   };
 }) {
+  // Live open-ticket count for the Support Tickets badge (replaces hardcoded "14").
+  const [openTickets, setOpenTickets] = useState<number | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    const api = createClientApiClient();
+    api
+      .get<{ kpis: { openTickets: number } }>("v1/platform/metrics")
+      .then((res) => {
+        if (!cancelled && res.success) setOpenTickets(res.data.kpis.openTickets);
+      })
+      .catch(() => {
+        /* badge simply stays hidden on failure */
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const navItems: NavItem[] = platformNavItems.map((item) =>
+    item.href === "/admin/tickets" && openTickets && openTickets > 0
+      ? { ...item, badge: String(openTickets) }
+      : item
+  );
+
   return (
     <>
       {/* Mobile overlay */}
@@ -202,7 +228,7 @@ export default function AdminSidebar({
         <nav className="admin-nav">
           <p className="admin-nav-section-label">Platform Admin</p>
           <ul className="admin-nav-list">
-            {platformNavItems.map((item) => (
+            {navItems.map((item) => (
               <NavGroup key={item.label} item={item} />
             ))}
           </ul>
@@ -211,7 +237,7 @@ export default function AdminSidebar({
         {/* Footer */}
         <div className="admin-sidebar-footer">
           <SignOutButton />
-          <p className="admin-sidebar-version">AbsenPro v2.1.0</p>
+          <p className="admin-sidebar-version">AbsenPro {APP_VERSION}</p>
         </div>
       </aside>
     </>

@@ -15,6 +15,8 @@ class AttendanceSubmission {
     this.locationId,
     this.capturedAt,
     this.isMocked = false,
+    this.livenessChecksPassed,
+    this.livenessChecksTotal,
   });
 
   final WorkMode workMode;
@@ -28,6 +30,12 @@ class AttendanceSubmission {
   /// True when the GPS fix was reported by the OS as a mock/spoofed location.
   final bool isMocked;
 
+  /// Number of distinct liveness challenges passed / presented on-device.
+  /// The server is the decision authority and enforces a policy on these
+  /// (all passed, >= minimum) rather than trusting [faceVerified] alone.
+  final int? livenessChecksPassed;
+  final int? livenessChecksTotal;
+
   /// Serializes to the same shape the backend expects, for offline queueing.
   Map<String, dynamic> toJson() => {
         'workMode': workMode.name,
@@ -36,6 +44,10 @@ class AttendanceSubmission {
         'faceVerified': faceVerified,
         'livenessPassed': livenessPassed,
         'isMocked': isMocked,
+        if (livenessChecksPassed != null)
+          'livenessChecksPassed': livenessChecksPassed,
+        if (livenessChecksTotal != null)
+          'livenessChecksTotal': livenessChecksTotal,
         if (locationId != null) 'locationId': locationId,
         if (capturedAt != null) 'capturedAt': capturedAt!.toUtc().toIso8601String(),
       };
@@ -51,6 +63,8 @@ class AttendanceSubmission {
         faceVerified: j['faceVerified'] as bool? ?? false,
         livenessPassed: j['livenessPassed'] as bool? ?? false,
         isMocked: j['isMocked'] as bool? ?? false,
+        livenessChecksPassed: (j['livenessChecksPassed'] as num?)?.toInt(),
+        livenessChecksTotal: (j['livenessChecksTotal'] as num?)?.toInt(),
         locationId: j['locationId'] as String?,
         capturedAt: j['capturedAt'] != null
             ? DateTime.tryParse(j['capturedAt'] as String)

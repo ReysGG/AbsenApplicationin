@@ -12,31 +12,31 @@ import '../models/work_location.dart';
 /// Kept separate from repositories so the contract lives in one place.
 abstract final class ApiMappers {
   static AttendanceStatus attendanceStatus(String? v) => switch (v) {
-        'present' => AttendanceStatus.present,
-        'late' => AttendanceStatus.late,
-        'absent' => AttendanceStatus.absent,
-        'pendingCheckout' => AttendanceStatus.pendingCheckout,
-        'missingCheckout' => AttendanceStatus.missingCheckout,
-        'leave' => AttendanceStatus.leave,
-        _ => AttendanceStatus.invalid,
-      };
+    'present' => AttendanceStatus.present,
+    'late' => AttendanceStatus.late,
+    'absent' => AttendanceStatus.absent,
+    'pendingCheckout' => AttendanceStatus.pendingCheckout,
+    'missingCheckout' => AttendanceStatus.missingCheckout,
+    'leave' => AttendanceStatus.leave,
+    _ => AttendanceStatus.invalid,
+  };
 
   static WorkMode workMode(String? v) =>
       v == 'wfh' ? WorkMode.wfh : WorkMode.wfo;
 
   static VerificationStatus faceStatus(String? v) => switch (v) {
-        'passed' => VerificationStatus.passed,
-        'failed' => VerificationStatus.failed,
-        'pending' => VerificationStatus.pending,
-        _ => VerificationStatus.notRequired,
-      };
+    'passed' => VerificationStatus.passed,
+    'failed' => VerificationStatus.failed,
+    'pending' => VerificationStatus.pending,
+    _ => VerificationStatus.notRequired,
+  };
 
   static SyncStatus syncStatus(String? v) => switch (v) {
-        'pending' => SyncStatus.pending,
-        'syncing' => SyncStatus.syncing,
-        'failed' => SyncStatus.failed,
-        _ => SyncStatus.synced,
-      };
+    'pending' => SyncStatus.pending,
+    'syncing' => SyncStatus.syncing,
+    'failed' => SyncStatus.failed,
+    _ => SyncStatus.synced,
+  };
 
   static DateTime _date(String v) => DateTime.parse(v);
   static DateTime? _dateOrNull(String? v) =>
@@ -110,26 +110,36 @@ abstract final class ApiMappers {
     );
   }
 
-  static LeaveType leaveType(String? v) => switch (v) {
-        'annual' => LeaveType.annual,
-        'sick' => LeaveType.sick,
-        'personal' => LeaveType.personal,
-        _ => LeaveType.other,
-      };
+  static LeaveType leaveType(String? v) {
+    final normalized = (v ?? '').trim().toLowerCase();
+    return switch (normalized) {
+      'annual' || 'cuti tahunan' => LeaveType.annual,
+      'sick' || 'sakit' => LeaveType.sick,
+      'personal' || 'izin pribadi' => LeaveType.personal,
+      'businesstrip' ||
+      'business trip' ||
+      'business_trip' ||
+      'dinas luar' => LeaveType.businessTrip,
+      'wfh' || 'wfh request' => LeaveType.wfh,
+      _ => LeaveType.other,
+    };
+  }
 
   static String leaveTypeToApi(LeaveType t) => switch (t) {
-        LeaveType.annual => 'annual',
-        LeaveType.sick => 'sick',
-        LeaveType.personal => 'personal',
-        LeaveType.other => 'other',
-      };
+    LeaveType.annual => 'annual',
+    LeaveType.sick => 'sick',
+    LeaveType.personal => 'personal',
+    LeaveType.businessTrip => 'businessTrip',
+    LeaveType.wfh => 'wfh',
+    LeaveType.other => 'other',
+  };
 
   static LeaveStatus leaveStatus(String? v) => switch (v) {
-        'approved' => LeaveStatus.approved,
-        'rejected' => LeaveStatus.rejected,
-        'cancelled' => LeaveStatus.cancelled,
-        _ => LeaveStatus.pending,
-      };
+    'approved' => LeaveStatus.approved,
+    'rejected' => LeaveStatus.rejected,
+    'cancelled' => LeaveStatus.cancelled,
+    _ => LeaveStatus.pending,
+  };
 
   static LeaveRequest leave(Map<String, dynamic> j) {
     return LeaveRequest(
@@ -146,11 +156,11 @@ abstract final class ApiMappers {
   }
 
   static NotificationKind notificationKind(String? v) => switch (v) {
-        'reminder' => NotificationKind.reminder,
-        'approval' => NotificationKind.approval,
-        'sync' => NotificationKind.sync,
-        _ => NotificationKind.info,
-      };
+    'reminder' => NotificationKind.reminder,
+    'approval' => NotificationKind.approval,
+    'sync' => NotificationKind.sync,
+    _ => NotificationKind.info,
+  };
 
   static AppNotification notification(Map<String, dynamic> j) {
     return AppNotification(

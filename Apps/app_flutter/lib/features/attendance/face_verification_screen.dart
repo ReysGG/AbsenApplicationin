@@ -63,7 +63,7 @@ class _FaceVerificationScreenState
 
   Future<void> _boostBrightness() async {
     try {
-      await ScreenBrightness().setScreenBrightness(1.0);
+      await ScreenBrightness().setApplicationScreenBrightness(1.0);
     } catch (_) {
       // Non-critical — proceed at the device's current brightness.
     }
@@ -71,7 +71,7 @@ class _FaceVerificationScreenState
 
   Future<void> _restoreBrightness() async {
     try {
-      await ScreenBrightness().resetScreenBrightness();
+      await ScreenBrightness().resetApplicationScreenBrightness();
     } catch (_) {}
   }
 
@@ -194,6 +194,8 @@ class _FaceVerificationScreenState
     ref.read(checkinFlowProvider.notifier).setFaceResult(
           faceVerified: true,
           liveness: true,
+          checksPassed: _passed.length,
+          checksTotal: _order.length,
         );
     final record = await ref.read(checkinFlowProvider.notifier).submit();
     if (!mounted) return;

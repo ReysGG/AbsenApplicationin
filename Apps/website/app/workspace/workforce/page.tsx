@@ -53,6 +53,8 @@ import {
 import { createClientApiClient } from "@/lib/apiClient";
 import type { PaginatedData } from "@/lib/apiClient";
 import { canManageEmployees } from "@/lib/permissionGuards";
+import { useCurrentUser } from "@/lib/hooks/useCurrentUser";
+import { useToast } from "@/components/ui/toast";
 import type {
   Employee,
   WorkforceFilters,
@@ -604,17 +606,11 @@ function EmployeeFormFields({
 // ---------------------------------------------------------------------------
 
 export default function WorkforcePage() {
-  // --- Permission (naive: we assume user loaded in layout has permissions)
-  // In a real app, use a context/store. We check manage_employees from the
-  // window's user object or default to true for Stakeholder.
-  const [currentUser] = useState(() => ({
-    id: "",
-    email: "",
-    name: "",
-    roles: ["stakeholder"],
-    permissions: [] as string[],
-  }));
+  // --- Permission: load the real session user from /me (audit §11).
+  // Enforcement is server-side; this only drives UX (show/disable controls).
+  const { user: currentUser } = useCurrentUser();
   const canManage = canManageEmployees(currentUser);
+  const { toast } = useToast();
 
   // --- Employees data state
   const [employees, setEmployees] = useState<Employee[]>([]);
@@ -968,9 +964,29 @@ export default function WorkforcePage() {
   async function handleResendInvitation(emp: Employee) {
     try {
       const api = createClientApiClient();
-      await api.post(`v1/employees/${emp.id}/resend-invite`, {});
+      const res = await api.post(
+        `v1/employees/${emp.id}/resend-invitation`,
+        {}
+      );
+      if (res.success) {
+        toast({
+          title: "Undangan terkirim ulang",
+          description: `Email aktivasi baru dikirim ke ${emp.email}.`,
+          variant: "success",
+        });
+      } else {
+        toast({
+          title: "Gagal mengirim ulang undangan",
+          description: res.error.message,
+          variant: "error",
+        });
+      }
     } catch {
-      // silently fail — in a real app, show a toast
+      toast({
+        title: "Gagal mengirim ulang undangan",
+        description: "Tidak dapat menghubungi server. Coba lagi.",
+        variant: "error",
+      });
     }
   }
 

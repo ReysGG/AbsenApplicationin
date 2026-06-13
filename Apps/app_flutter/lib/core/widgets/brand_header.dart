@@ -28,23 +28,16 @@ class BrandHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final top = MediaQuery.of(context).padding.top;
+    final tr = trailing;
     return Container(
       width: double.infinity,
       padding: EdgeInsets.fromLTRB(
-          AppSpacing.md, top + AppSpacing.md, AppSpacing.md, 40),
+          AppSpacing.md, top + AppSpacing.md, AppSpacing.md, 20),
       decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            AppColors.brandStart,
-            AppColors.brandMid,
-            AppColors.brandEnd,
-          ],
-        ),
+        color: AppColors.brandMid,
         borderRadius: BorderRadius.only(
-          bottomLeft: Radius.circular(28),
-          bottomRight: Radius.circular(28),
+          bottomLeft: Radius.circular(18),
+          bottomRight: Radius.circular(18),
         ),
       ),
       child: Row(
@@ -85,7 +78,8 @@ class BrandHeader extends StatelessWidget {
               ],
             ),
           ),
-          ?trailing,
+          // ignore: use_null_aware_elements
+          if (tr != null) tr,
         ],
       ),
     )

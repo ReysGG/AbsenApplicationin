@@ -50,6 +50,13 @@ abstract final class AppTypography {
     fontWeight: FontWeight.w400,
   );
 
+  static const bodySm = TextStyle(
+    fontFamily: _family,
+    fontSize: 12,
+    height: 16 / 12,
+    fontWeight: FontWeight.w400,
+  );
+
   static const labelMd = TextStyle(
     fontFamily: _family,
     fontSize: 12,

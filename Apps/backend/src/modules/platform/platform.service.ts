@@ -121,6 +121,158 @@ export async function updateTenantStatus(
 }
 
 // ---------------------------------------------------------------------------
+// Platform dashboard metrics (real aggregates — replaces the old mock page)
+// ---------------------------------------------------------------------------
+
+/** Normalize a free-form plan string to a PLAN_MRR key ("enterprise" → "Enterprise"). */
+function normalizePlan(plan: string | null | undefined): string {
+  if (!plan) return 'Basic'
+  const p = plan.trim().toLowerCase()
+  if (p === 'enterprise') return 'Enterprise'
+  if (p === 'pro') return 'Pro'
+  if (p === 'basic') return 'Basic'
+  return plan
+}
+
+function initialsFromName(name: string): string {
+  const parts = name.trim().split(/\s+/).filter(Boolean)
+  if (parts.length === 0) return '—'
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase()
+  return (parts[0][0] + parts[1][0]).toUpperCase()
+}
+
+export interface PlatformMetricsDto {
+  kpis: {
+    activeTenants: number
+    endUsers: number
+    mrr: number
+    openTickets: number
+  }
+  planBreakdown: Array<{ plan: string; revenue: number; percentage: number }>
+  growth: Array<{ label: string; newTenants: number }>
+}
+
+/**
+ * Cross-tenant platform KPIs computed from real data:
+ *  - activeTenants: tenants with status Active
+ *  - endUsers: total employees across all workspaces
+ *  - mrr: sum of plan price (PLAN_MRR) over active tenants — real recurring value
+ *  - openTickets: support tickets not yet Closed
+ *  - planBreakdown: MRR split by plan (for the donut chart)
+ *  - growth: new tenants per month for the last 6 months (for the line chart)
+ */
+export async function getPlatformMetrics(now: Date): Promise<PlatformMetricsDto> {
+  const [tenants, endUsers, openTickets] = await Promise.all([
+    prisma.tenant.findMany({ select: { plan: true, status: true, createdAt: true } }),
+    prisma.employee.count(),
+    prisma.supportTicket.count({ where: { status: { in: ['Open', 'InProgress'] } } }),
+  ])
+
+  const activeTenants = tenants.filter((t) => t.status === 'Active')
+
+  // MRR + plan breakdown from active tenants' plans.
+  const revenueByPlan = new Map<string, number>()
+  let mrr = 0
+  for (const t of activeTenants) {
+    const plan = normalizePlan(t.plan)
+    const price = PLAN_MRR[plan] ?? 0
+    mrr += price
+    revenueByPlan.set(plan, (revenueByPlan.get(plan) ?? 0) + price)
+  }
+  const planBreakdown = [...revenueByPlan.entries()]
+    .map(([plan, revenue]) => ({
+      plan,
+      revenue,
+      percentage: mrr > 0 ? Math.round((revenue / mrr) * 100) : 0,
+    }))
+    .sort((a, b) => b.revenue - a.revenue)
+
+  // New tenants per month for the last 6 calendar months.
+  const months: Array<{ label: string; newTenants: number }> = []
+  const monthFmt = new Intl.DateTimeFormat('en-US', { month: 'short' })
+  for (let i = 5; i >= 0; i--) {
+    const monthStart = new Date(now.getFullYear(), now.getMonth() - i, 1)
+    const monthEnd = new Date(now.getFullYear(), now.getMonth() - i + 1, 1)
+    const count = tenants.filter(
+      (t) => t.createdAt >= monthStart && t.createdAt < monthEnd,
+    ).length
+    months.push({ label: monthFmt.format(monthStart), newTenants: count })
+  }
+
+  return {
+    kpis: { activeTenants: activeTenants.length, endUsers, mrr, openTickets },
+    planBreakdown,
+    growth: months,
+  }
+}
+
+export interface RegistrationDto {
+  id: string
+  tenant: string
+  initials: string
+  plan: string
+  status: string
+  date: string
+}
+
+/** Most recently created tenants (real registrations). */
+export async function getRecentRegistrations(
+  now: Date,
+  limit = 5,
+): Promise<RegistrationDto[]> {
+  void now
+  const tenants = await prisma.tenant.findMany({
+    orderBy: { createdAt: 'desc' },
+    take: limit,
+  })
+  const dateFmt = new Intl.DateTimeFormat('en-US', {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+  })
+  return tenants.map((t) => ({
+    id: t.id,
+    tenant: t.name,
+    initials: initialsFromName(t.name),
+    plan: normalizePlan(t.plan),
+    status: t.status as string,
+    date: dateFmt.format(t.createdAt),
+  }))
+}
+
+export interface TopTenantDto {
+  name: string
+  users: number
+  percentage: number
+}
+
+/** Top tenants by total employee count across their workspaces. */
+export async function getTopTenants(limit = 5): Promise<TopTenantDto[]> {
+  const tenants = await prisma.tenant.findMany({
+    include: {
+      workspaces: { select: { _count: { select: { employees: true } } } },
+    },
+  })
+  const ranked = tenants
+    .map((t) => ({
+      name: t.name,
+      users: t.workspaces.reduce(
+        (sum, w) =>
+          sum + ((w as { _count?: { employees: number } })._count?.employees ?? 0),
+        0,
+      ),
+    }))
+    .sort((a, b) => b.users - a.users)
+    .slice(0, limit)
+
+  const max = ranked.length > 0 ? ranked[0].users : 0
+  return ranked.map((t) => ({
+    ...t,
+    percentage: max > 0 ? Math.round((t.users / max) * 100) : 0,
+  }))
+}
+
+// ---------------------------------------------------------------------------
 // Invoices
 // ---------------------------------------------------------------------------
 

@@ -30,12 +30,12 @@ class SolidCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: color ?? Colors.white,
         borderRadius: BorderRadius.circular(borderRadius),
-        border: Border.all(color: const Color(0xFFEDEFF5)),
+        border: Border.all(color: const Color(0xFFE8EAF0)),
         boxShadow: const [
           BoxShadow(
-            color: Color(0x14172B4D),
-            blurRadius: 20,
-            offset: Offset(0, 4),
+            color: Color(0x0F172B4D),
+            blurRadius: 16,
+            offset: Offset(0, 3),
           ),
         ],
       ),

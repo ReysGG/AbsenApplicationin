@@ -2,8 +2,9 @@ export interface Registration {
   id: string;
   tenant: string;
   initials: string;
-  plan: "Enterprise" | "Pro" | "Basic";
-  status: "Active" | "Trial" | "Churned";
+  plan: string;
+  /** Tenant status: Active | Suspended | Inactive (real values from the DB). */
+  status: string;
   date: string;
 }
 

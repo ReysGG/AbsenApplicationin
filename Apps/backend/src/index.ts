@@ -22,6 +22,8 @@ import auditRouter from './modules/audit/audit.routes'
 import notificationsRouter from './modules/notifications/notifications.routes'
 import mobileRouter from './modules/mobile/mobile.routes'
 import platformRouter from './modules/platform/platform.routes'
+import sharedRouter from './modules/shared/shared.routes'
+import systemRouter from './modules/system/system.routes'
 import { startExportWorker } from './jobs/exportWorker'
 import { startAbsentJob } from './jobs/absentJob'
 import { startMissingCheckoutJob } from './jobs/missingCheckoutJob'
@@ -94,6 +96,12 @@ app.use('/api/v1', mobileRouter)
 
 // Platform-admin console routes (globalRole gate, cross-tenant)
 app.use('/api/v1', platformRouter)
+
+// Shared reference data (leave types, etc.)
+app.use('/api/v1', sharedRouter)
+
+// System health (platform admin: DB/uptime/counts probe)
+app.use('/api/v1', systemRouter)
 
 // Health check
 app.get('/api/v1/health', (_req, res) => {

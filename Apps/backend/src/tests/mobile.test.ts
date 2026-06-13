@@ -139,8 +139,10 @@ describe('checkIn — geofence', () => {
     ;(prisma.shift.findUnique as any).mockResolvedValue(shiftRow)
     ;(prisma.location.findFirst as any).mockResolvedValue(officeLocation)
 
+    // Valid coordinates but ~440km away (Central Java) — exercises the geofence
+    // check specifically (not coordinate-sanity rejection).
     await expect(
-      checkIn(employee, { ...validInput, latitude: 0, longitude: 0 }),
+      checkIn(employee, { ...validInput, latitude: -7.5, longitude: 110.5 }),
     ).rejects.toBeInstanceOf(ValidationError)
     expect(prisma.attendanceLog.create).not.toHaveBeenCalled()
   })

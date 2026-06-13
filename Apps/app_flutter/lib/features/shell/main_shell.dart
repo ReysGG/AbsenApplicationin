@@ -17,7 +17,7 @@ class MainShell extends StatelessWidget {
   static const _tabs = [
     _TabSpec(Icons.home_outlined, Icons.home, 'Beranda'),
     _TabSpec(Icons.history_outlined, Icons.history, 'Riwayat'),
-    _TabSpec(Icons.event_busy_outlined, Icons.event_busy, 'Cuti'),
+    _TabSpec(Icons.edit_calendar_outlined, Icons.edit_calendar, 'Izin'),
     _TabSpec(Icons.calendar_today_outlined, Icons.calendar_today, 'Jadwal'),
     _TabSpec(Icons.person_outline, Icons.person, 'Profil'),
   ];
@@ -131,7 +131,8 @@ class _NavItem extends StatefulWidget {
   State<_NavItem> createState() => _NavItemState();
 }
 
-class _NavItemState extends State<_NavItem> with SingleTickerProviderStateMixin {
+class _NavItemState extends State<_NavItem>
+    with SingleTickerProviderStateMixin {
   late final AnimationController _bounce;
   bool _prevSelected = false;
 
@@ -164,10 +165,12 @@ class _NavItemState extends State<_NavItem> with SingleTickerProviderStateMixin 
   @override
   Widget build(BuildContext context) {
     final selected = widget.selected;
-    final labelColor =
-        selected ? AppColors.primary : AppColors.onSurfaceVariant;
-    final iconColor =
-        selected ? AppColors.onPrimary : AppColors.onSurfaceVariant;
+    final labelColor = selected
+        ? AppColors.primary
+        : AppColors.onSurfaceVariant;
+    final iconColor = selected
+        ? AppColors.onPrimary
+        : AppColors.onSurfaceVariant;
 
     return Expanded(
       child: GestureDetector(
@@ -197,10 +200,7 @@ class _NavItemState extends State<_NavItem> with SingleTickerProviderStateMixin 
                   final scale = selected
                       ? 1.0 + 0.28 * (1 - (t - 1).abs().clamp(0.0, 1.0))
                       : 1.0;
-                  return Transform.scale(
-                    scale: scale,
-                    child: child,
-                  );
+                  return Transform.scale(scale: scale, child: child);
                 },
                 child: AnimatedContainer(
                   duration: const Duration(milliseconds: 300),
@@ -208,9 +208,7 @@ class _NavItemState extends State<_NavItem> with SingleTickerProviderStateMixin 
                   width: 32,
                   height: 32,
                   decoration: BoxDecoration(
-                    color: selected
-                        ? AppColors.primary
-                        : Colors.transparent,
+                    color: selected ? AppColors.primary : Colors.transparent,
                     borderRadius: BorderRadius.circular(AppRadius.full),
                   ),
                   child: Icon(

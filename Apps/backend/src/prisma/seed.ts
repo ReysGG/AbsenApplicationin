@@ -577,6 +577,27 @@ async function main(): Promise<void> {
     `✅ AttendanceLogs: ${attendanceLogs.length} records for last 7 weekdays`,
   )
 
+  // ── 11b. LeaveTypes — configurable leave types per workspace (R11.3) ────────
+  // Idempotent via the @@unique([workspaceId, name]) constraint.
+  const leaveTypeSeed = [
+    { name: 'Sakit', requiresAttachment: true },
+    { name: 'Cuti Tahunan', requiresAttachment: false },
+    { name: 'Izin Pribadi', requiresAttachment: false },
+    { name: 'Dinas Luar', requiresAttachment: false },
+    { name: 'WFH Request', requiresAttachment: false },
+    { name: 'Lainnya', requiresAttachment: false },
+  ]
+  await (prisma as any).leaveType.createMany({
+    data: leaveTypeSeed.map((t) => ({
+      workspaceId: workspace.id,
+      name: t.name,
+      requiresAttachment: t.requiresAttachment,
+      status: 'Active',
+    })),
+    skipDuplicates: true,
+  })
+  console.log(`✅ LeaveTypes: ${leaveTypeSeed.length} types seeded`)
+
   // ── 12. Platform-admin seed (tenants, invoices, tickets) ───────────────────
   // Make the stakeholder a platform super_admin so /admin is reachable.
   await (prisma as any).user.update({

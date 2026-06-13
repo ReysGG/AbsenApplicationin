@@ -1,77 +1,77 @@
 /**
- * mobile.routes.ts — mobile API surface, mounted at /api/v1/mobile.
+ * mobile.routes.ts — route definitions for the Flutter mobile app.
  *
- * Auth model: better-auth bearer token (Authorization: Bearer <token>),
- * NOT the HMAC BFF headers used by the web dashboard. See authenticateMobile.
+ * Auth model: bearer token (better-auth bearer plugin). Login is throttled by
+ * `authRateLimit`; everything else requires `authenticateMobile` which attaches
+ * `req.employee` (self-scope).
  *
- *   POST /mobile/auth/login           (public)
- *   POST /mobile/auth/logout          (bearer)
- *   GET  /mobile/me                   (bearer)
- *   GET  /mobile/me/today             (bearer)
- *   GET  /mobile/me/attendance        (bearer)
- *   GET  /mobile/me/attendance/:id    (bearer)
- *   POST /mobile/check-in             (bearer)
- *   POST /mobile/check-out            (bearer)
- *   GET  /mobile/me/shift             (bearer)
- *   GET  /mobile/me/locations         (bearer)
- *   GET  /mobile/me/leave-requests    (bearer)
- *   POST /mobile/me/leave-requests    (bearer)
- *   GET  /mobile/me/schedule          (bearer)
- *   GET  /mobile/me/notifications     (bearer)
+ * Base mount: /api/v1
  */
 
 import { Router } from 'express'
 import { authenticateMobile } from '../../middleware/authenticateMobile'
 import { authRateLimit } from '../../middleware/rateLimiter'
 import {
-  mobileLoginHandler,
-  mobileLogoutHandler,
-  mobileMeHandler,
-} from './mobile.auth'
-import {
+  loginHandler,
+  logoutHandler,
+  meHandler,
   todayHandler,
   historyHandler,
-  attendanceDetailHandler,
+  detailHandler,
   shiftHandler,
+  scheduleHandler,
   locationsHandler,
   checkInHandler,
   checkOutHandler,
   leaveListHandler,
-  createLeaveHandler,
-  cancelLeaveHandler,
-  scheduleHandler,
+  leaveCreateHandler,
+  leaveCancelHandler,
   notificationsHandler,
-  markNotificationReadHandler,
-  markAllNotificationsReadHandler,
-  registerDeviceTokenHandler,
-  deleteDeviceTokenHandler,
+  notificationReadHandler,
+  registerDeviceHandler,
+  deleteDeviceHandler,
 } from './mobile.controller'
 
 const router = Router()
 
-// Public
-router.post('/mobile/auth/login', authRateLimit, mobileLoginHandler)
+// --- Auth ---
+router.post('/mobile/auth/login', authRateLimit, loginHandler)
+router.post('/mobile/auth/logout', authenticateMobile, logoutHandler)
 
-// Authenticated (bearer)
-const guard = [authenticateMobile]
+// --- Profile ---
+router.get('/mobile/me', authenticateMobile, meHandler)
 
-router.post('/mobile/auth/logout', ...guard, mobileLogoutHandler)
-router.get('/mobile/me', ...guard, mobileMeHandler)
-router.get('/mobile/me/today', ...guard, todayHandler)
-router.get('/mobile/me/attendance', ...guard, historyHandler)
-router.get('/mobile/me/attendance/:id', ...guard, attendanceDetailHandler)
-router.post('/mobile/check-in', ...guard, checkInHandler)
-router.post('/mobile/check-out', ...guard, checkOutHandler)
-router.get('/mobile/me/shift', ...guard, shiftHandler)
-router.get('/mobile/me/locations', ...guard, locationsHandler)
-router.get('/mobile/me/leave-requests', ...guard, leaveListHandler)
-router.post('/mobile/me/leave-requests', ...guard, createLeaveHandler)
-router.post('/mobile/me/leave-requests/:id/cancel', ...guard, cancelLeaveHandler)
-router.get('/mobile/me/schedule', ...guard, scheduleHandler)
-router.get('/mobile/me/notifications', ...guard, notificationsHandler)
-router.post('/mobile/me/notifications/read-all', ...guard, markAllNotificationsReadHandler)
-router.post('/mobile/me/notifications/:id/read', ...guard, markNotificationReadHandler)
-router.post('/mobile/me/device-token', ...guard, registerDeviceTokenHandler)
-router.delete('/mobile/me/device-token', ...guard, deleteDeviceTokenHandler)
+// --- Attendance (self) ---
+router.get('/mobile/me/today', authenticateMobile, todayHandler)
+router.get('/mobile/me/attendance', authenticateMobile, historyHandler)
+router.get('/mobile/me/attendance/:id', authenticateMobile, detailHandler)
+router.post('/mobile/check-in', authenticateMobile, checkInHandler)
+router.post('/mobile/check-out', authenticateMobile, checkOutHandler)
+
+// --- Shift / schedule / locations ---
+router.get('/mobile/me/shift', authenticateMobile, shiftHandler)
+router.get('/mobile/me/schedule', authenticateMobile, scheduleHandler)
+router.get('/mobile/me/locations', authenticateMobile, locationsHandler)
+
+// --- Leave ---
+router.get('/mobile/me/leave-requests', authenticateMobile, leaveListHandler)
+router.post('/mobile/me/leave-requests', authenticateMobile, leaveCreateHandler)
+router.post(
+  '/mobile/me/leave-requests/:id/cancel',
+  authenticateMobile,
+  leaveCancelHandler,
+)
+
+// --- Notifications ---
+router.get('/mobile/me/notifications', authenticateMobile, notificationsHandler)
+router.post(
+  '/mobile/me/notifications/:id/read',
+  authenticateMobile,
+  notificationReadHandler,
+)
+
+// --- Device tokens (FCM) ---
+router.post('/mobile/me/device-token', authenticateMobile, registerDeviceHandler)
+router.delete('/mobile/me/device-token', authenticateMobile, deleteDeviceHandler)
 
 export default router

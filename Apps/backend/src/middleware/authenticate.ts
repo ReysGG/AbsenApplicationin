@@ -136,6 +136,30 @@ export async function authenticate(
       if (ws && ws.status === 'Active') {
         resolvedWorkspaceId = ws.id
       } else {
+        // No active workspace assignment. Pure platform admins (globalRole
+        // super_admin / admin_platform) are provisioned without a workspace
+        // RoleAssignment (see platform.service inviteAdminUser) and operate
+        // only on the cross-tenant /admin console. Previously they were locked
+        // out here (audit §14). Let them through with NO active workspace:
+        //   - /admin routes are gated by requirePlatformAdmin (re-checks
+        //     globalRole from the DB), so this is not a privilege escalation;
+        //   - workspace-scoped routes still require resolveActiveWorkspace,
+        //     which will reject the missing workspace.
+        const globalRole = (userRecord as { globalRole?: string }).globalRole
+        if (globalRole === 'super_admin' || globalRole === 'admin_platform') {
+          req.user = {
+            userId: userRecord.id,
+            authUserId: userRecord.authUserId,
+            fullName: payload.fullName ?? (userRecord as { fullName: string }).fullName,
+            email: userRecord.email,
+            roles: [],
+            permissions: [],
+            scopeAssignments: [],
+            workspaceId: '',
+          }
+          req.workspaceId = undefined
+          return next()
+        }
         await recordUnauthorizedAccess(req, null, `No active workspace for user: ${userRecord.id}`)
         return next(new UnauthenticatedError('User tidak memiliki workspace aktif'))
       }

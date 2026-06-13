@@ -5,6 +5,14 @@
  * POST /api/v1/notifications/read-all  — mark all as read
  * POST /api/v1/notifications/:id/read  — mark one as read
  *
+ * SELF-SCOPE BY DESIGN (audit §14): these routes intentionally omit
+ * `requirePermission`. Notifications are personal to the recipient — every
+ * authenticated workspace member may read/clear ONLY their own. The scope is
+ * enforced server-side in the service layer, which filters strictly by
+ * `recipientAuthUserId = req.user.authUserId` (derived from the cryptographically
+ * verified user context, never from client input). A permission gate would be
+ * inappropriate here because there is no cross-user access to guard.
+ *
  * Requirements: 21.1, 21.2, 21.3
  */
 

@@ -24,6 +24,8 @@ class CheckinFlowState {
     this.locationId,
     this.mockLocationDetected = false,
     this.savedOffline = false,
+    this.livenessChecksPassed = 0,
+    this.livenessChecksTotal = 0,
   });
 
   final CheckFlowKind kind;
@@ -36,6 +38,11 @@ class CheckinFlowState {
   final double? longitude;
   final String? locationId;
   final bool mockLocationDetected;
+
+  /// Liveness challenge counts captured on-device, forwarded to the server
+  /// which is the authority on the face/liveness verdict.
+  final int livenessChecksPassed;
+  final int livenessChecksTotal;
 
   /// True when the last submit was queued locally because the device was
   /// offline (or the network call failed).
@@ -53,6 +60,8 @@ class CheckinFlowState {
     String? locationId,
     bool? mockLocationDetected,
     bool? savedOffline,
+    int? livenessChecksPassed,
+    int? livenessChecksTotal,
   }) {
     return CheckinFlowState(
       kind: kind ?? this.kind,
@@ -66,6 +75,8 @@ class CheckinFlowState {
       locationId: locationId ?? this.locationId,
       mockLocationDetected: mockLocationDetected ?? this.mockLocationDetected,
       savedOffline: savedOffline ?? this.savedOffline,
+      livenessChecksPassed: livenessChecksPassed ?? this.livenessChecksPassed,
+      livenessChecksTotal: livenessChecksTotal ?? this.livenessChecksTotal,
     );
   }
 
@@ -106,8 +117,18 @@ class CheckinFlowController extends StateNotifier<CheckinFlowState> {
     );
   }
 
-  void setFaceResult({required bool faceVerified, required bool liveness}) {
-    state = state.copyWith(faceVerified: faceVerified, livenessPassed: liveness);
+  void setFaceResult({
+    required bool faceVerified,
+    required bool liveness,
+    int? checksPassed,
+    int? checksTotal,
+  }) {
+    state = state.copyWith(
+      faceVerified: faceVerified,
+      livenessPassed: liveness,
+      livenessChecksPassed: checksPassed,
+      livenessChecksTotal: checksTotal,
+    );
   }
 
   /// Submits the verified attendance.
@@ -127,6 +148,8 @@ class CheckinFlowController extends StateNotifier<CheckinFlowState> {
       locationId: state.locationId,
       isMocked: state.mockLocationDetected,
       capturedAt: now,
+      livenessChecksPassed: state.livenessChecksPassed,
+      livenessChecksTotal: state.livenessChecksTotal,
     );
 
     final type =

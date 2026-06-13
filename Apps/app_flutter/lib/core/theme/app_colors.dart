@@ -194,9 +194,15 @@ abstract final class AppColors {
   static Color get glassShadow => isDark ? glassShadowDark : glassShadowLight;
   static Color get glassHighlight => isDark ? glassHighlightDark : glassHighlightLight;
 
-  // ── Brand gradient (Talenta/Lark-style corporate header band) ────────────
-  static const brandStart = Color(0xFF003D9B);
+  // ── Brand header band (flat, solid — no gradient) ────────────────────────
+  static const brandStart = Color(0xFF0052CC);
   static const brandMid = Color(0xFF0052CC);
-  static const brandEnd = Color(0xFF3B82F6);
-  static Color get pageBg => isDark ? backgroundDark : const Color(0xFFF8F9FA);
+  static const brandEnd = Color(0xFF0052CC);
+  static Color get pageBg => isDark ? backgroundDark : const Color(0xFFF6F7F9);
+
+  // ── Flat card tokens (clean enterprise surfaces) ─────────────────────────
+  static Color get cardBorder =>
+      isDark ? const Color(0xFF272B45) : const Color(0xFFE8EAF0);
+  static Color get cardShadow =>
+      isDark ? const Color(0x33000000) : const Color(0x0F172B4D);
 }

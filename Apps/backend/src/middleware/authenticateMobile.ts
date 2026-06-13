@@ -1,27 +1,25 @@
 /**
- * authenticateMobile.ts — bearer-token authentication for the mobile API.
+ * authenticateMobile.ts — bearer-token auth for the mobile app.
  *
- * Unlike the web `authenticate` middleware (which trusts HMAC-signed context
- * headers from the Next.js BFF), the mobile app talks to the backend directly
- * and proves its identity with a better-auth session token:
+ * The Flutter app authenticates with `Authorization: Bearer <session-token>`
+ * (issued by `POST /mobile/auth/login`). This middleware:
+ *   1. Verifies the session via better-auth (bearer plugin).
+ *   2. Resolves the application `User` by better-auth user id (authUserId).
+ *   3. Resolves the active end-user `Employee` record (+ department) and
+ *      attaches it to `req.employee`.
  *
- *   Authorization: Bearer <session-token>
+ * Mobile endpoints are strictly self-scoped: they only ever read/write the
+ * authenticated employee's own data, so no RBAC/permission layer is applied
+ * here — the employee context IS the scope.
  *
- * The middleware:
- * 1. Verifies the session token via better-auth (config/auth.ts bearer plugin).
- * 2. Resolves the app User by `authUserId`.
- * 3. Loads the linked Employee + active workspace.
- * 4. Attaches `req.user`, `req.workspaceId`, and `req.employee`.
- *
- * Mobile endpoints are end-user only: a user with no Employee record (e.g. a
- * pure HR admin) cannot use the mobile API.
+ * Requirements: 1.1, 1.3, 3.1, 17.4
  */
 
 import type { Request, Response, NextFunction } from 'express'
 import { prisma } from '../config/prisma'
-import { verifySession } from '../lib/authVerify'
-import { UnauthenticatedError, ForbiddenError } from '../lib/errors'
-import type { AuthenticatedUser, MobileEmployee } from '../types/auth'
+import { auth } from '../config/auth'
+import { UnauthenticatedError } from '../lib/errors'
+import type { MobileEmployee } from '../types/auth'
 
 export async function authenticateMobile(
   req: Request,
@@ -29,63 +27,46 @@ export async function authenticateMobile(
   next: NextFunction,
 ): Promise<void> {
   try {
-    // 1. Verify the bearer/session token. verifySession reads the Authorization
-    //    header (bearer plugin) or cookie and returns the better-auth identity.
-    const session = await verifySession(req)
-    if (!session) {
-      return next(new UnauthenticatedError('Sesi tidak valid atau sudah berakhir'))
+    // 1. Verify the bearer session via better-auth.
+    const session = await auth.api.getSession({
+      headers: req.headers as Record<string, string>,
+    })
+
+    if (!session?.user) {
+      return next(new UnauthenticatedError('Sesi tidak valid atau kedaluwarsa'))
     }
 
-    // 2. Resolve the app User strictly by the cryptographically asserted
-    //    better-auth user id — never by email (account-takeover guard).
-    const userRecord = await prisma.user.findUnique({
-      where: { authUserId: session.authUserId },
+    const authUserId = session.user.id
+
+    // 2. Resolve the application User by better-auth id.
+    const user = await prisma.user.findUnique({
+      where: { authUserId },
     })
-    if (!userRecord) {
-      return next(new UnauthenticatedError('User tidak ditemukan'))
+
+    if (!user) {
+      return next(new UnauthenticatedError('Akun pengguna tidak ditemukan'))
     }
 
-    // 3. Load the Employee linked to this user. The mobile app is for
-    //    employees clocking in/out — a user without an Employee row is not a
-    //    mobile user.
-    const employee = await prisma.employee.findFirst({
-      where: { userId: userRecord.id },
-      include: { department: { select: { name: true } } },
-    })
+    // 3. Resolve the active employee profile (+ department).
+    //    Prefer an Active employment; fall back to the most recent record.
+    const employee =
+      (await prisma.employee.findFirst({
+        where: { userId: user.id, employmentStatus: 'Active' },
+        include: { department: { select: { name: true } } },
+        orderBy: { createdAt: 'desc' },
+      })) ??
+      (await prisma.employee.findFirst({
+        where: { userId: user.id },
+        include: { department: { select: { name: true } } },
+        orderBy: { createdAt: 'desc' },
+      }))
+
     if (!employee) {
       return next(
-        new ForbiddenError('Akun ini tidak terhubung ke data karyawan'),
-      )
-    }
-
-    // 4. Load role assignments for the employee's workspace (for permissions /
-    //    scope parity with the web context, though mobile only needs identity).
-    const user = await prisma.user.findUnique({
-      where: { id: userRecord.id },
-      include: {
-        roleAssignments: {
-          where: { workspaceId: employee.workspaceId },
-        },
-      },
-    })
-
-    const roles = [
-      ...new Set(
-        ((user?.roleAssignments ?? []) as Array<{ role: AuthenticatedUser['roles'][number] }>).map(
-          (ra) => ra.role,
+        new UnauthenticatedError(
+          'Profil karyawan tidak ditemukan untuk akun ini',
         ),
-      ),
-    ] as AuthenticatedUser['roles']
-
-    const authenticatedUser: AuthenticatedUser = {
-      userId: userRecord.id,
-      authUserId: userRecord.authUserId,
-      fullName: userRecord.fullName,
-      email: userRecord.email,
-      roles,
-      permissions: [],
-      scopeAssignments: [],
-      workspaceId: employee.workspaceId,
+      )
     }
 
     const mobileEmployee: MobileEmployee = {
@@ -95,19 +76,20 @@ export async function authenticateMobile(
       employeeCode: employee.employeeCode,
       fullName: employee.fullName,
       email: employee.email,
-      position: employee.position ?? null,
+      position: employee.position,
       departmentId: employee.departmentId,
       departmentName:
-        (employee as { department?: { name: string } | null }).department?.name ?? null,
-      workMode: employee.workMode as MobileEmployee['workMode'],
-      faceProfileStatus: employee.faceProfileStatus as string,
-      assignedLocationId: employee.assignedLocationId ?? null,
-      assignedShiftId: employee.assignedShiftId ?? null,
+        (employee as { department?: { name: string } }).department?.name ??
+        null,
+      workMode: employee.workMode,
+      faceProfileStatus: employee.faceProfileStatus,
+      assignedLocationId: employee.assignedLocationId,
+      assignedShiftId: employee.assignedShiftId,
     }
 
-    req.user = authenticatedUser
-    req.workspaceId = employee.workspaceId
     req.employee = mobileEmployee
+    // Expose the resolved app user id + workspace for downstream handlers.
+    req.workspaceId = employee.workspaceId
 
     return next()
   } catch (err) {

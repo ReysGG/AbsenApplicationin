@@ -1,204 +1,403 @@
 /**
- * mobile.controller.ts — request/response handlers for the mobile self-service
- * API. Every handler reads `req.employee` (set by authenticateMobile) and never
- * trusts an employee id from the request body.
+ * mobile.controller.ts — request handlers for the mobile API.
+ *
+ * Login issues a better-auth bearer token (the bearer plugin is enabled in
+ * config/auth.ts). All other handlers rely on `req.employee` populated by the
+ * `authenticateMobile` middleware.
+ *
+ * Requirements: 1.1, 5.x, 6.x, 7.x, 11.x, 21.x
  */
 
 import type { Request, Response, NextFunction } from 'express'
+import { prisma } from '../../config/prisma'
+import { auth } from '../../config/auth'
 import { sendSuccess } from '../../lib/response'
-import { UnauthenticatedError, ValidationError } from '../../lib/errors'
+import {
+  UnauthenticatedError,
+  ValidationError,
+} from '../../lib/errors'
+import type { MobileEmployee } from '../../types/auth'
+import {
+  checkSubmissionSchema,
+  deviceTokenDeleteSchema,
+  deviceTokenSchema,
+  leaveCreateSchema,
+  loginSchema,
+} from './mobile.schema'
 import * as service from './mobile.service'
-import type { CheckInput, CreateLeaveInput } from './mobile.service'
-function requireEmployee(req: Request) {
-  if (!req.employee) throw new UnauthenticatedError('Autentikasi diperlukan')
+
+function requireEmployee(req: Request): MobileEmployee {
+  if (!req.employee) {
+    throw new UnauthenticatedError('Autentikasi diperlukan')
+  }
   return req.employee
 }
 
-export async function todayHandler(req: Request, res: Response, next: NextFunction) {
-  try {
-    const data = await service.getToday(requireEmployee(req))
-    sendSuccess(res, data)
-  } catch (err) {
-    next(err)
-  }
-}
+// ---------------------------------------------------------------------------
+// Auth
+// ---------------------------------------------------------------------------
 
-export async function historyHandler(req: Request, res: Response, next: NextFunction) {
+export async function loginHandler(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
   try {
-    const data = await service.getHistory(requireEmployee(req))
-    sendSuccess(res, data)
-  } catch (err) {
-    next(err)
-  }
-}
-
-export async function attendanceDetailHandler(req: Request, res: Response, next: NextFunction) {
-  try {
-    const id = String(req.params.id)
-    const data = await service.getAttendanceDetail(requireEmployee(req), id)
-    sendSuccess(res, data)
-  } catch (err) {
-    next(err)
-  }
-}
-
-export async function shiftHandler(req: Request, res: Response, next: NextFunction) {
-  try {
-    const data = await service.getMyShift(requireEmployee(req))
-    sendSuccess(res, data)
-  } catch (err) {
-    next(err)
-  }
-}
-
-export async function locationsHandler(req: Request, res: Response, next: NextFunction) {
-  try {
-    const data = await service.getMyLocations(requireEmployee(req))
-    sendSuccess(res, data)
-  } catch (err) {
-    next(err)
-  }
-}
-
-function parseCheckInput(body: unknown): CheckInput {
-  const b = (body ?? {}) as Record<string, unknown>
-  const workMode = b.workMode === 'wfh' ? 'wfh' : 'wfo'
-  const latitude = Number(b.latitude)
-  const longitude = Number(b.longitude)
-  if (Number.isNaN(latitude) || Number.isNaN(longitude)) {
-    throw new ValidationError('Koordinat lokasi diperlukan')
-  }
-  return {
-    workMode,
-    latitude,
-    longitude,
-    faceVerified: Boolean(b.faceVerified),
-    livenessPassed: Boolean(b.livenessPassed),
-    locationId: typeof b.locationId === 'string' ? b.locationId : null,
-    capturedAt: typeof b.capturedAt === 'string' ? b.capturedAt : null,
-    isMocked: Boolean(b.isMocked),
-  }
-}
-
-export async function checkInHandler(req: Request, res: Response, next: NextFunction) {
-  try {
-    const input = parseCheckInput(req.body)
-    const data = await service.checkIn(requireEmployee(req), input)
-    sendSuccess(res, data, 'Check-in berhasil', 201)
-  } catch (err) {
-    next(err)
-  }
-}
-
-export async function checkOutHandler(req: Request, res: Response, next: NextFunction) {
-  try {
-    const input = parseCheckInput(req.body)
-    const data = await service.checkOut(requireEmployee(req), input)
-    sendSuccess(res, data, 'Check-out berhasil')
-  } catch (err) {
-    next(err)
-  }
-}
-
-export async function leaveListHandler(req: Request, res: Response, next: NextFunction) {
-  try {
-    const data = await service.getMyLeaveRequests(requireEmployee(req))
-    sendSuccess(res, data)
-  } catch (err) {
-    next(err)
-  }
-}
-
-export async function createLeaveHandler(req: Request, res: Response, next: NextFunction) {
-  try {
-    const b = (req.body ?? {}) as Record<string, unknown>
-    if (typeof b.type !== 'string' || typeof b.startDate !== 'string' || typeof b.endDate !== 'string') {
-      throw new ValidationError('Jenis, tanggal mulai, dan tanggal selesai diperlukan')
+    const parsed = loginSchema.safeParse(req.body)
+    if (!parsed.success) {
+      return next(
+        new ValidationError('Input tidak valid', parsed.error.flatten()),
+      )
     }
-    const input: CreateLeaveInput = {
-      type: b.type,
-      startDate: b.startDate,
-      endDate: b.endDate,
-      reason: typeof b.reason === 'string' ? b.reason : '',
+    const { email, password } = parsed.data
+
+    // Sign in via better-auth; bearer plugin returns the token in a header.
+    const response = await auth.api.signInEmail({
+      body: { email, password },
+      asResponse: true,
+    })
+
+    if (!response.ok) {
+      return next(new UnauthenticatedError('Email atau kata sandi salah.'))
     }
-    const data = await service.createMyLeaveRequest(requireEmployee(req), input)
-    sendSuccess(res, data, 'Pengajuan terkirim', 201)
+
+    const token = response.headers.get('set-auth-token')
+    if (!token) {
+      return next(new UnauthenticatedError('Gagal menerbitkan token sesi.'))
+    }
+
+    const json = (await response.json()) as { user?: { id?: string } }
+    const authUserId = json.user?.id
+    if (!authUserId) {
+      return next(new UnauthenticatedError('Respons autentikasi tidak valid.'))
+    }
+
+    // Resolve the application User → Employee profile.
+    const user = await prisma.user.findUnique({ where: { authUserId } })
+    if (!user) {
+      return next(new UnauthenticatedError('Akun pengguna tidak ditemukan.'))
+    }
+
+    const employee =
+      (await prisma.employee.findFirst({
+        where: { userId: user.id, employmentStatus: 'Active' },
+        include: { department: { select: { name: true } } },
+        orderBy: { createdAt: 'desc' },
+      })) ??
+      (await prisma.employee.findFirst({
+        where: { userId: user.id },
+        include: { department: { select: { name: true } } },
+        orderBy: { createdAt: 'desc' },
+      }))
+
+    if (!employee) {
+      return next(
+        new UnauthenticatedError(
+          'Profil karyawan tidak ditemukan untuk akun ini.',
+        ),
+      )
+    }
+
+    const mobileEmployee: MobileEmployee = {
+      id: employee.id,
+      workspaceId: employee.workspaceId,
+      userId: employee.userId,
+      employeeCode: employee.employeeCode,
+      fullName: employee.fullName,
+      email: employee.email,
+      position: employee.position,
+      departmentId: employee.departmentId,
+      departmentName:
+        (employee as { department?: { name: string } }).department?.name ??
+        null,
+      workMode: employee.workMode,
+      faceProfileStatus: employee.faceProfileStatus,
+      assignedLocationId: employee.assignedLocationId,
+      assignedShiftId: employee.assignedShiftId,
+    }
+
+    const profile = await service.buildProfile(mobileEmployee)
+    sendSuccess(res, { token, profile }, 'Login berhasil')
   } catch (err) {
     next(err)
   }
 }
 
-export async function scheduleHandler(req: Request, res: Response, next: NextFunction) {
+export async function logoutHandler(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
   try {
-    const data = await service.getMySchedule(requireEmployee(req))
-    sendSuccess(res, data)
+    await auth.api
+      .signOut({ headers: req.headers as Record<string, string> })
+      .catch(() => undefined)
+    sendSuccess(res, null, 'Logout berhasil')
   } catch (err) {
     next(err)
   }
 }
 
-export async function notificationsHandler(req: Request, res: Response, next: NextFunction) {
+export async function meHandler(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
   try {
-    const employee = requireEmployee(req)
-    const data = await service.getMyNotifications(employee, req.user!.authUserId)
-    sendSuccess(res, data)
+    const emp = requireEmployee(req)
+    sendSuccess(res, await service.buildProfile(emp))
   } catch (err) {
     next(err)
   }
 }
 
-export async function cancelLeaveHandler(req: Request, res: Response, next: NextFunction) {
+// ---------------------------------------------------------------------------
+// Attendance reads
+// ---------------------------------------------------------------------------
+
+export async function todayHandler(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
   try {
-    const id = String(req.params.id)
-    const data = await service.cancelMyLeaveRequest(requireEmployee(req), id)
-    sendSuccess(res, data, 'Pengajuan dibatalkan')
+    sendSuccess(res, await service.getToday(requireEmployee(req)))
   } catch (err) {
     next(err)
   }
 }
 
-export async function markNotificationReadHandler(req: Request, res: Response, next: NextFunction) {
+export async function historyHandler(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
   try {
-    const id = String(req.params.id)
-    await service.markNotificationRead(requireEmployee(req), req.user!.authUserId, id)
+    sendSuccess(res, await service.getHistory(requireEmployee(req)))
+  } catch (err) {
+    next(err)
+  }
+}
+
+export async function detailHandler(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
+  try {
+    sendSuccess(res, await service.getDetail(requireEmployee(req), String(req.params.id)))
+  } catch (err) {
+    next(err)
+  }
+}
+
+export async function shiftHandler(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
+  try {
+    sendSuccess(res, await service.getTodayShift(requireEmployee(req)))
+  } catch (err) {
+    next(err)
+  }
+}
+
+export async function scheduleHandler(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
+  try {
+    sendSuccess(res, await service.getSchedule(requireEmployee(req)))
+  } catch (err) {
+    next(err)
+  }
+}
+
+export async function locationsHandler(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
+  try {
+    sendSuccess(res, await service.getAssignedLocations(requireEmployee(req)))
+  } catch (err) {
+    next(err)
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Check-in / out
+// ---------------------------------------------------------------------------
+
+export async function checkInHandler(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
+  try {
+    const emp = requireEmployee(req)
+    const parsed = checkSubmissionSchema.safeParse(req.body)
+    if (!parsed.success) {
+      return next(
+        new ValidationError('Data check-in tidak valid', parsed.error.flatten()),
+      )
+    }
+    sendSuccess(res, await service.checkIn(emp, parsed.data), 'Check-in berhasil')
+  } catch (err) {
+    next(err)
+  }
+}
+
+export async function checkOutHandler(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
+  try {
+    const emp = requireEmployee(req)
+    const parsed = checkSubmissionSchema.safeParse(req.body)
+    if (!parsed.success) {
+      return next(
+        new ValidationError('Data check-out tidak valid', parsed.error.flatten()),
+      )
+    }
+    sendSuccess(
+      res,
+      await service.checkOut(emp, parsed.data),
+      'Check-out berhasil',
+    )
+  } catch (err) {
+    next(err)
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Leave
+// ---------------------------------------------------------------------------
+
+export async function leaveListHandler(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
+  try {
+    sendSuccess(res, await service.getLeaveRequests(requireEmployee(req)))
+  } catch (err) {
+    next(err)
+  }
+}
+
+export async function leaveCreateHandler(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
+  try {
+    const emp = requireEmployee(req)
+    const parsed = leaveCreateSchema.safeParse(req.body)
+    if (!parsed.success) {
+      return next(
+        new ValidationError('Data pengajuan tidak valid', parsed.error.flatten()),
+      )
+    }
+    sendSuccess(
+      res,
+      await service.createMyLeaveRequest(emp, parsed.data),
+      'Pengajuan terkirim',
+      201,
+    )
+  } catch (err) {
+    next(err)
+  }
+}
+
+export async function leaveCancelHandler(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
+  try {
+    const emp = requireEmployee(req)
+    sendSuccess(
+      res,
+      await service.cancelMyLeaveRequest(emp, String(req.params.id)),
+      'Pengajuan dibatalkan',
+    )
+  } catch (err) {
+    next(err)
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Notifications
+// ---------------------------------------------------------------------------
+
+export async function notificationsHandler(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
+  try {
+    sendSuccess(res, await service.getNotifications(requireEmployee(req)))
+  } catch (err) {
+    next(err)
+  }
+}
+
+export async function notificationReadHandler(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
+  try {
+    await service.markNotificationRead(requireEmployee(req), String(req.params.id))
     sendSuccess(res, null, 'Notifikasi ditandai dibaca')
   } catch (err) {
     next(err)
   }
 }
 
-export async function markAllNotificationsReadHandler(req: Request, res: Response, next: NextFunction) {
+// ---------------------------------------------------------------------------
+// Device tokens
+// ---------------------------------------------------------------------------
+
+export async function registerDeviceHandler(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
   try {
-    const data = await service.markAllNotificationsRead(requireEmployee(req), req.user!.authUserId)
-    sendSuccess(res, data, 'Semua notifikasi ditandai dibaca')
+    const emp = requireEmployee(req)
+    const parsed = deviceTokenSchema.safeParse(req.body)
+    if (!parsed.success) {
+      return next(
+        new ValidationError('Token tidak valid', parsed.error.flatten()),
+      )
+    }
+    await service.registerDeviceToken(emp, parsed.data.token, parsed.data.platform)
+    sendSuccess(res, null, 'Device terdaftar')
   } catch (err) {
     next(err)
   }
 }
 
-export async function registerDeviceTokenHandler(req: Request, res: Response, next: NextFunction) {
+export async function deleteDeviceHandler(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
   try {
-    const b = (req.body ?? {}) as Record<string, unknown>
-    const token = typeof b.token === 'string' ? b.token.trim() : ''
-    const platform = typeof b.platform === 'string' ? b.platform.trim() : ''
-    if (!token || !platform) {
-      throw new ValidationError('token dan platform diperlukan')
+    requireEmployee(req)
+    const parsed = deviceTokenDeleteSchema.safeParse(req.body)
+    if (!parsed.success) {
+      return next(
+        new ValidationError('Token tidak valid', parsed.error.flatten()),
+      )
     }
-    await service.registerDeviceToken(requireEmployee(req), token, platform)
-    sendSuccess(res, null, 'Token perangkat terdaftar', 201)
-  } catch (err) {
-    next(err)
-  }
-}
-
-export async function deleteDeviceTokenHandler(req: Request, res: Response, next: NextFunction) {
-  try {
-    const b = (req.body ?? {}) as Record<string, unknown>
-    const token = typeof b.token === 'string' ? b.token.trim() : ''
-    if (token) {
-      await service.removeDeviceToken(token)
-    }
-    sendSuccess(res, null, 'Token perangkat dihapus')
+    await service.deleteDeviceToken(parsed.data.token)
+    sendSuccess(res, null, 'Device dihapus')
   } catch (err) {
     next(err)
   }

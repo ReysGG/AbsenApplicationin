@@ -77,7 +77,7 @@ function mockRequest(overrides: Partial<Request> = {}): Request {
 }
 
 function mockResponse(): Response {
-  return {} as Response
+  return { setHeader: vi.fn() } as unknown as Response
 }
 
 function mockNext(): NextFunction & { calls: unknown[][] } {
@@ -220,7 +220,7 @@ describe('authenticate middleware', () => {
 
   it('valid HMAC + valid user → sets req.user and req.workspaceId', async () => {
     const { contextHeader, sigHeader } = buildContextHeader(validPayload)
-    prismaUserFindUnique.mockResolvedValueOnce(dbUserStakeholder as never)
+    prismaUserFindUnique.mockResolvedValue(dbUserStakeholder as never)
 
     const req = mockRequest({
       headers: {
@@ -241,7 +241,7 @@ describe('authenticate middleware', () => {
 
   it('stakeholder gets ALL_PERMISSIONS populated implicitly', async () => {
     const { contextHeader, sigHeader } = buildContextHeader(validPayload)
-    prismaUserFindUnique.mockResolvedValueOnce(dbUserStakeholder as never)
+    prismaUserFindUnique.mockResolvedValue(dbUserStakeholder as never)
 
     const req = mockRequest({
       headers: {
@@ -262,7 +262,7 @@ describe('authenticate middleware', () => {
       ...validPayload,
       userId: 'user-1',
     })
-    prismaUserFindUnique.mockResolvedValueOnce(dbUserSupportAdmin as never)
+    prismaUserFindUnique.mockResolvedValue(dbUserSupportAdmin as never)
 
     const req = mockRequest({
       headers: {
@@ -282,7 +282,7 @@ describe('authenticate middleware', () => {
 
   it('scopeAssignments are populated from roleAssignments', async () => {
     const { contextHeader, sigHeader } = buildContextHeader(validPayload)
-    prismaUserFindUnique.mockResolvedValueOnce(dbUserSupportAdmin as never)
+    prismaUserFindUnique.mockResolvedValue(dbUserSupportAdmin as never)
 
     const req = mockRequest({
       headers: {
@@ -299,6 +299,75 @@ describe('authenticate middleware', () => {
       scopeType: 'department',
       scopeId: 'dept-1',
     })
+  })
+
+  it('platform admin without a workspace assignment is allowed through (no lockout)', async () => {
+    // Pure platform admin: globalRole super_admin, no RoleAssignment, and no
+    // workspace cookie. Must NOT be locked out (audit §14 latent lockout fix).
+    const { contextHeader, sigHeader } = buildContextHeader({
+      userId: 'user-1',
+      authUserId: 'auth-user-1',
+      email: 'platform@attendx.dev',
+      fullName: 'Platform Admin',
+      // no workspaceId
+    })
+    prismaUserFindUnique.mockResolvedValue({
+      id: 'user-1',
+      authUserId: 'auth-user-1',
+      email: 'platform@attendx.dev',
+      fullName: 'Platform Admin',
+      globalRole: 'super_admin',
+    } as never)
+    vi.mocked(prisma.roleAssignment.findFirst).mockResolvedValue(null as never)
+
+    const req = mockRequest({
+      headers: {
+        'x-user-context': contextHeader,
+        'x-user-context-sig': sigHeader,
+      },
+    })
+    const next = mockNext()
+
+    await authenticate(req, mockResponse(), next)
+
+    expect(next).toHaveBeenCalledWith() // success, no error
+    expect(req.user).toBeDefined()
+    expect(req.user?.userId).toBe('user-1')
+    expect(req.user?.workspaceId).toBe('')
+    expect(req.user?.roles).toEqual([])
+    expect(req.workspaceId).toBeUndefined()
+  })
+
+  it('non-platform user without a workspace assignment is rejected', async () => {
+    const { contextHeader, sigHeader } = buildContextHeader({
+      userId: 'user-1',
+      authUserId: 'auth-user-1',
+      email: 'orphan@attendx.dev',
+      fullName: 'Orphan User',
+      // no workspaceId
+    })
+    prismaUserFindUnique.mockResolvedValue({
+      id: 'user-1',
+      authUserId: 'auth-user-1',
+      email: 'orphan@attendx.dev',
+      fullName: 'Orphan User',
+      globalRole: 'user',
+    } as never)
+    vi.mocked(prisma.roleAssignment.findFirst).mockResolvedValue(null as never)
+
+    const req = mockRequest({
+      headers: {
+        'x-user-context': contextHeader,
+        'x-user-context-sig': sigHeader,
+      },
+    })
+    const next = mockNext()
+
+    await authenticate(req, mockResponse(), next)
+
+    const [error] = (next as unknown as { mock: { calls: unknown[][] } }).mock.calls[0]
+    expect(error).toBeInstanceOf(UnauthenticatedError)
+    expect(req.user).toBeUndefined()
   })
 
   it('missing x-user-context header → UnauthenticatedError', async () => {

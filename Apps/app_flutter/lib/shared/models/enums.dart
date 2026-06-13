@@ -51,12 +51,16 @@ enum LeaveType {
   annual,
   sick,
   personal,
+  businessTrip,
+  wfh,
   other;
 
   String get label => switch (this) {
     LeaveType.annual => 'Cuti Tahunan',
     LeaveType.sick => 'Sakit',
     LeaveType.personal => 'Izin Pribadi',
+    LeaveType.businessTrip => 'Dinas Luar',
+    LeaveType.wfh => 'WFH Request',
     LeaveType.other => 'Lainnya',
   };
 }

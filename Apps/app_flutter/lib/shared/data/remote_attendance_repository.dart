@@ -91,6 +91,10 @@ class RemoteAttendanceRepository implements AttendanceRepository {
         'faceVerified': s.faceVerified,
         'livenessPassed': s.livenessPassed,
         'isMocked': s.isMocked,
+        if (s.livenessChecksPassed != null)
+          'livenessChecksPassed': s.livenessChecksPassed,
+        if (s.livenessChecksTotal != null)
+          'livenessChecksTotal': s.livenessChecksTotal,
         if (s.locationId != null) 'locationId': s.locationId,
         if (s.capturedAt != null)
           'capturedAt': s.capturedAt!.toUtc().toIso8601String(),
