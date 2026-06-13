@@ -10,6 +10,7 @@
 
 import { prisma } from '../../config/prisma'
 import { NotFoundError } from '../../lib/errors'
+import { publishNotification } from './notifications.events'
 
 export interface NotificationData {
   id: string
@@ -147,13 +148,29 @@ export async function createNotification(params: {
   type: 'leave_request_new' | 'export_completed' | 'leave_approved' | 'leave_rejected'
   refId?: string
 }): Promise<void> {
-  await (prisma as any).notification.create({
+  const created = await (prisma as any).notification.create({
     data: {
       workspaceId: params.workspaceId,
       recipientAuthUserId: params.recipientAuthUserId,
       type: params.type,
       refId: params.refId ?? null,
       isRead: false,
+    },
+  })
+
+  // Fan out to any open SSE connection for this recipient (real-time badge).
+  publishNotification({
+    workspaceId: params.workspaceId,
+    recipientAuthUserId: params.recipientAuthUserId,
+    notification: {
+      id: created.id,
+      type: created.type,
+      refId: created.refId ?? null,
+      isRead: created.isRead,
+      createdAt:
+        created.createdAt instanceof Date
+          ? created.createdAt.toISOString()
+          : String(created.createdAt),
     },
   })
 }

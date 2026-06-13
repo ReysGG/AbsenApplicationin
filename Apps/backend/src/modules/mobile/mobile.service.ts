@@ -13,6 +13,7 @@ import { ConflictError, NotFoundError, ValidationError } from '../../lib/errors'
 import type { MobileEmployee } from '../../types/auth'
 import type { CheckSubmissionInput, LeaveCreateInput } from './mobile.schema'
 import { evaluateCheckInIntegrity, evaluateCapturedAt, isValidCoordinate } from './mobile.integrity'
+import { createNotification } from '../notifications/notifications.service'
 
 // ---------------------------------------------------------------------------
 // Time / geo helpers
@@ -761,7 +762,7 @@ export async function createMyLeaveRequest(
   })
 
   // Best-effort: notify workspace HR (stakeholder / support_admin) of the new
-  // request so the dashboard stays in sync.
+  // request so the dashboard updates in real time (via the notification bus).
   try {
     const hrAssignments = await prisma.roleAssignment.findMany({
       where: {
@@ -775,14 +776,12 @@ export async function createMyLeaveRequest(
       const authId = (ra as { user?: { authUserId?: string } }).user?.authUserId
       if (authId) recipients.add(authId)
     }
-    if (recipients.size > 0) {
-      await prisma.notification.createMany({
-        data: [...recipients].map((authUserId) => ({
-          workspaceId: emp.workspaceId,
-          recipientAuthUserId: authUserId,
-          type: 'leave_request_new' as const,
-          refId: created.id,
-        })),
+    for (const authUserId of recipients) {
+      await createNotification({
+        workspaceId: emp.workspaceId,
+        recipientAuthUserId: authUserId,
+        type: 'leave_request_new',
+        refId: created.id,
       })
     }
   } catch {

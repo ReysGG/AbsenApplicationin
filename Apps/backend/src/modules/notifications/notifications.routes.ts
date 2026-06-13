@@ -21,6 +21,7 @@ import { authenticate } from '../../middleware/authenticate'
 import { resolveActiveWorkspace } from '../../middleware/resolveActiveWorkspace'
 import {
   listNotificationsHandler,
+  notificationsStreamHandler,
   markNotificationReadHandler,
   markAllNotificationsReadHandler,
 } from './notifications.controller'
@@ -30,6 +31,9 @@ const router = Router()
 const baseGuard = [authenticate, resolveActiveWorkspace]
 
 router.get('/notifications', ...baseGuard, listNotificationsHandler)
+
+// Real-time SSE stream (same self-scope guard as the list endpoint).
+router.get('/notifications/stream', ...baseGuard, notificationsStreamHandler)
 
 // read-all must be before /:id/read to avoid route conflict
 router.post('/notifications/read-all', ...baseGuard, markAllNotificationsReadHandler)

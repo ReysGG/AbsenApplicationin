@@ -231,6 +231,9 @@ async function handler(
       method,
       headers: forwardedHeaders,
       body,
+      // Propagate client disconnects to the backend so long-lived streams
+      // (SSE) are torn down promptly instead of leaking open connections.
+      signal: req.signal,
       // @ts-expect-error — Node 18+ supports duplex for streaming
       duplex: body ? "half" : undefined,
     });

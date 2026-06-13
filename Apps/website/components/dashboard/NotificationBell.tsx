@@ -5,7 +5,8 @@
  *
  * Komponen bell notifikasi di header dashboard.
  *
- * - Poll GET /notifications?unread_only=false setiap 30 detik
+ * - Real-time via SSE (GET /notifications/stream); falls back to slow polling
+ *   only while the stream is disconnected.
  * - Badge merah dengan unread count (R21.1, R21.2, R21.3)
  * - Dropdown list 10 notifikasi terbaru
  * - Klik notifikasi → mark as read + navigasi ke refId jika ada
@@ -74,7 +75,6 @@ export function NotificationBell() {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [open, setOpen] = useState(false);
-  const [loading, setLoading] = useState(false);
   const [markingAll, setMarkingAll] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
@@ -91,15 +91,77 @@ export function NotificationBell() {
     }
   }, []);
 
-  // Initial fetch
+  // Initial load + real-time stream (SSE). The slow fallback poll runs ONLY
+  // while the stream is disconnected, so a healthy connection makes no
+  // periodic requests.
   useEffect(() => {
     fetchNotifications();
-  }, [fetchNotifications]);
 
-  // Poll every 30 seconds
-  useEffect(() => {
-    const interval = setInterval(fetchNotifications, 30000);
-    return () => clearInterval(interval);
+    let es: EventSource | null = null;
+    let connected = false;
+    let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+
+    const fallback = setInterval(() => {
+      if (!connected) fetchNotifications();
+    }, 45000);
+
+    const connect = () => {
+      try {
+        es = new EventSource("/api/v1/notifications/stream", {
+          withCredentials: true,
+        });
+      } catch {
+        return; // EventSource unsupported — the fallback poll keeps it fresh.
+      }
+
+      es.onopen = () => {
+        connected = true;
+      };
+
+      es.addEventListener("ready", (e: Event) => {
+        connected = true;
+        try {
+          const data = JSON.parse((e as MessageEvent).data) as {
+            unreadCount?: number;
+          };
+          if (typeof data.unreadCount === "number") {
+            setUnreadCount(data.unreadCount);
+          }
+        } catch {
+          /* ignore malformed payload */
+        }
+      });
+
+      es.addEventListener("notification", () => {
+        // A new notification arrived — pull the fresh list (correct ordering +
+        // unread count). The badge updates effectively instantly.
+        fetchNotifications();
+      });
+
+      es.onerror = () => {
+        connected = false;
+        // EventSource auto-reconnects on transient errors. If it hard-closed,
+        // reopen after a short delay; the fallback poll covers the gap.
+        if (es && es.readyState === EventSource.CLOSED) {
+          es.close();
+          es = null;
+          if (!reconnectTimer) {
+            reconnectTimer = setTimeout(() => {
+              reconnectTimer = null;
+              connect();
+            }, 5000);
+          }
+        }
+      };
+    };
+
+    connect();
+
+    return () => {
+      clearInterval(fallback);
+      if (reconnectTimer) clearTimeout(reconnectTimer);
+      if (es) es.close();
+    };
   }, [fetchNotifications]);
 
   // Close dropdown on outside click
