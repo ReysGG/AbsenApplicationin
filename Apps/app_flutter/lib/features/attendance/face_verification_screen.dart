@@ -270,7 +270,7 @@ class _FaceVerificationScreenState
                         _instruction,
                         textAlign: TextAlign.center,
                         style: AppTypography.headlineMd
-                            .copyWith(color: AppColors.inverseOnSurface),
+                            .copyWith(color: AppColors.onSurface),
                       ),
                       const SizedBox(height: AppSpacing.md),
                       // Per-challenge checkmarks.
@@ -291,7 +291,7 @@ class _FaceVerificationScreenState
                             Text(
                               c == _Challenge.blink ? 'Kedip' : 'Hadap',
                               style: AppTypography.labelSm.copyWith(
-                                  color: AppColors.inverseOnSurface),
+                                  color: AppColors.onSurfaceVariant),
                             ),
                             const SizedBox(width: AppSpacing.md),
                           ],
@@ -303,16 +303,16 @@ class _FaceVerificationScreenState
                         child: LinearProgressIndicator(
                           value: _submitting ? null : progress,
                           minHeight: 8,
-                          backgroundColor: Colors.white24,
+                          backgroundColor: AppColors.surfaceContainerHigh,
                           valueColor: AlwaysStoppedAnimation(
-                              AppColors.primaryFixedDim),
+                              AppColors.primary),
                         ),
                       ),
                       const SizedBox(height: AppSpacing.sm),
                       Text(
                         'Tantangan $done dari $total',
                         style: AppTypography.labelSm
-                            .copyWith(color: AppColors.outlineVariant),
+                            .copyWith(color: AppColors.onSurfaceVariant),
                       ),
                     ],
                   ),
@@ -379,13 +379,13 @@ class _ErrorView extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             Icon(Icons.videocam_off_outlined,
-                size: 56, color: AppColors.primaryFixedDim),
+                size: 56, color: AppColors.primary),
             const SizedBox(height: AppSpacing.md),
             Text(
               message,
               textAlign: TextAlign.center,
               style: AppTypography.bodyMd
-                  .copyWith(color: AppColors.inverseOnSurface),
+                  .copyWith(color: AppColors.onSurface),
             ),
             const SizedBox(height: AppSpacing.lg),
             FilledButton.icon(

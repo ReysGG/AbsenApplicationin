@@ -66,6 +66,21 @@ class RemoteAuthRepository implements AuthRepository {
       await _tokenStore.clear();
     }
   }
+
+  @override
+  Future<UserProfile> enrollFace() async {
+    try {
+      final res =
+          await _dio.post<Map<String, dynamic>>('/mobile/me/face/enroll');
+      final data = res.data?['data'] as Map<String, dynamic>?;
+      if (data == null) {
+        throw const AuthException('Respons pendaftaran wajah tidak valid.');
+      }
+      return UserProfile.fromJson(data);
+    } on DioException catch (e) {
+      throw DioClient.mapError(e);
+    }
+  }
 }
 
 class AuthException implements Exception {

@@ -95,17 +95,22 @@ class BrandHeaderAction extends StatelessWidget {
     super.key,
     required this.icon,
     required this.onTap,
+    this.tooltip,
     this.badge = false,
   });
 
   final IconData icon;
   final VoidCallback onTap;
+
+  /// Accessibility label / hover hint. Icon-only buttons must describe their
+  /// action for screen readers (see DESIGN.md a11y principles).
+  final String? tooltip;
   final bool badge;
 
   @override
   Widget build(BuildContext context) {
     final inner = Icon(icon, color: Colors.white, size: 22);
-    return Material(
+    Widget button = Material(
       color: Colors.white.withValues(alpha: 0.18),
       shape: const CircleBorder(),
       child: InkWell(
@@ -117,5 +122,13 @@ class BrandHeaderAction extends StatelessWidget {
         ),
       ),
     );
+    final label = tooltip;
+    if (label != null) {
+      button = Tooltip(
+        message: label,
+        child: Semantics(button: true, label: label, child: button),
+      );
+    }
+    return button;
   }
 }

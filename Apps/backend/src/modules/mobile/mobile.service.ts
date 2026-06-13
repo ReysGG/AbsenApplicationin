@@ -875,3 +875,41 @@ export async function deleteDeviceToken(token: string): Promise<void> {
     // best-effort
   }
 }
+
+// ---------------------------------------------------------------------------
+// Face enrollment
+// ---------------------------------------------------------------------------
+
+/**
+ * Marks the employee's face profile as Registered (first-time enrollment).
+ *
+ * v1 scope: HR creates the account (faceProfileStatus=NotRegistered), then the
+ * employee enrolls their face from the mobile app. This records that the
+ * enrollment step was completed and flips the status to `Registered` so the
+ * dashboard reflects it and check-in can require an enrolled profile.
+ *
+ * NOTE: true 1:1 face-embedding matching (comparing a check-in frame against a
+ * stored template) is a documented future step — it needs an on-device or
+ * server embedding model. The check-in integrity layer already supports an
+ * optional `faceMatchScore` for when that lands.
+ */
+export async function enrollFace(
+  emp: MobileEmployee,
+): Promise<Record<string, unknown>> {
+  await prisma.employee.update({
+    where: { id: emp.id },
+    data: { faceProfileStatus: 'Registered' },
+  })
+  return buildProfile({ ...emp, faceProfileStatus: 'Registered' })
+}
+
+/** Resets the face profile so the employee must re-enroll. */
+export async function resetFaceEnrollment(
+  emp: MobileEmployee,
+): Promise<Record<string, unknown>> {
+  await prisma.employee.update({
+    where: { id: emp.id },
+    data: { faceProfileStatus: 'NeedReEnrollment' },
+  })
+  return buildProfile({ ...emp, faceProfileStatus: 'NeedReEnrollment' })
+}

@@ -57,19 +57,6 @@ abstract final class AppColors {
   static const surfaceVariantLight = Color(0xFFE1E2EC);
   static const surfaceTintLight = Color(0xFF005AC2);
 
-  static const auroraBlueLight = Color(0xFFA9C9FF);
-  static const auroraPurpleLight = Color(0xFFD9B8FF);
-  static const auroraPinkLight = Color(0xFFFFC9E3);
-  static const auroraMintLight = Color(0xFFB8F2E6);
-  static const auroraPeachLight = Color(0xFFFFD9B8);
-
-  static const glassFillLight = Color(0xCCFFFFFF);
-  static const glassFillStrongLight = Color(0xE6FFFFFF);
-  static const glassBorderLight = Color(0x99FFFFFF);
-  static const glassBorderSoftLight = Color(0x33FFFFFF);
-  static const glassShadowLight = Color(0x1A1B2A4A);
-  static const glassHighlightLight = Color(0x66FFFFFF);
-
   // ── Dark Theme Palette ───────────────────────────────────────────────────
   static const backgroundDark = Color(0xFF07080B);
   static const surfaceDark = Color(0xFF0F111A);
@@ -118,19 +105,6 @@ abstract final class AppColors {
 
   static const surfaceVariantDark = Color(0xFF1F2338);
   static const surfaceTintDark = Color(0xFF3B82F6);
-
-  static const auroraBlueDark = Color(0xFF0F2244);
-  static const auroraPurpleDark = Color(0xFF280F44);
-  static const auroraPinkDark = Color(0xFF440F2D);
-  static const auroraMintDark = Color(0xFF0F4432);
-  static const auroraPeachDark = Color(0xFF442D0F);
-
-  static const glassFillDark = Color(0xCC0D0F19);
-  static const glassFillStrongDark = Color(0xE6080910);
-  static const glassBorderDark = Color(0x26FFFFFF);
-  static const glassBorderSoftDark = Color(0x0FFFFFFF);
-  static const glassShadowDark = Color(0x66000000);
-  static const glassHighlightDark = Color(0x1EFFFFFF);
 
   // ── Dynamic Getters ──────────────────────────────────────────────────────
   static Color get background => isDark ? backgroundDark : backgroundLight;
@@ -181,19 +155,6 @@ abstract final class AppColors {
   static Color get surfaceVariant => isDark ? surfaceVariantDark : surfaceVariantLight;
   static Color get surfaceTint => isDark ? surfaceTintDark : surfaceTintLight;
 
-  static Color get auroraBlue => isDark ? auroraBlueDark : auroraBlueLight;
-  static Color get auroraPurple => isDark ? auroraPurpleDark : auroraPurpleLight;
-  static Color get auroraPink => isDark ? auroraPinkDark : auroraPinkLight;
-  static Color get auroraMint => isDark ? auroraMintDark : auroraMintLight;
-  static Color get auroraPeach => isDark ? auroraPeachDark : auroraPeachLight;
-
-  static Color get glassFill => isDark ? glassFillDark : glassFillLight;
-  static Color get glassFillStrong => isDark ? glassFillStrongDark : glassFillStrongLight;
-  static Color get glassBorder => isDark ? glassBorderDark : glassBorderLight;
-  static Color get glassBorderSoft => isDark ? glassBorderSoftDark : glassBorderSoftLight;
-  static Color get glassShadow => isDark ? glassShadowDark : glassShadowLight;
-  static Color get glassHighlight => isDark ? glassHighlightDark : glassHighlightLight;
-
   // ── Brand header band (flat, solid — no gradient) ────────────────────────
   static const brandStart = Color(0xFF0052CC);
   static const brandMid = Color(0xFF0052CC);
@@ -205,4 +166,13 @@ abstract final class AppColors {
       isDark ? const Color(0xFF272B45) : const Color(0xFFE8EAF0);
   static Color get cardShadow =>
       isDark ? const Color(0x33000000) : const Color(0x0F172B4D);
+
+  // ── Accent / category palette ────────────────────────────────────────────
+  // Functional hues for categorizing items (home quick-action tiles, leave
+  // types). Each carries category meaning, not decoration. `accentViolet`
+  // matches the workspace secondary (#8127CF). Single value — app ships light.
+  static const accentViolet = Color(0xFF8127CF);
+  static const accentCyan = Color(0xFF0891B2);
+  static const accentGreen = Color(0xFF0E9F6E);
+  static const accentRose = Color(0xFFE11D48);
 }

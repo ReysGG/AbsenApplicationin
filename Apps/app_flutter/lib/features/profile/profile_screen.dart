@@ -97,6 +97,17 @@ class ProfileScreen extends ConsumerWidget {
                             : AppColors.pending,
                         icon: Icons.face,
                       ),
+                      if (profile?.faceEnrolled != true) ...[
+                        const SizedBox(height: AppSpacing.sm),
+                        FilledButton.icon(
+                          onPressed: () => context.push(AppRoutes.faceEnroll),
+                          icon: const Icon(Icons.face_retouching_natural_rounded),
+                          label: const Text('Daftarkan Wajah Sekarang'),
+                          style: FilledButton.styleFrom(
+                            minimumSize: const Size.fromHeight(44),
+                          ),
+                        ),
+                      ],
                       const SizedBox(height: AppSpacing.sm),
                     ],
                   ),

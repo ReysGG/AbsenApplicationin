@@ -8,10 +8,10 @@ import '../theme/app_spacing.dart';
 /// OpenStreetMap mini-map showing a position pin and an optional geofence
 /// circle. Free OSM tiles (no API key), but tiles need real internet (WAN).
 ///
-/// Robust by design: a styled "map base" (gradient + subtle grid) is painted
-/// BEHIND the tile layer, so if tiles fail to load (offline / LAN-only Wi-Fi)
-/// the panel still shows the pin, geofence ring, and coordinates instead of a
-/// blank box.
+/// Robust by design: a flat "map base" (neutral surface + subtle grid) is
+/// painted BEHIND the tile layer, so if tiles fail to load (offline /
+/// LAN-only Wi-Fi) the panel still shows the pin, geofence ring, and
+/// coordinates instead of a blank box.
 class OsmMiniMap extends StatelessWidget {
   const OsmMiniMap({
     super.key,
@@ -41,7 +41,7 @@ class OsmMiniMap extends StatelessWidget {
         child: Stack(
           fit: StackFit.expand,
           children: [
-            // Designed fallback base — always visible; tiles paint over it.
+            // Flat fallback base — always visible; tiles paint over it.
             const _MapBase(),
             FlutterMap(
               options: MapOptions(
@@ -94,8 +94,9 @@ class OsmMiniMap extends StatelessWidget {
                 padding: const EdgeInsets.symmetric(
                     horizontal: AppSpacing.sm, vertical: 3),
                 decoration: BoxDecoration(
-                  color: AppColors.glassFillStrong,
+                  color: AppColors.surface,
                   borderRadius: BorderRadius.circular(AppRadius.full),
+                  border: Border.all(color: AppColors.cardBorder),
                 ),
                 child: Text(
                   '${latitude.toStringAsFixed(5)}, ${longitude.toStringAsFixed(5)}',
@@ -115,24 +116,17 @@ class OsmMiniMap extends StatelessWidget {
   }
 }
 
-/// Stylised map-like backdrop (gradient + faint grid) shown under the tiles.
+/// Flat map-like backdrop (neutral surface + faint grid) shown under the tiles
+/// so the panel never renders as a blank box when tiles are unavailable.
 class _MapBase extends StatelessWidget {
   const _MapBase();
 
   @override
   Widget build(BuildContext context) {
     return DecoratedBox(
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            AppColors.auroraBlue.withValues(alpha: 0.30),
-            AppColors.auroraMint.withValues(alpha: 0.22),
-          ],
-        ),
-      ),
-      child: CustomPaint(painter: _GridPainter(), child: const SizedBox.expand()),
+      decoration: BoxDecoration(color: AppColors.surfaceContainer),
+      child:
+          CustomPaint(painter: _GridPainter(), child: const SizedBox.expand()),
     );
   }
 }
@@ -141,7 +135,7 @@ class _GridPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint()
-      ..color = Colors.white.withValues(alpha: 0.25)
+      ..color = AppColors.outlineVariant.withValues(alpha: 0.5)
       ..strokeWidth = 1;
     const step = 28.0;
     for (double x = 0; x < size.width; x += step) {

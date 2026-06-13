@@ -30,6 +30,7 @@ import {
   notificationReadHandler,
   registerDeviceHandler,
   deleteDeviceHandler,
+  enrollFaceHandler,
 } from './mobile.controller'
 
 const router = Router()
@@ -40,6 +41,9 @@ router.post('/mobile/auth/logout', authenticateMobile, logoutHandler)
 
 // --- Profile ---
 router.get('/mobile/me', authenticateMobile, meHandler)
+
+// --- Face enrollment (first-time) ---
+router.post('/mobile/me/face/enroll', authenticateMobile, enrollFaceHandler)
 
 // --- Attendance (self) ---
 router.get('/mobile/me/today', authenticateMobile, todayHandler)

@@ -7,8 +7,8 @@ import '../../core/router/app_routes.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_spacing.dart';
 import '../../core/theme/app_typography.dart';
-import '../../core/widgets/aurora_background.dart';
-import '../../core/widgets/glass_card.dart';
+import '../../core/widgets/page_background.dart';
+import '../../core/widgets/solid_card.dart';
 import '../../shared/models/enums.dart';
 import 'checkin_flow_controller.dart';
 
@@ -41,12 +41,12 @@ class _CheckinPrepScreenState extends ConsumerState<CheckinPrepScreen> {
         title: const Text('Persiapan Check-in'),
         backgroundColor: Colors.transparent,
       ),
-      body: AuroraBackground(
+      body: PageBackground(
         child: ListView(
           padding: const EdgeInsets.all(AppSpacing.md),
           children: [
             // Work mode selector
-            GlassCard(
+            SolidCard(
               padding: const EdgeInsets.symmetric(
                   horizontal: AppSpacing.md, vertical: AppSpacing.sm + 2),
               child: Row(
@@ -189,9 +189,9 @@ class _PrereqCard extends StatelessWidget {
         ? AppColors.outline
         : (done ? AppColors.success : AppColors.pending);
     // Typed as Widget so `.animate()` resolves to the flutter_animate
-    // extension rather than GlassCard's `animate` field.
-    final Widget card = GlassCard(
-      animate: false,
+    // extension method.
+    final Widget card = SolidCard(
+      entrance: false,
       child: Row(
         children: [
           CircleAvatar(

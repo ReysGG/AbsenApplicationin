@@ -9,8 +9,8 @@ import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_spacing.dart';
 import '../../core/theme/app_typography.dart';
 import '../../core/utils/formatters.dart';
-import '../../core/widgets/aurora_background.dart';
-import '../../core/widgets/glass_card.dart';
+import '../../core/widgets/page_background.dart';
+import '../../core/widgets/solid_card.dart';
 import '../../core/widgets/lottie_icon.dart';
 import '../../shared/models/attendance_record.dart';
 import '../attendance/checkin_flow_controller.dart';
@@ -29,7 +29,7 @@ class CheckinSuccessScreen extends ConsumerWidget {
 
     return Scaffold(
       backgroundColor: Colors.transparent,
-      body: AuroraBackground(
+      body: PageBackground(
         child: SafeArea(
           child: Padding(
             padding: const EdgeInsets.all(AppSpacing.md),
@@ -112,8 +112,8 @@ class _SummaryCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final time = isCheckout ? record.checkOutAt : record.checkInAt;
-    final Widget card = GlassCard(
-      animate: false,
+    final Widget card = SolidCard(
+      entrance: false,
       child: Column(
         children: [
           Container(

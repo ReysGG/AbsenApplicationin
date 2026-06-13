@@ -6,8 +6,8 @@ import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_spacing.dart';
 import '../../core/theme/app_typography.dart';
 import '../../core/widgets/animated_entrance.dart';
-import '../../core/widgets/aurora_background.dart';
-import '../../core/widgets/glass_card.dart';
+import '../../core/widgets/page_background.dart';
+import '../../core/widgets/solid_card.dart';
 import '../../core/widgets/lottie_icon.dart';
 import '../../core/widgets/pressable.dart';
 import '../../core/widgets/status_badge.dart';
@@ -31,7 +31,7 @@ class SyncStatusScreen extends ConsumerWidget {
         backgroundColor: Colors.transparent,
         elevation: 0,
       ),
-      body: AuroraBackground(
+      body: PageBackground(
         child: SafeArea(
           top: false,
           child: ListView(
@@ -40,8 +40,8 @@ class SyncStatusScreen extends ConsumerWidget {
             children: [
               // ── Status card ─────────────────────────────────────────────
               AnimatedEntrance(
-                child: GlassCard(
-                animate: false,
+                child: SolidCard(
+                entrance: false,
                 child: Row(
                   children: [
                     _StatusIcon(synced: pending == 0, syncing: syncing),
@@ -212,8 +212,8 @@ class _QueueCard extends StatelessWidget {
     return AnimatedEntrance(
       delay: (70 * index).ms,
       slideBegin: 0.08,
-      child: GlassCard(
-      animate: false,
+      child: SolidCard(
+      entrance: false,
       child: Row(
         children: [
           leading,
@@ -246,8 +246,8 @@ class _AllSyncedState extends StatelessWidget {
   Widget build(BuildContext context) {
     return AnimatedEntrance(
       duration: 360.ms,
-      child: GlassCard(
-      animate: false,
+      child: SolidCard(
+      entrance: false,
       child: Column(
         children: [
           const LottieIcon(LottieIcon.success, size: 120, repeat: false),

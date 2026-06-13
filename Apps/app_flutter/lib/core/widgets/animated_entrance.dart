@@ -5,9 +5,9 @@ import 'package:flutter_animate/flutter_animate.dart';
 /// [delay].
 ///
 /// Use this instead of calling `.animate()` directly on widgets that expose
-/// their own `animate` member (e.g. [GlassCard] has a `bool animate` field,
-/// which would shadow the flutter_animate extension). Because [child] is typed
-/// as a plain [Widget] here, the `.animate()` extension resolves correctly.
+/// their own `animate`/`entrance` member (which would shadow the
+/// flutter_animate extension). Because [child] is typed as a plain [Widget]
+/// here, the `.animate()` extension resolves correctly.
 class AnimatedEntrance extends StatelessWidget {
   const AnimatedEntrance({
     super.key,

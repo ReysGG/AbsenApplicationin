@@ -6,7 +6,7 @@ import '../../core/config/app_config.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_spacing.dart';
 import '../../core/theme/app_typography.dart';
-import '../../core/widgets/aurora_background.dart';
+import '../../core/widgets/page_background.dart';
 import '../../core/widgets/solid_card.dart';
 import 'auth_controller.dart';
 
@@ -56,7 +56,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.transparent,
-      body: AuroraBackground(
+      body: PageBackground(
         child: SafeArea(
           child: Center(
             child: ConstrainedBox(
@@ -201,6 +201,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                                     color: AppColors.primary, width: 2),
                               ),
                               suffixIcon: IconButton(
+                                tooltip: _obscure
+                                    ? 'Tampilkan kata sandi'
+                                    : 'Sembunyikan kata sandi',
                                 icon: Icon(_obscure
                                     ? Icons.visibility_outlined
                                     : Icons.visibility_off_outlined),
@@ -301,9 +304,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         Container(
                           padding: const EdgeInsets.all(AppSpacing.sm),
                           decoration: BoxDecoration(
-                            color: const Color(0xFFF4F6FB),
+                            color: AppColors.surfaceContainerLow,
                             borderRadius: BorderRadius.circular(AppRadius.md),
-                            border: Border.all(color: const Color(0xFFD6DAE5)),
+                            border: Border.all(color: AppColors.outlineVariant),
                           ),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,

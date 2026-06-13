@@ -70,6 +70,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               ),
               sliver: SliverList(
                 delegate: SliverChildListDelegate([
+                  if (profile?.faceEnrolled == false) ...[
+                    _FaceEnrollBanner(
+                      onTap: () => context.push(AppRoutes.faceEnroll),
+                    ),
+                    const SizedBox(height: AppSpacing.md),
+                  ],
                   _ClockShiftCard(now: _now, sh: _shiftOf(homeAsync)),
                   const SizedBox(height: AppSpacing.md),
                   homeAsync.when(
@@ -504,7 +510,7 @@ class _HeroActionButtonState extends State<_HeroActionButton> {
   Widget build(BuildContext context) {
     final isCheckOut = widget.icon == Icons.logout;
     final Color buttonColor =
-        isCheckOut ? const Color(0xFFE11D48) : AppColors.primary;
+        isCheckOut ? AppColors.accentRose : AppColors.primary;
 
     Widget button = Listener(
       onPointerDown: (_) => setState(() => _scale = 0.96),
@@ -566,21 +572,21 @@ class _QuickGrid extends StatelessWidget {
       (
         Icons.edit_calendar_rounded,
         'Ajukan Cuti',
-        const Color(0xFF8127CF),
+        AppColors.accentViolet,
         AppRoutes.createLeave,
         true,
       ),
       (
         Icons.event_busy_rounded,
         'Status Cuti',
-        const Color(0xFF0891B2),
+        AppColors.accentCyan,
         AppRoutes.leave,
         false,
       ),
       (
         Icons.calendar_month_rounded,
         'Jadwal',
-        const Color(0xFF0E9F6E),
+        AppColors.accentGreen,
         AppRoutes.schedule,
         false,
       ),
@@ -708,6 +714,59 @@ class _ErrorState extends StatelessWidget {
           ),
           const SizedBox(height: AppSpacing.sm),
           FilledButton(onPressed: onRetry, child: const Text('Coba Lagi')),
+        ],
+      ),
+    );
+  }
+}
+
+/// Prompt shown on Home when the employee hasn't enrolled their face yet.
+/// HR creates the account; the employee completes face enrollment from here.
+class _FaceEnrollBanner extends StatelessWidget {
+  const _FaceEnrollBanner({required this.onTap});
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return SolidCard(
+      entrance: false,
+      onTap: onTap,
+      color: AppColors.pending.withValues(alpha: 0.10),
+      child: Row(
+        children: [
+          Container(
+            width: 44,
+            height: 44,
+            decoration: BoxDecoration(
+              color: AppColors.pending.withValues(alpha: 0.18),
+              borderRadius: BorderRadius.circular(AppRadius.lg),
+            ),
+            child: Icon(Icons.face_retouching_natural_rounded,
+                color: AppColors.pending),
+          ),
+          const SizedBox(width: AppSpacing.sm),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Daftarkan wajahmu',
+                  style: AppTypography.labelMd.copyWith(
+                    color: AppColors.onSurface,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  'Wajib sebelum bisa absen. Hanya butuh beberapa detik.',
+                  style: AppTypography.bodySm.copyWith(
+                    color: AppColors.onSurfaceVariant,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Icon(Icons.chevron_right_rounded, color: AppColors.onSurfaceVariant),
         ],
       ),
     );

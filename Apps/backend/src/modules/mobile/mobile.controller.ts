@@ -402,3 +402,24 @@ export async function deleteDeviceHandler(
     next(err)
   }
 }
+
+// ---------------------------------------------------------------------------
+// Face enrollment
+// ---------------------------------------------------------------------------
+
+export async function enrollFaceHandler(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
+  try {
+    const emp = requireEmployee(req)
+    sendSuccess(
+      res,
+      await service.enrollFace(emp),
+      'Wajah berhasil didaftarkan',
+    )
+  } catch (err) {
+    next(err)
+  }
+}

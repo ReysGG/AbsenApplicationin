@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 
+import '../theme/app_colors.dart';
 import '../theme/app_spacing.dart';
 
-/// Crisp white card with a soft, tight shadow — the Talenta/Lark "HR app"
-/// surface. Solid (not translucent), strong contrast, subtle elevation.
+/// The single flat card primitive for AttendX: a solid token surface with a
+/// hairline border and one soft ambient shadow. Corporate-Modern — flat, not
+/// frosted (no blur, no gradient). See DESIGN.md.
 class SolidCard extends StatelessWidget {
   const SolidCard({
     super.key,
@@ -28,14 +30,14 @@ class SolidCard extends StatelessWidget {
     Widget card = Container(
       padding: padding,
       decoration: BoxDecoration(
-        color: color ?? Colors.white,
+        color: color ?? AppColors.surface,
         borderRadius: BorderRadius.circular(borderRadius),
-        border: Border.all(color: const Color(0xFFE8EAF0)),
-        boxShadow: const [
+        border: Border.all(color: AppColors.cardBorder),
+        boxShadow: [
           BoxShadow(
-            color: Color(0x0F172B4D),
+            color: AppColors.cardShadow,
             blurRadius: 16,
-            offset: Offset(0, 3),
+            offset: const Offset(0, 3),
           ),
         ],
       ),

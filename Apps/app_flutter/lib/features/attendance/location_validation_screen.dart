@@ -8,7 +8,7 @@ import '../../core/services/location_service.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_spacing.dart';
 import '../../core/theme/app_typography.dart';
-import '../../core/widgets/app_card.dart';
+import '../../core/widgets/solid_card.dart';
 import '../../core/widgets/osm_mini_map.dart';
 import '../../core/widgets/status_badge.dart';
 import '../../shared/models/work_location.dart';
@@ -157,7 +157,7 @@ class _LocationValidationScreenState
             ),
           const SizedBox(height: AppSpacing.md),
 
-          AppCard(
+          SolidCard(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [

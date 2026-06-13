@@ -5,7 +5,7 @@ import '../../core/config/app_config.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_spacing.dart';
 import '../../core/theme/app_typography.dart';
-import '../../core/widgets/aurora_background.dart';
+import '../../core/widgets/page_background.dart';
 
 /// Branded splash shown while the session is being restored.
 /// Routing away is handled by the router redirect once auth status resolves.
@@ -16,7 +16,7 @@ class SplashScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.transparent,
-      body: AuroraBackground(
+      body: PageBackground(
         child: Stack(
           children: [
             Center(

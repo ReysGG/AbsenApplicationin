@@ -93,6 +93,13 @@ class AuthController extends StateNotifier<AuthState> {
     state = state.copyWith(isLocked: false);
   }
 
+  /// Registers the employee's face and updates the cached profile.
+  Future<void> enrollFace() async {
+    final repo = _ref.read(authRepositoryProvider);
+    final updated = await repo.enrollFace();
+    state = state.copyWith(profile: updated);
+  }
+
   Future<void> logout() async {
     // Best-effort: drop this device's push token before clearing the session,
     // while the bearer token is still available for the authed delete call.

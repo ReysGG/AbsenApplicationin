@@ -587,9 +587,9 @@ IconData _leaveIcon(LeaveType type) => switch (type) {
 Color _leaveColor(LeaveType type) => switch (type) {
   LeaveType.annual => AppColors.brandMid,
   LeaveType.sick => AppColors.error,
-  LeaveType.personal => const Color(0xFF7C3AED),
-  LeaveType.businessTrip => const Color(0xFF0E9F6E),
-  LeaveType.wfh => const Color(0xFF0891B2),
+  LeaveType.personal => AppColors.accentViolet,
+  LeaveType.businessTrip => AppColors.accentGreen,
+  LeaveType.wfh => AppColors.accentCyan,
   LeaveType.other => AppColors.onSurfaceVariant,
 };
 

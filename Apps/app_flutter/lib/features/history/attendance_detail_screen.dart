@@ -7,8 +7,9 @@ import '../../core/theme/app_spacing.dart';
 import '../../core/theme/app_typography.dart';
 import '../../core/utils/formatters.dart';
 import '../../core/utils/status_styles.dart';
-import '../../core/widgets/aurora_background.dart';
-import '../../core/widgets/glass_card.dart';
+import '../../core/widgets/app_error_state.dart';
+import '../../core/widgets/page_background.dart';
+import '../../core/widgets/solid_card.dart';
 import '../../core/widgets/lottie_icon.dart';
 import '../../core/widgets/osm_mini_map.dart';
 import '../../core/widgets/status_badge.dart';
@@ -29,15 +30,17 @@ class AttendanceDetailScreen extends ConsumerWidget {
         title: const Text('Detail Presensi'),
         backgroundColor: Colors.transparent,
       ),
-      body: AuroraBackground(
+      body: PageBackground(
         child: async.when(
           loading: () =>
               const Center(child: LottieIcon(LottieIcon.loading)),
-          error: (e, _) => Center(child: Text(e.toString())),
+          error: (e, _) => AppErrorState(
+              onRetry: () =>
+                  ref.invalidate(attendanceDetailProvider(recordId))),
           data: (r) {
             // Hero destination — the status header card.
-            final headerCard = GlassCard(
-              animate: false,
+            final headerCard = SolidCard(
+              entrance: false,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -91,8 +94,8 @@ class AttendanceDetailScreen extends ConsumerWidget {
                 // Time & shift overview
                 _AnimatedGlass(
                   delayMs: 100,
-                  child: GlassCard(
-                    animate: false,
+                  child: SolidCard(
+                    entrance: false,
                     child: Column(
                       children: [
                         _row('Shift', r.shiftName),
@@ -128,8 +131,8 @@ class AttendanceDetailScreen extends ConsumerWidget {
                 const SizedBox(height: AppSpacing.sm),
                 _AnimatedGlass(
                   delayMs: 200,
-                  child: GlassCard(
-                    animate: false,
+                  child: SolidCard(
+                    entrance: false,
                     child: Column(
                       children: [
                         _StaggeredMetric(
@@ -220,9 +223,8 @@ class AttendanceDetailScreen extends ConsumerWidget {
       );
 }
 
-/// Wraps a child with a delayed fade + slide entrance. Using a wrapper
-/// (rather than chaining `.animate()` directly on `GlassCard`) avoids the
-/// `animate` field shadowing the flutter_animate extension method.
+/// Wraps a child with a delayed fade + slide entrance, typed as a plain
+/// [Widget] so `.animate()` resolves to the flutter_animate extension method.
 class _AnimatedGlass extends StatelessWidget {
   const _AnimatedGlass({required this.child, required this.delayMs});
   final Widget child;
@@ -266,8 +268,8 @@ class _StaggeredMetric extends StatelessWidget {
   }
 }
 
-/// Placeholder coordinate panel — styled as a soft glass tile until the
-/// flutter_map dependency lands in Fase 3.
+/// Coordinate panel — a flat card framing the OpenStreetMap mini-map preview
+/// of the recorded check-in / check-out location.
 class _MapPlaceholder extends StatelessWidget {
   const _MapPlaceholder({
     required this.lat,
@@ -282,8 +284,8 @@ class _MapPlaceholder extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final Widget card = GlassCard(
-      animate: false,
+    final Widget card = SolidCard(
+      entrance: false,
       padding: EdgeInsets.zero,
       child: SizedBox(
         height: 160,
@@ -306,8 +308,9 @@ class _MapPlaceholder extends StatelessWidget {
                 padding: const EdgeInsets.symmetric(
                     horizontal: AppSpacing.sm, vertical: 4),
                 decoration: BoxDecoration(
-                  color: AppColors.glassFillStrong,
+                  color: AppColors.surface,
                   borderRadius: BorderRadius.circular(AppRadius.full),
+                  border: Border.all(color: AppColors.cardBorder),
                 ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,

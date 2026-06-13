@@ -9,6 +9,7 @@ import '../../core/theme/app_spacing.dart';
 import '../../core/theme/app_typography.dart';
 import '../../core/utils/formatters.dart';
 import '../../core/utils/status_styles.dart';
+import '../../core/widgets/app_error_state.dart';
 import '../../core/widgets/brand_header.dart';
 import '../../core/widgets/lottie_icon.dart';
 import '../../core/widgets/solid_card.dart';
@@ -67,7 +68,8 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
               child: async.when(
                 loading: () =>
                     const Center(child: LottieIcon(LottieIcon.loading)),
-                error: (e, _) => Center(child: Text(e.toString())),
+                error: (e, _) => AppErrorState(
+                    onRetry: () => ref.invalidate(historyProvider)),
                 data: (records) {
                   final filtered = _filter == null
                       ? records
@@ -240,7 +242,7 @@ class _FilterChip extends StatelessWidget {
           onSelected: (_) => onTap(),
           showCheckmark: false,
           selectedColor: AppColors.brandMid,
-          backgroundColor: Colors.white,
+          backgroundColor: AppColors.surface,
           side: BorderSide(color: AppColors.outlineVariant.withValues(alpha: 0.5)),
           labelStyle: AppTypography.labelMd.copyWith(
             color: selected ? Colors.white : AppColors.onSurfaceVariant,

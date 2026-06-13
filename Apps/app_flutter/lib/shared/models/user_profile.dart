@@ -31,6 +31,19 @@ class UserProfile extends Equatable {
   /// First name for greetings ("Selamat pagi, David").
   String get firstName => fullName.split(' ').first;
 
+  UserProfile copyWith({bool? faceEnrolled, String? avatarUrl}) => UserProfile(
+        id: id,
+        fullName: fullName,
+        email: email,
+        employeeCode: employeeCode,
+        position: position,
+        department: department,
+        workspaceName: workspaceName,
+        avatarUrl: avatarUrl ?? this.avatarUrl,
+        allowedWorkModes: allowedWorkModes,
+        faceEnrolled: faceEnrolled ?? this.faceEnrolled,
+      );
+
   factory UserProfile.fromJson(Map<String, dynamic> json) {
     return UserProfile(
       id: json['id'] as String,

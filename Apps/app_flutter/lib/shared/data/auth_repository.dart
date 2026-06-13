@@ -9,6 +9,10 @@ abstract interface class AuthRepository {
   /// Signs in with email + password. Returns the authenticated profile.
   Future<UserProfile> login({required String email, required String password});
 
+  /// Registers the employee's face (first-time enrollment). Returns the
+  /// updated profile (faceEnrolled = true).
+  Future<UserProfile> enrollFace();
+
   Future<void> logout();
 }
 
@@ -24,7 +28,7 @@ class MockAuthRepository implements AuthRepository {
     position: 'Software Engineer',
     department: 'Engineering',
     workspaceName: 'PT Inovasi Kerja Digital',
-    faceEnrolled: true,
+    faceEnrolled: false,
   );
 
   @override
@@ -44,6 +48,14 @@ class MockAuthRepository implements AuthRepository {
     }
     _current = _demoProfile;
     return _demoProfile;
+  }
+
+  @override
+  Future<UserProfile> enrollFace() async {
+    await Future<void>.delayed(const Duration(milliseconds: 700));
+    final updated = (_current ?? _demoProfile).copyWith(faceEnrolled: true);
+    _current = updated;
+    return updated;
   }
 
   @override

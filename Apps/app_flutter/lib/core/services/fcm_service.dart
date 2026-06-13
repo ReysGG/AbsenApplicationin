@@ -42,6 +42,14 @@ class FcmService {
   final FlutterLocalNotificationsPlugin _localNotifications =
       FlutterLocalNotificationsPlugin();
 
+  /// Broadcasts foreground FCM messages so the UI can auto-refresh data
+  /// (e.g. the leave list + notifications when an approval/rejection arrives).
+  /// Safe to listen to even when FCM is disabled — it simply never emits.
+  final StreamController<RemoteMessage> _messageController =
+      StreamController<RemoteMessage>.broadcast();
+
+  Stream<RemoteMessage> get onMessage => _messageController.stream;
+
   static const AndroidNotificationChannel _channel = AndroidNotificationChannel(
     'attendx_default',
     'AttendX',
@@ -96,6 +104,10 @@ class FcmService {
 
   void _wireForegroundHandler() {
     FirebaseMessaging.onMessage.listen((RemoteMessage message) {
+      // Notify listeners (UI auto-refresh) regardless of payload type.
+      if (!_messageController.isClosed) {
+        _messageController.add(message);
+      }
       final notification = message.notification;
       if (notification == null) return;
       _localNotifications.show(
@@ -113,6 +125,14 @@ class FcmService {
           ),
         ),
       );
+    });
+
+    // When the user taps a push that opened the app from background, also
+    // signal listeners so the relevant screens refresh.
+    FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
+      if (!_messageController.isClosed) {
+        _messageController.add(message);
+      }
     });
   }
 

@@ -20,4 +20,5 @@ abstract final class AppRoutes {
   static const createLeave = '/leave/create';
   static const notifications = '/notifications';
   static const syncStatus = '/sync';
+  static const faceEnroll = '/face-enroll';
 }

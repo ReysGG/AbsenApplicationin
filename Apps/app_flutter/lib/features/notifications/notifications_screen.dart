@@ -7,22 +7,19 @@ import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_spacing.dart';
 import '../../core/theme/app_typography.dart';
 import '../../core/utils/formatters.dart';
-import '../../core/widgets/aurora_background.dart';
-import '../../core/widgets/glass_card.dart';
+import '../../core/widgets/app_error_state.dart';
+import '../../core/widgets/page_background.dart';
+import '../../core/widgets/solid_card.dart';
 import '../../core/widgets/lottie_icon.dart';
 import '../../shared/models/app_notification.dart';
-
-final _notifProvider =
-    FutureProvider.autoDispose<List<AppNotification>>((ref) async {
-  return ref.watch(notificationRepositoryProvider).getAll();
-});
+import 'notifications_controller.dart';
 
 class NotificationsScreen extends ConsumerWidget {
   const NotificationsScreen({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final async = ref.watch(_notifProvider);
+    final async = ref.watch(notificationsListProvider);
 
     return Scaffold(
       backgroundColor: Colors.transparent,
@@ -34,19 +31,20 @@ class NotificationsScreen extends ConsumerWidget {
           TextButton(
             onPressed: () async {
               await ref.read(notificationRepositoryProvider).markAllRead();
-              ref.invalidate(_notifProvider);
+              ref.invalidate(notificationsListProvider);
             },
             child: const Text('Tandai dibaca'),
           ),
         ],
       ),
-      body: AuroraBackground(
+      body: PageBackground(
         child: SafeArea(
           top: false,
           child: async.when(
             loading: () => const Center(
                 child: LottieIcon(LottieIcon.loading, size: 96)),
-            error: (e, _) => Center(child: Text(e.toString())),
+            error: (e, _) => AppErrorState(
+                onRetry: () => ref.invalidate(notificationsListProvider)),
             data: (items) {
               if (items.isEmpty) {
                 return _EmptyState();
@@ -165,11 +163,11 @@ class _NotifCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.only(bottom: AppSpacing.sm),
-      child: GlassCard(
-        animate: false,
-        fillColor: notification.read
-            ? AppColors.glassFill
-            : AppColors.glassFillStrong,
+      child: SolidCard(
+        entrance: false,
+        color: notification.read
+            ? AppColors.surfaceContainerLow
+            : AppColors.surface,
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [

@@ -13,7 +13,7 @@ class AttendXApp extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final router = ref.watch(routerProvider);
 
-    // The redesign (aurora + glass + corporate) is tuned for light mode.
+    // The Corporate-Modern design (see DESIGN.md) is tuned for light mode.
     // Lock to light so a phone's system dark mode can't render everything black.
     AppColors.isDark = false;
 

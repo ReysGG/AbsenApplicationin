@@ -10,6 +10,7 @@ import '../../features/auth/auth_controller.dart';
 import '../../features/auth/login_screen.dart';
 import '../../features/auth/splash_screen.dart';
 import '../../features/auth/lock_screen.dart';
+import '../../features/auth/face_enroll_screen.dart';
 import '../../features/history/attendance_detail_screen.dart';
 import '../../features/history/history_screen.dart';
 import '../../features/home/home_screen.dart';
@@ -109,6 +110,10 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: AppRoutes.syncStatus,
         builder: (_, _) => const SyncStatusScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.faceEnroll,
+        builder: (_, _) => const FaceEnrollScreen(),
       ),
 
       // Bottom-nav shell
