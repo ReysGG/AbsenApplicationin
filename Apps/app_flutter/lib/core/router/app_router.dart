@@ -56,6 +56,14 @@ final routerProvider = Provider<GoRouter>((ref) {
         return loc == AppRoutes.lock ? null : AppRoutes.lock;
       }
 
+      // Authenticated + unlocked but face not yet enrolled → enroll first.
+      final profile = auth.profile;
+      if (profile != null && !profile.faceEnrolled) {
+        return loc == AppRoutes.faceEnroll ? null : AppRoutes.faceEnroll;
+      }
+      // Enrolled — don't let them linger on the enrollment screen.
+      if (loc == AppRoutes.faceEnroll) return AppRoutes.home;
+
       // Authenticated and unlocked: bounce away from splash/login/lock into the app.
       if (loc == AppRoutes.splash || loc == AppRoutes.login || loc == AppRoutes.lock) {
         return AppRoutes.home;
@@ -79,7 +87,10 @@ final routerProvider = Provider<GoRouter>((ref) {
       // Full-screen flows (outside the bottom-nav shell)
       GoRoute(
         path: AppRoutes.checkinPrep,
-        builder: (_, _) => const CheckinPrepScreen(),
+        builder: (context, state) => CheckinPrepScreen(
+          isCheckout: state.uri.queryParameters['mode'] == 'checkout',
+          checkInModeName: state.uri.queryParameters['wm'],
+        ),
       ),
       GoRoute(
         path: AppRoutes.locationValidation,

@@ -464,7 +464,10 @@ class _AttendanceActionCard extends StatelessWidget {
               else if (!hasCheckedOut)
                 _HeroActionButton(
                   glow: false,
-                  onPressed: () => context.push(AppRoutes.checkinPrep),
+                  onPressed: () => context.push(
+                    '${AppRoutes.checkinPrep}?mode=checkout'
+                    '&wm=${today.checkIn?.workMode?.name ?? "wfo"}',
+                  ),
                   icon: Icons.logout,
                   label: 'Check-out Sekarang',
                 )

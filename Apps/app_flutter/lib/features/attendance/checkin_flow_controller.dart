@@ -26,6 +26,7 @@ class CheckinFlowState {
     this.savedOffline = false,
     this.livenessChecksPassed = 0,
     this.livenessChecksTotal = 0,
+    this.faceImageBase64,
   });
 
   final CheckFlowKind kind;
@@ -43,6 +44,9 @@ class CheckinFlowState {
   /// which is the authority on the face/liveness verdict.
   final int livenessChecksPassed;
   final int livenessChecksTotal;
+
+  /// Base64 JPEG of the verified face capture, forwarded to the server.
+  final String? faceImageBase64;
 
   /// True when the last submit was queued locally because the device was
   /// offline (or the network call failed).
@@ -62,6 +66,7 @@ class CheckinFlowState {
     bool? savedOffline,
     int? livenessChecksPassed,
     int? livenessChecksTotal,
+    String? faceImageBase64,
   }) {
     return CheckinFlowState(
       kind: kind ?? this.kind,
@@ -77,6 +82,7 @@ class CheckinFlowState {
       savedOffline: savedOffline ?? this.savedOffline,
       livenessChecksPassed: livenessChecksPassed ?? this.livenessChecksPassed,
       livenessChecksTotal: livenessChecksTotal ?? this.livenessChecksTotal,
+      faceImageBase64: faceImageBase64 ?? this.faceImageBase64,
     );
   }
 
@@ -122,12 +128,14 @@ class CheckinFlowController extends StateNotifier<CheckinFlowState> {
     required bool liveness,
     int? checksPassed,
     int? checksTotal,
+    String? faceImageBase64,
   }) {
     state = state.copyWith(
       faceVerified: faceVerified,
       livenessPassed: liveness,
       livenessChecksPassed: checksPassed,
       livenessChecksTotal: checksTotal,
+      faceImageBase64: faceImageBase64,
     );
   }
 
@@ -150,6 +158,7 @@ class CheckinFlowController extends StateNotifier<CheckinFlowState> {
       capturedAt: now,
       livenessChecksPassed: state.livenessChecksPassed,
       livenessChecksTotal: state.livenessChecksTotal,
+      faceImageBase64: state.faceImageBase64,
     );
 
     final type =

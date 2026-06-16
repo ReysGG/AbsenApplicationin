@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:math';
 
 import 'package:camera/camera.dart';
@@ -8,6 +9,7 @@ import 'package:go_router/go_router.dart';
 import 'package:google_mlkit_face_detection/google_mlkit_face_detection.dart';
 import 'package:screen_brightness/screen_brightness.dart';
 
+import '../../core/network/api_exception.dart';
 import '../../core/router/app_routes.dart';
 import '../../core/services/face_liveness_service.dart';
 import '../../core/theme/app_colors.dart';
@@ -191,15 +193,44 @@ class _FaceVerificationScreenState
       await _controller?.stopImageStream();
     } catch (_) {}
 
+    // Best-effort: grab a still of the verified face for HR review. Never block
+    // the submission if capture fails (some devices reject takePicture right
+    // after stopping a stream).
+    String? faceImageBase64;
+    try {
+      final controller = _controller;
+      if (controller != null && controller.value.isInitialized) {
+        final shot = await controller.takePicture();
+        final bytes = await shot.readAsBytes();
+        faceImageBase64 = base64Encode(bytes);
+      }
+    } catch (_) {
+      // Proceed without a stored image.
+    }
+
     ref.read(checkinFlowProvider.notifier).setFaceResult(
           faceVerified: true,
           liveness: true,
           checksPassed: _passed.length,
           checksTotal: _order.length,
+          faceImageBase64: faceImageBase64,
         );
-    final record = await ref.read(checkinFlowProvider.notifier).submit();
-    if (!mounted) return;
-    context.pushReplacement('${AppRoutes.checkinSuccess}?id=${record.id}');
+    try {
+      final record = await ref.read(checkinFlowProvider.notifier).submit();
+      if (!mounted) return;
+      context.pushReplacement('${AppRoutes.checkinSuccess}?id=${record.id}');
+    } catch (e) {
+      // Never hang on the "Memproses absensi..." spinner if the server rejects
+      // the submission (e.g. already checked out, no check-in yet). Surface the
+      // message with a retry instead.
+      if (!mounted) return;
+      setState(() {
+        _submitting = false;
+        _error = e is ApiException
+            ? e.message
+            : 'Gagal memproses absensi. Periksa koneksi lalu coba lagi.';
+      });
+    }
   }
 
   @override

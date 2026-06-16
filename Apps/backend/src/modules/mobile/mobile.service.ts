@@ -14,6 +14,7 @@ import type { MobileEmployee } from '../../types/auth'
 import type { CheckSubmissionInput, LeaveCreateInput } from './mobile.schema'
 import { evaluateCheckInIntegrity, evaluateCapturedAt, isValidCoordinate } from './mobile.integrity'
 import { createNotification } from '../notifications/notifications.service'
+import { uploadFaceImage } from '../../config/faceStorage'
 
 // ---------------------------------------------------------------------------
 // Time / geo helpers
@@ -457,6 +458,27 @@ async function writeRawLog(
   }
 }
 
+/**
+ * Best-effort face-capture upload to S3 storage. Returns the stored object key
+ * or null (never throws) so attendance is never blocked by a storage hiccup.
+ */
+async function maybeUploadFace(
+  b64: string | undefined,
+  key: string,
+): Promise<string | null> {
+  if (!b64) return null
+  try {
+    const comma = b64.indexOf(',')
+    const raw =
+      b64.startsWith('data:') && comma >= 0 ? b64.slice(comma + 1) : b64
+    const buf = Buffer.from(raw, 'base64')
+    if (buf.length === 0 || buf.length > 6 * 1024 * 1024) return null
+    return await uploadFaceImage(key, buf, 'image/jpeg')
+  } catch {
+    return null
+  }
+}
+
 export async function checkIn(
   emp: MobileEmployee,
   body: CheckSubmissionInput,
@@ -578,6 +600,14 @@ export async function checkIn(
     if (jakartaMinutesOfDay(now) > threshold) status = 'Late'
   }
 
+  // Best-effort: store the verified face capture for HR review.
+  const checkInFaceKey = await maybeUploadFace(
+    body.faceImageBase64,
+    `${emp.workspaceId}/${emp.id}/${attendanceDate
+      .toISOString()
+      .slice(0, 10)}-checkin-${now.getTime()}.jpg`,
+  )
+
   // 6. Persist — update a placeholder row if present, otherwise create.
   const data = {
     shiftId: shift?.id ?? null,
@@ -593,6 +623,7 @@ export async function checkIn(
     originalCheckInAt: now,
     syncedAt: now,
     status,
+    checkInFaceKey,
   }
 
   const saved = existing
@@ -686,12 +717,20 @@ export async function checkOut(
     throw new ConflictError('Kamu sudah check-out hari ini.')
   }
 
+  const checkOutFaceKey = await maybeUploadFace(
+    body.faceImageBase64,
+    `${emp.workspaceId}/${emp.id}/${attendanceDate
+      .toISOString()
+      .slice(0, 10)}-checkout-${now.getTime()}.jpg`,
+  )
+
   const updated = await prisma.attendanceLog.update({
     where: { id: log.id },
     data: {
       checkOutAt: now,
       checkOutLatitude: body.latitude,
       checkOutLongitude: body.longitude,
+      checkOutFaceKey,
     },
     include: attendanceInclude,
   })

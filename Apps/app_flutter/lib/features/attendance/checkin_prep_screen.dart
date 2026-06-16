@@ -15,7 +15,19 @@ import 'checkin_flow_controller.dart';
 /// Step 1 of the attendance flow: choose work mode + review prerequisites
 /// (GPS, Face, Liveness) before starting verification.
 class CheckinPrepScreen extends ConsumerStatefulWidget {
-  const CheckinPrepScreen({super.key});
+  const CheckinPrepScreen({
+    super.key,
+    this.isCheckout = false,
+    this.checkInModeName,
+  });
+
+  /// When true this screen drives a CHECK-OUT (reusing the check-in work mode)
+  /// instead of a check-in.
+  final bool isCheckout;
+
+  /// Work mode chosen at check-in ('wfo'/'wfh'), reused for check-out so the
+  /// user isn't asked WFO/WFH again. Null for check-in.
+  final String? checkInModeName;
 
   @override
   ConsumerState<CheckinPrepScreen> createState() => _CheckinPrepScreenState();
@@ -27,7 +39,14 @@ class _CheckinPrepScreenState extends ConsumerState<CheckinPrepScreen> {
     super.initState();
     // Reset flow when entering. Default check-in.
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      ref.read(checkinFlowProvider.notifier).start(CheckFlowKind.checkIn);
+      final notifier = ref.read(checkinFlowProvider.notifier);
+      notifier.start(
+          widget.isCheckout ? CheckFlowKind.checkOut : CheckFlowKind.checkIn);
+      // Check-out reuses the work mode chosen at check-in (don't re-ask).
+      if (widget.isCheckout && widget.checkInModeName != null) {
+        notifier.setWorkMode(
+            widget.checkInModeName == 'wfh' ? WorkMode.wfh : WorkMode.wfo);
+      }
     });
   }
 
@@ -38,7 +57,8 @@ class _CheckinPrepScreenState extends ConsumerState<CheckinPrepScreen> {
     return Scaffold(
       backgroundColor: Colors.transparent,
       appBar: AppBar(
-        title: const Text('Persiapan Check-in'),
+        title: Text(
+            widget.isCheckout ? 'Persiapan Check-out' : 'Persiapan Check-in'),
         backgroundColor: Colors.transparent,
       ),
       body: PageBackground(
@@ -55,7 +75,27 @@ class _CheckinPrepScreenState extends ConsumerState<CheckinPrepScreen> {
                   Text('Mode Kerja',
                       style: AppTypography.labelMd
                           .copyWith(color: AppColors.onSurfaceVariant)),
-                  SegmentedButton<WorkMode>(
+                  if (widget.isCheckout)
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          flow.workMode == WorkMode.wfo
+                              ? Icons.business
+                              : Icons.home_work_outlined,
+                          size: 18,
+                          color: AppColors.primary,
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          flow.workMode == WorkMode.wfo ? 'WFO' : 'WFH',
+                          style: AppTypography.labelMd
+                              .copyWith(color: AppColors.onSurface),
+                        ),
+                      ],
+                    )
+                  else
+                    SegmentedButton<WorkMode>(
                     segments: const [
                       ButtonSegment(
                         value: WorkMode.wfo,

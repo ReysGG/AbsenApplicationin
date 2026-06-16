@@ -509,7 +509,7 @@ async function main(): Promise<void> {
       workMode: 'WFO',
       employmentStatus: 'Active',
       accountStatus: 'Active',
-      faceProfileStatus: 'Registered',
+      faceProfileStatus: 'NotRegistered',
       assignedLocationId: locationKantorJakarta.id,
       assignedShiftId: shiftPagi.id,
       joinedAt: new Date('2024-01-01'),

@@ -1,0 +1,4 @@
+{
+  "USE_MOCK_DATA": false,
+  "API_BASE_URL": "https://absen-api.buildwithreys.tech/api/v1"
+}

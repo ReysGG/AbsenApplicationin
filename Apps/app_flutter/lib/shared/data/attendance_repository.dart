@@ -17,6 +17,7 @@ class AttendanceSubmission {
     this.isMocked = false,
     this.livenessChecksPassed,
     this.livenessChecksTotal,
+    this.faceImageBase64,
   });
 
   final WorkMode workMode;
@@ -36,6 +37,10 @@ class AttendanceSubmission {
   final int? livenessChecksPassed;
   final int? livenessChecksTotal;
 
+  /// Base64-encoded JPEG of the verified face capture, stored server-side (S3)
+  /// for HR review. Null when capture is unavailable.
+  final String? faceImageBase64;
+
   /// Serializes to the same shape the backend expects, for offline queueing.
   Map<String, dynamic> toJson() => {
         'workMode': workMode.name,
@@ -50,6 +55,7 @@ class AttendanceSubmission {
           'livenessChecksTotal': livenessChecksTotal,
         if (locationId != null) 'locationId': locationId,
         if (capturedAt != null) 'capturedAt': capturedAt!.toUtc().toIso8601String(),
+        if (faceImageBase64 != null) 'faceImageBase64': faceImageBase64,
       };
 
   factory AttendanceSubmission.fromJson(Map<String, dynamic> j) =>
@@ -69,6 +75,7 @@ class AttendanceSubmission {
         capturedAt: j['capturedAt'] != null
             ? DateTime.tryParse(j['capturedAt'] as String)
             : null,
+        faceImageBase64: j['faceImageBase64'] as String?,
       );
 }
 

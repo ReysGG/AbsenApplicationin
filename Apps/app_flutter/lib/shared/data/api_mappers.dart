@@ -38,9 +38,12 @@ abstract final class ApiMappers {
     _ => SyncStatus.synced,
   };
 
-  static DateTime _date(String v) => DateTime.parse(v);
+  // Backend sends ISO-8601 UTC timestamps (…Z). Parse then convert to the
+  // device local zone (WIB on an Indonesian phone) so HH:mm shows wall-clock
+  // time, not UTC. (Was: DateTime.parse(v) which stayed in UTC → 21:05→14:05.)
+  static DateTime _date(String v) => DateTime.parse(v).toLocal();
   static DateTime? _dateOrNull(String? v) =>
-      (v == null || v.isEmpty) ? null : DateTime.parse(v);
+      (v == null || v.isEmpty) ? null : DateTime.parse(v).toLocal();
   static double? _toDouble(dynamic v) =>
       v == null ? null : (v as num).toDouble();
 

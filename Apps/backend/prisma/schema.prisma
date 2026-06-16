@@ -503,6 +503,8 @@ model AttendanceLog {
   faceCheckStatus  FaceCheckStatus? @map("face_check_status")
   geofenceStatus   GeofenceStatus?  @map("geofence_status")
   spoofingStatus   SpoofingStatus?  @map("spoofing_status")
+  checkInFaceKey   String?          @map("check_in_face_key")
+  checkOutFaceKey  String?          @map("check_out_face_key")
   syncStatus       SyncStatus       @default(Pending) @map("sync_status")
   originalCheckInAt DateTime?       @map("original_check_in_at")
   syncedAt         DateTime?        @map("synced_at")

@@ -30,6 +30,9 @@ export const checkSubmissionSchema = z.object({
   appIntegrityToken: z.string().max(4096).optional(),
   // Optional device model string for anomaly review.
   deviceModel: z.string().max(160).optional(),
+  // Optional base64-encoded JPEG of the verified face (data-URI or raw),
+  // stored to S3 for HR review. ~8M chars cap (well under the 10mb body limit).
+  faceImageBase64: z.string().max(8_000_000).optional(),
 })
 
 export const leaveCreateSchema = z.object({

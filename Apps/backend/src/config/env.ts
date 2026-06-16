@@ -13,6 +13,13 @@ const envSchema = z.object({
   INTERNAL_JWT_SECRET: z.string().min(32, 'INTERNAL_JWT_SECRET must be at least 32 chars'),
   SUPABASE_URL: z.string().url().optional().or(z.literal('')),
   SUPABASE_SERVICE_ROLE_KEY: z.string().optional(),
+  // S3-compatible storage (Supabase Storage S3 endpoint) for attendance face
+  // captures. When unset, face upload is skipped (feature degrades gracefully).
+  S3_ENDPOINT: z.string().optional().or(z.literal('')),
+  S3_REGION: z.string().optional().default('ap-southeast-1'),
+  S3_ACCESS_KEY_ID: z.string().optional(),
+  S3_SECRET_ACCESS_KEY: z.string().optional(),
+  S3_FACE_BUCKET: z.string().optional().default('face-captures'),
   CORS_ORIGIN: z.string().default('http://localhost:3000'),
 })
 

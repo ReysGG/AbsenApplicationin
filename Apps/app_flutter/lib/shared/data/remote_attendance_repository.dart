@@ -98,6 +98,7 @@ class RemoteAttendanceRepository implements AttendanceRepository {
         if (s.locationId != null) 'locationId': s.locationId,
         if (s.capturedAt != null)
           'capturedAt': s.capturedAt!.toUtc().toIso8601String(),
+        if (s.faceImageBase64 != null) 'faceImageBase64': s.faceImageBase64,
       };
 
   @override
