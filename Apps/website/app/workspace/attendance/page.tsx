@@ -252,6 +252,7 @@ function DetailPanel({ record, onClose }: DetailPanelProps) {
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [saveSuccess, setSaveSuccess] = useState(false);
+  const [detail, setDetail] = useState<AttendanceRecord | null>(null);
 
   useEffect(() => {
     if (record) {
@@ -259,6 +260,27 @@ function DetailPanel({ record, onClose }: DetailPanelProps) {
       setSaveError(null);
       setSaveSuccess(false);
     }
+  }, [record]);
+
+  // Fetch the full detail (incl. presigned face image URLs) when opened.
+  useEffect(() => {
+    setDetail(null);
+    if (!record) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const api = createClientApiClient();
+        const res = await api.get<AttendanceRecord>(
+          `v1/attendance/${record.id}`
+        );
+        if (!cancelled && res.success) setDetail(res.data);
+      } catch {
+        /* face images are best-effort */
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, [record]);
 
   if (!record) return null;
@@ -448,6 +470,44 @@ function DetailPanel({ record, onClose }: DetailPanelProps) {
               </div>
             </div>
           </section>
+
+          {/* Captured face images (HR review) */}
+          {(detail?.checkInFaceUrl || detail?.checkOutFaceUrl) && (
+            <section>
+              <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2 flex items-center gap-1.5">
+                <ScanFace className="w-3.5 h-3.5" aria-hidden="true" />
+                Foto Wajah
+              </h3>
+              <div className="grid grid-cols-2 gap-3">
+                {detail?.checkInFaceUrl && (
+                  <figure className="space-y-1">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={detail.checkInFaceUrl}
+                      alt={`Wajah check-in ${record.employeeName}`}
+                      className="w-full aspect-square object-cover rounded-lg border border-gray-200 bg-gray-100"
+                    />
+                    <figcaption className="text-xs text-gray-500 text-center">
+                      Check-in
+                    </figcaption>
+                  </figure>
+                )}
+                {detail?.checkOutFaceUrl && (
+                  <figure className="space-y-1">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={detail.checkOutFaceUrl}
+                      alt={`Wajah check-out ${record.employeeName}`}
+                      className="w-full aspect-square object-cover rounded-lg border border-gray-200 bg-gray-100"
+                    />
+                    <figcaption className="text-xs text-gray-500 text-center">
+                      Check-out
+                    </figcaption>
+                  </figure>
+                )}
+              </div>
+            </section>
+          )}
 
           {/* Duplicate warning */}
           {record.isDuplicate && (

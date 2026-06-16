@@ -47,6 +47,9 @@ export interface AttendanceRecord {
   isDuplicate: boolean;
   notes: string | null;
   attendanceDate: string;
+  /** Presigned URLs for captured face images (populated on detail fetch). */
+  checkInFaceUrl?: string | null;
+  checkOutFaceUrl?: string | null;
 }
 
 // ---------------------------------------------------------------------------

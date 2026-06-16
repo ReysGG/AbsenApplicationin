@@ -15,6 +15,7 @@
 import { prisma } from '../../config/prisma'
 import { writeAudit } from '../../lib/audit'
 import { NotFoundError, ValidationError } from '../../lib/errors'
+import { getFaceSignedUrl } from '../../config/faceStorage'
 import type { ScopeFilter } from '../../types/auth'
 import type { AdjustmentNoteInput } from './attendance.schema'
 
@@ -46,6 +47,9 @@ export interface AttendanceListItem {
   isDuplicate: boolean
   notes: string | null
   attendanceDate: string
+  /** Presigned URLs for the captured face images (populated on detail only). */
+  checkInFaceUrl: string | null
+  checkOutFaceUrl: string | null
 }
 
 export interface AttendanceListResult {
@@ -150,6 +154,8 @@ function mapAttendanceLog(log: {
     isDuplicate: log.isDuplicate,
     notes: log.notes,
     attendanceDate: log.attendanceDate.toISOString().slice(0, 10),
+    checkInFaceUrl: null,
+    checkOutFaceUrl: null,
   }
 }
 
@@ -344,7 +350,10 @@ export async function getAttendanceById(
     throw new NotFoundError('Data absensi')
   }
 
-  return mapAttendanceLog(log)
+  const item = mapAttendanceLog(log)
+  item.checkInFaceUrl = await getFaceSignedUrl(log.checkInFaceKey)
+  item.checkOutFaceUrl = await getFaceSignedUrl(log.checkOutFaceKey)
+  return item
 }
 
 // ---------------------------------------------------------------------------
