@@ -38,8 +38,14 @@ class _FaceEnrollScreenState extends ConsumerState<FaceEnrollScreen> {
 
   /// How many consecutive "good" frames we've seen (debounce before capture).
   int _goodFrames = 0;
-  static const _requiredGoodFrames = 12; // ~1.2s at ~10fps
+  static const _requiredGoodFrames = 8; // ~0.8s at ~10fps
   String _hint = 'Posisikan wajah di dalam bingkai';
+
+  /// After a few seconds without an automatic capture (e.g. glasses confuse the
+  /// eye-open detector), offer a manual capture escape so the user is never
+  /// permanently stuck.
+  bool _showManualCapture = false;
+  Timer? _fallbackTimer;
 
   int _sensorOrientation = 90;
 
@@ -74,6 +80,14 @@ class _FaceEnrollScreenState extends ConsumerState<FaceEnrollScreen> {
       _controller = controller;
       setState(() => _initializing = false);
       await controller.startImageStream(_onFrame);
+      // Safety net: if auto-detection can't lock on within a few seconds
+      // (glasses/glare/lighting), reveal a manual capture button.
+      _fallbackTimer?.cancel();
+      _fallbackTimer = Timer(const Duration(seconds: 7), () {
+        if (mounted && !_submitting) {
+          setState(() => _showManualCapture = true);
+        }
+      });
     } on CameraException catch (e) {
       if (!mounted) return;
       setState(() {
@@ -122,14 +136,16 @@ class _FaceEnrollScreenState extends ConsumerState<FaceEnrollScreen> {
       final roll = face.headEulerAngleZ ?? 0;
       final faceWidthRatio = face.boundingBox.width / image.width;
 
-      if (faceWidthRatio < 0.20) {
+      if (faceWidthRatio < 0.18) {
         hint = 'Dekatkan wajah ke kamera';
-      } else if (faceWidthRatio > 0.75) {
+      } else if (faceWidthRatio > 0.80) {
         hint = 'Jauhkan sedikit wajahmu';
-      } else if (yaw.abs() > 12 || roll.abs() > 12) {
+      } else if (yaw.abs() > 20 || roll.abs() > 20) {
         hint = 'Hadapkan wajah lurus ke kamera';
-      } else if ((left != null && left < 0.6) ||
-          (right != null && right < 0.6)) {
+      } else if (left != null && right != null && left < 0.35 && right < 0.35) {
+        // Only block when BOTH eyes are clearly closed. Glasses + glare make the
+        // eye-open probability unreliable, so we demand strong evidence before
+        // blocking — this was the main cause of enrollment getting stuck.
         hint = 'Buka mata dan tatap kamera';
       } else {
         hint = 'Tahan… sedang merekam wajahmu';
@@ -144,7 +160,9 @@ class _FaceEnrollScreenState extends ConsumerState<FaceEnrollScreen> {
         return;
       }
     } else {
-      _goodFrames = 0;
+      // Soft-decay instead of a hard reset: one dropped or averted frame
+      // shouldn't wipe all progress (robust against glasses / minor movement).
+      _goodFrames = _goodFrames > 2 ? _goodFrames - 2 : 0;
     }
 
     if (mounted && hint != _hint) setState(() => _hint = hint!);
@@ -153,6 +171,7 @@ class _FaceEnrollScreenState extends ConsumerState<FaceEnrollScreen> {
   Future<void> _enroll() async {
     if (_submitting) return;
     setState(() => _submitting = true);
+    _fallbackTimer?.cancel();
     try {
       await _controller?.stopImageStream();
     } catch (_) {}
@@ -188,6 +207,7 @@ class _FaceEnrollScreenState extends ConsumerState<FaceEnrollScreen> {
 
   @override
   void dispose() {
+    _fallbackTimer?.cancel();
     final controller = _controller;
     _controller = null;
     () async {
@@ -249,6 +269,29 @@ class _FaceEnrollScreenState extends ConsumerState<FaceEnrollScreen> {
                         .copyWith(color: AppColors.onSurface),
                   ),
                 ),
+                if (_showManualCapture && !_submitting) ...[
+                  const SizedBox(height: AppSpacing.md),
+                  Padding(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+                    child: Column(
+                      children: [
+                        Text(
+                          'Kesulitan terdeteksi otomatis? Ambil foto manual.',
+                          textAlign: TextAlign.center,
+                          style: AppTypography.bodyMd
+                              .copyWith(color: AppColors.onSurfaceVariant),
+                        ),
+                        const SizedBox(height: AppSpacing.md),
+                        FilledButton.icon(
+                          onPressed: _enroll,
+                          icon: const Icon(Icons.camera_alt_rounded),
+                          label: const Text('Ambil Foto'),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
                 const Spacer(),
               ],
             ),

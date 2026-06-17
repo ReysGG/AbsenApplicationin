@@ -599,10 +599,47 @@ async function main(): Promise<void> {
   console.log(`✅ LeaveTypes: ${leaveTypeSeed.length} types seeded`)
 
   // ── 12. Platform-admin seed (tenants, invoices, tickets) ───────────────────
-  // Make the stakeholder a platform super_admin so /admin is reachable.
+  // Platform admins (the PRODUCT owner / "Tim Kita") are SEPARATE from tenant
+  // stakeholders per the role hierarchy (proposal §5.3): a Stakeholder is
+  // workspace-only and must NOT reach /admin. Create dedicated platform
+  // accounts, and keep the stakeholder workspace-only.
+  const superAdminAuthId = await ensureBetterAuthUser(
+    'superadmin@attendx.dev',
+    'Super Admin',
+    'Attendx2024!',
+  )
+  await (prisma as any).user.upsert({
+    where: { email: 'superadmin@attendx.dev' },
+    update: { authUserId: superAdminAuthId, globalRole: 'super_admin' },
+    create: {
+      authUserId: superAdminAuthId,
+      email: 'superadmin@attendx.dev',
+      fullName: 'Super Admin',
+      globalRole: 'super_admin',
+      status: 'Active',
+    },
+  })
+  const platformAdminAuthId = await ensureBetterAuthUser(
+    'platform@attendx.dev',
+    'Platform Admin (Tim Kita)',
+    'Attendx2024!',
+  )
+  await (prisma as any).user.upsert({
+    where: { email: 'platform@attendx.dev' },
+    update: { authUserId: platformAdminAuthId, globalRole: 'admin_platform' },
+    create: {
+      authUserId: platformAdminAuthId,
+      email: 'platform@attendx.dev',
+      fullName: 'Platform Admin (Tim Kita)',
+      globalRole: 'admin_platform',
+      status: 'Active',
+    },
+  })
+  // Keep the stakeholder WORKSPACE-only — self-correct older seeds that promoted
+  // it to super_admin (proposal §5.3: Stakeholder has NO platform-console access).
   await (prisma as any).user.update({
     where: { id: stakeholderUser.id },
-    data: { globalRole: 'super_admin' },
+    data: { globalRole: 'user' },
   })
   // Give the primary tenant a plan.
   await (prisma as any).tenant.update({
