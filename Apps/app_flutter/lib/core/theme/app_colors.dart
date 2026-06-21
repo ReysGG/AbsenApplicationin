@@ -155,17 +155,24 @@ abstract final class AppColors {
   static Color get surfaceVariant => isDark ? surfaceVariantDark : surfaceVariantLight;
   static Color get surfaceTint => isDark ? surfaceTintDark : surfaceTintLight;
 
-  // ── Brand header band (flat, solid — no gradient) ────────────────────────
-  static const brandStart = Color(0xFF0052CC);
+  // ── Brand header band (subtle premium gradient — deep, not flashy) ───────
+  static const brandStart = Color(0xFF0A5BDB);
   static const brandMid = Color(0xFF0052CC);
-  static const brandEnd = Color(0xFF0052CC);
+  static const brandEnd = Color(0xFF003D9B);
+  /// Two-stop hero gradient used on brand headers (top-left → bottom-right).
+  static const List<Color> brandGradient = [brandStart, brandEnd];
   static Color get pageBg => isDark ? backgroundDark : const Color(0xFFF6F7F9);
 
   // ── Flat card tokens (clean enterprise surfaces) ─────────────────────────
   static Color get cardBorder =>
       isDark ? const Color(0xFF272B45) : const Color(0xFFE8EAF0);
   static Color get cardShadow =>
-      isDark ? const Color(0x33000000) : const Color(0x0F172B4D);
+      isDark ? const Color(0x33000000) : const Color(0x12172B4D);
+
+  /// Soft, wide ambient shadow paired with [cardShadow] for layered premium
+  /// depth (the diffuse "float" under a card).
+  static Color get cardShadowAmbient =>
+      isDark ? const Color(0x4D000000) : const Color(0x14172B4D);
 
   // ── Accent / category palette ────────────────────────────────────────────
   // Functional hues for categorizing items (home quick-action tiles, leave

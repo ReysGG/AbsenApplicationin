@@ -13,7 +13,7 @@ class SolidCard extends StatelessWidget {
     required this.child,
     this.padding = const EdgeInsets.all(AppSpacing.md),
     this.onTap,
-    this.borderRadius = AppRadius.xl,
+    this.borderRadius = AppRadius.xxl,
     this.entrance = true,
     this.color,
   });
@@ -34,10 +34,18 @@ class SolidCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(borderRadius),
         border: Border.all(color: AppColors.cardBorder),
         boxShadow: [
+          // Tight key shadow — gives a crisp edge/contact.
           BoxShadow(
             color: AppColors.cardShadow,
-            blurRadius: 16,
-            offset: const Offset(0, 3),
+            blurRadius: 4,
+            offset: const Offset(0, 1),
+          ),
+          // Wide soft ambient — the premium "float".
+          BoxShadow(
+            color: AppColors.cardShadowAmbient,
+            blurRadius: 24,
+            offset: const Offset(0, 10),
+            spreadRadius: -6,
           ),
         ],
       ),

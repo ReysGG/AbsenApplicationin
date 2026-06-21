@@ -130,12 +130,23 @@ class _BrandHeader extends StatelessWidget {
             AppSpacing.md,
             AppSpacing.lg,
           ),
-          decoration: const BoxDecoration(
-            color: AppColors.brandMid,
-            borderRadius: BorderRadius.only(
-              bottomLeft: Radius.circular(18),
-              bottomRight: Radius.circular(18),
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: AppColors.brandGradient,
             ),
+            borderRadius: const BorderRadius.only(
+              bottomLeft: Radius.circular(24),
+              bottomRight: Radius.circular(24),
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: AppColors.brandEnd.withValues(alpha: 0.28),
+                blurRadius: 20,
+                offset: const Offset(0, 8),
+              ),
+            ],
           ),
           child: Row(
             children: [

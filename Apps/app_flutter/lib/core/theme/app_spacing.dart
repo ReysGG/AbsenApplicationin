@@ -14,5 +14,6 @@ abstract final class AppRadius {
   static const md = 8.0;
   static const lg = 12.0;
   static const xl = 16.0;
+  static const xxl = 20.0;
   static const full = 9999.0;
 }
