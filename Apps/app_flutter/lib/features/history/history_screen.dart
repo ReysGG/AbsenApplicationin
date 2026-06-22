@@ -121,6 +121,8 @@ class _HistoryCard extends StatelessWidget {
               StatusBadge(
                 label: record.status.label,
                 color: StatusStyles.attendance(record.status),
+                filled: record.status == AttendanceStatus.late ||
+                    record.status == AttendanceStatus.absent,
               ),
             ],
           ),
@@ -128,7 +130,8 @@ class _HistoryCard extends StatelessWidget {
           Row(
             children: [
               _TimeChunk(
-                icon: Icons.login,
+                icon: Icons.login_rounded,
+                tint: AppColors.success,
                 label: 'Masuk',
                 value: record.checkInAt != null
                     ? Formatters.time(record.checkInAt!)
@@ -136,7 +139,8 @@ class _HistoryCard extends StatelessWidget {
               ),
               const SizedBox(width: AppSpacing.lg),
               _TimeChunk(
-                icon: Icons.logout,
+                icon: Icons.logout_rounded,
+                tint: AppColors.accentRose,
                 label: 'Pulang',
                 value: record.checkOutAt != null
                     ? Formatters.time(record.checkOutAt!)
@@ -149,8 +153,8 @@ class _HistoryCard extends StatelessWidget {
             children: [
               Icon(
                 record.workMode == WorkMode.wfo
-                    ? Icons.business
-                    : Icons.home_work_outlined,
+                    ? Icons.business_rounded
+                    : Icons.home_work_rounded,
                 size: 16,
                 color: AppColors.onSurfaceVariant,
               ),
@@ -193,17 +197,34 @@ class _TimeChunk extends StatelessWidget {
     required this.icon,
     required this.label,
     required this.value,
+    required this.tint,
   });
   final IconData icon;
   final String label;
   final String value;
+  final Color tint;
 
   @override
   Widget build(BuildContext context) {
     return Row(
       children: [
-        Icon(icon, size: 18, color: AppColors.onSurfaceVariant),
-        const SizedBox(width: 6),
+        Container(
+          width: 36,
+          height: 36,
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                tint.withValues(alpha: 0.18),
+                tint.withValues(alpha: 0.08),
+              ],
+            ),
+            borderRadius: BorderRadius.circular(AppRadius.md),
+          ),
+          child: Icon(icon, size: 18, color: tint),
+        ),
+        const SizedBox(width: AppSpacing.sm),
         Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -236,16 +257,45 @@ class _FilterChip extends StatelessWidget {
         scale: selected ? 1.06 : 1,
         duration: 200.ms,
         curve: Curves.easeOutBack,
-        child: ChoiceChip(
-          label: Text(label),
-          selected: selected,
-          onSelected: (_) => onTap(),
-          showCheckmark: false,
-          selectedColor: AppColors.brandMid,
-          backgroundColor: AppColors.surface,
-          side: BorderSide(color: AppColors.outlineVariant.withValues(alpha: 0.5)),
-          labelStyle: AppTypography.labelMd.copyWith(
-            color: selected ? Colors.white : AppColors.onSurfaceVariant,
+        child: GestureDetector(
+          onTap: onTap,
+          child: AnimatedContainer(
+            duration: 200.ms,
+            curve: Curves.easeOut,
+            padding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.md, vertical: AppSpacing.sm),
+            decoration: BoxDecoration(
+              gradient: selected
+                  ? LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: AppColors.headerGradient,
+                    )
+                  : null,
+              color: selected ? null : AppColors.surface,
+              borderRadius: BorderRadius.circular(AppRadius.full),
+              border: Border.all(
+                color: selected
+                    ? Colors.transparent
+                    : AppColors.outlineVariant.withValues(alpha: 0.5),
+              ),
+              boxShadow: selected
+                  ? [
+                      BoxShadow(
+                        color: AppColors.softGlow(AppColors.primary),
+                        blurRadius: 12,
+                        offset: const Offset(0, 4),
+                        spreadRadius: -3,
+                      ),
+                    ]
+                  : null,
+            ),
+            child: Text(
+              label,
+              style: AppTypography.labelMd.copyWith(
+                color: selected ? Colors.white : AppColors.onSurfaceVariant,
+              ),
+            ),
           ),
         ),
       ),

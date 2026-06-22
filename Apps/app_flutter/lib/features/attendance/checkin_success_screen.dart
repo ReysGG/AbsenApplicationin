@@ -10,9 +10,11 @@ import '../../core/theme/app_spacing.dart';
 import '../../core/theme/app_typography.dart';
 import '../../core/utils/formatters.dart';
 import '../../core/widgets/page_background.dart';
+import '../../core/widgets/pressable.dart';
 import '../../core/widgets/solid_card.dart';
 import '../../core/widgets/lottie_icon.dart';
 import '../../shared/models/attendance_record.dart';
+import '../../shared/models/enums.dart';
 import '../attendance/checkin_flow_controller.dart';
 
 class CheckinSuccessScreen extends ConsumerWidget {
@@ -36,14 +38,37 @@ class CheckinSuccessScreen extends ConsumerWidget {
             child: Column(
               children: [
                 const Spacer(),
-                // Celebration checkmark — plays once, large + centered.
+                // Celebration checkmark — plays once, large + centered,
+                // resting on a soft colored glow (Modern Playful).
                 SizedBox(
-                  width: 160,
-                  height: 160,
-                  child: const LottieIcon(
-                    LottieIcon.success,
-                    size: 160,
-                    repeat: false,
+                  width: 180,
+                  height: 180,
+                  child: Stack(
+                    alignment: Alignment.center,
+                    children: [
+                      // Soft success glow behind the Lottie.
+                      Container(
+                        width: 150,
+                        height: 150,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          gradient: RadialGradient(
+                            colors: [
+                              AppColors.success.withValues(alpha: 0.26),
+                              AppColors.success.withValues(alpha: 0.0),
+                            ],
+                          ),
+                        ),
+                      )
+                          .animate()
+                          .fadeIn(duration: 600.ms)
+                          .scaleXY(begin: 0.6, end: 1, duration: 700.ms),
+                      const LottieIcon(
+                        LottieIcon.success,
+                        size: 160,
+                        repeat: false,
+                      ),
+                    ],
                   ),
                 )
                     .animate()
@@ -81,11 +106,13 @@ class CheckinSuccessScreen extends ConsumerWidget {
                     data: (r) => _SummaryCard(record: r, isCheckout: isCheckout),
                   ),
                 const Spacer(),
-                FilledButton(
-                  onPressed: () => context.go(AppRoutes.home),
-                  style: FilledButton.styleFrom(
-                      minimumSize: const Size.fromHeight(52)),
-                  child: const Text('Kembali ke Beranda'),
+                Pressable(
+                  child: FilledButton(
+                    onPressed: () => context.go(AppRoutes.home),
+                    style: FilledButton.styleFrom(
+                        minimumSize: const Size.fromHeight(52)),
+                    child: const Text('Kembali ke Beranda'),
+                  ),
                 ).animate(delay: 620.ms).fadeIn(duration: 320.ms).slideY(
                       begin: 0.3,
                       curve: Curves.easeOut,
@@ -114,12 +141,18 @@ class _SummaryCard extends StatelessWidget {
     final time = isCheckout ? record.checkOutAt : record.checkInAt;
     final Widget card = SolidCard(
       entrance: false,
+      glowColor: AppColors.primary,
       child: Column(
         children: [
+          // Hero time chip with a playful brand gradient.
           Container(
             padding: const EdgeInsets.all(AppSpacing.md),
             decoration: BoxDecoration(
-              color: AppColors.primaryFixed,
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: AppColors.headerGradient,
+              ),
               borderRadius: BorderRadius.circular(AppRadius.lg),
             ),
             child: Row(
@@ -127,21 +160,30 @@ class _SummaryCard extends StatelessWidget {
               children: [
                 Text(isCheckout ? 'Jam Pulang' : 'Jam Masuk',
                     style: AppTypography.labelMd
-                        .copyWith(color: AppColors.onPrimaryFixed)),
+                        .copyWith(color: Colors.white)),
                 Text(time != null ? Formatters.time(time) : '—',
                     style: AppTypography.headlineMd
-                        .copyWith(color: AppColors.onPrimaryFixed)),
+                        .copyWith(color: Colors.white)),
               ],
             ),
           ),
           const SizedBox(height: AppSpacing.sm),
-          _row('Tanggal', Formatters.shortDate(record.date)),
+          _row(Icons.event_rounded, AppColors.accentViolet, 'Tanggal',
+              Formatters.shortDate(record.date)),
           const Divider(height: AppSpacing.lg),
-          _row('Mode Kerja', record.workMode.label),
+          _row(
+              record.workMode == WorkMode.wfo
+                  ? Icons.business_rounded
+                  : Icons.home_work_rounded,
+              AppColors.accentCyan,
+              'Mode Kerja',
+              record.workMode.label),
           const Divider(height: AppSpacing.lg),
-          _row('Lokasi', record.locationName ?? '—'),
+          _row(Icons.place_rounded, AppColors.accentRose, 'Lokasi',
+              record.locationName ?? '—'),
           const Divider(height: AppSpacing.lg),
-          _row('Status', record.status.label),
+          _row(Icons.verified_rounded, AppColors.success, 'Status',
+              record.status.label),
         ],
       ),
     );
@@ -151,13 +193,34 @@ class _SummaryCard extends StatelessWidget {
         );
   }
 
-  Widget _row(String label, String value) => Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+  Widget _row(IconData icon, Color tint, String label, String value) => Row(
         children: [
+          Container(
+            width: 32,
+            height: 32,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  tint.withValues(alpha: 0.18),
+                  tint.withValues(alpha: 0.08),
+                ],
+              ),
+              borderRadius: BorderRadius.circular(AppRadius.sm),
+            ),
+            child: Icon(icon, size: 17, color: tint),
+          ),
+          const SizedBox(width: AppSpacing.sm),
           Text(label,
               style: AppTypography.bodyMd
                   .copyWith(color: AppColors.onSurfaceVariant)),
-          Text(value, style: AppTypography.labelMd),
+          const Spacer(),
+          Flexible(
+            child: Text(value,
+                textAlign: TextAlign.right, style: AppTypography.labelMd),
+          ),
         ],
       );
 }

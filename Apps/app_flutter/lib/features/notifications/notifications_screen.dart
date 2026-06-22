@@ -146,10 +146,10 @@ class _NotifCard extends StatelessWidget {
   final WidgetRef ref;
 
   IconData get _icon => switch (notification.kind) {
-        NotificationKind.reminder => Icons.alarm,
-        NotificationKind.approval => Icons.task_alt,
-        NotificationKind.sync => Icons.sync,
-        NotificationKind.info => Icons.info_outline,
+        NotificationKind.reminder => Icons.alarm_rounded,
+        NotificationKind.approval => Icons.task_alt_rounded,
+        NotificationKind.sync => Icons.sync_rounded,
+        NotificationKind.info => Icons.info_rounded,
       };
 
   Color get _color => switch (notification.kind) {
@@ -168,13 +168,25 @@ class _NotifCard extends StatelessWidget {
         color: notification.read
             ? AppColors.surfaceContainerLow
             : AppColors.surface,
+        glowColor: notification.read ? null : _color,
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Kind avatar with gentle entrance.
-            CircleAvatar(
-              radius: 20,
-              backgroundColor: _color.withValues(alpha: 0.15),
+            // Colorful rounded icon container, tinted per kind.
+            Container(
+              width: 42,
+              height: 42,
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    _color.withValues(alpha: 0.20),
+                    _color.withValues(alpha: 0.08),
+                  ],
+                ),
+                borderRadius: BorderRadius.circular(AppRadius.lg),
+              ),
               child: Icon(_icon, color: _color, size: 20),
             )
                 .animate(delay: (70 * index).ms)

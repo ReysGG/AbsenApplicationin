@@ -2,10 +2,10 @@ import 'package:flutter/material.dart';
 
 import '../theme/app_colors.dart';
 
-/// The app's flat page background — a calm, neutral surface
-/// ([AppColors.pageBg]) behind scrollable content. Corporate Modern: no
-/// gradient or glow (see DESIGN.md). Wrap a screen body with this and set the
-/// Scaffold background to transparent.
+/// The app's page background — a soft vertical wash behind scrollable content
+/// ([AppColors.pageGradient]). Modern Playful: a gentle gradient (not flat) that
+/// adapts to light/dark mode. Wrap a screen body with this and set the Scaffold
+/// background to transparent.
 class PageBackground extends StatelessWidget {
   const PageBackground({super.key, required this.child});
 
@@ -13,8 +13,14 @@ class PageBackground extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ColoredBox(
-      color: AppColors.pageBg,
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: AppColors.pageGradient,
+        ),
+      ),
       child: child,
     );
   }

@@ -3,12 +3,15 @@ import 'package:flutter_animate/flutter_animate.dart';
 
 import '../theme/app_colors.dart';
 import '../theme/app_spacing.dart';
+import '../theme/app_typography.dart';
+import 'pressable.dart';
 
-/// Corporate brand header band (Talenta/Lark style) used across screens for a
-/// consistent look. A blue gradient band with a title, optional back button,
-/// optional subtitle, and an optional trailing action.
+/// Brand header band used across screens for a consistent look. Modern Playful:
+/// a soft diagonal brand gradient, rounded bottom corners, and a gentle colored
+/// lift. Carries a title, optional back button, optional subtitle, and an
+/// optional trailing action.
 ///
-/// Pair with [BrandScaffold] which sets the neutral [AppColors.pageBg].
+/// Pair with a transparent Scaffold over [PageBackground].
 class BrandHeader extends StatelessWidget {
   const BrandHeader({
     super.key,
@@ -32,13 +35,25 @@ class BrandHeader extends StatelessWidget {
     return Container(
       width: double.infinity,
       padding: EdgeInsets.fromLTRB(
-          AppSpacing.md, top + AppSpacing.md, AppSpacing.md, 20),
-      decoration: const BoxDecoration(
-        color: AppColors.brandMid,
-        borderRadius: BorderRadius.only(
-          bottomLeft: Radius.circular(18),
-          bottomRight: Radius.circular(18),
+          AppSpacing.md, top + AppSpacing.md, AppSpacing.md, AppSpacing.lg),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: AppColors.headerGradient,
         ),
+        borderRadius: const BorderRadius.only(
+          bottomLeft: Radius.circular(AppRadius.xxl),
+          bottomRight: Radius.circular(AppRadius.xxl),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.softGlow(AppColors.brandStart),
+            blurRadius: 24,
+            offset: const Offset(0, 10),
+            spreadRadius: -8,
+          ),
+        ],
       ),
       child: Row(
         children: [
@@ -64,17 +79,15 @@ class BrandHeader extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(title,
-                    style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 20,
-                        fontWeight: FontWeight.w700,
-                        fontFamily: 'Inter')),
+                    style: AppTypography.headlineMd.copyWith(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w700,
+                    )),
                 if (subtitle != null)
                   Text(subtitle!,
-                      style: TextStyle(
-                          color: Colors.white.withValues(alpha: 0.85),
-                          fontSize: 13,
-                          fontFamily: 'Inter')),
+                      style: AppTypography.bodySm.copyWith(
+                        color: Colors.white.withValues(alpha: 0.88),
+                      )),
               ],
             ),
           ),
@@ -110,15 +123,17 @@ class BrandHeaderAction extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final inner = Icon(icon, color: Colors.white, size: 22);
-    Widget button = Material(
-      color: Colors.white.withValues(alpha: 0.18),
-      shape: const CircleBorder(),
-      child: InkWell(
-        customBorder: const CircleBorder(),
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.all(10),
-          child: badge ? Badge(smallSize: 8, child: inner) : inner,
+    Widget button = Pressable(
+      child: Material(
+        color: Colors.white.withValues(alpha: 0.18),
+        shape: const CircleBorder(),
+        child: InkWell(
+          customBorder: const CircleBorder(),
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.all(10),
+            child: badge ? Badge(smallSize: 8, child: inner) : inner,
+          ),
         ),
       ),
     );

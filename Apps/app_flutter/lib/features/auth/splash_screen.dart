@@ -28,19 +28,24 @@ class SplashScreen extends StatelessWidget {
                     width: 96,
                     height: 96,
                     decoration: BoxDecoration(
-                      color: AppColors.primary,
-                      borderRadius: BorderRadius.circular(AppRadius.xl),
-                      boxShadow: const [
+                      gradient: LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: AppColors.headerGradient,
+                      ),
+                      borderRadius: BorderRadius.circular(AppRadius.xxl),
+                      boxShadow: [
                         BoxShadow(
-                          color: Color(0x33004191),
-                          blurRadius: 24,
-                          offset: Offset(0, 8),
+                          color: AppColors.softGlow(AppColors.brandStart),
+                          blurRadius: 28,
+                          offset: const Offset(0, 12),
+                          spreadRadius: -6,
                         ),
                       ],
                     ),
-                    child: Icon(
-                      Icons.verified_outlined,
-                      color: AppColors.onPrimary,
+                    child: const Icon(
+                      Icons.verified_rounded,
+                      color: Colors.white,
                       size: 48,
                     ),
                   )

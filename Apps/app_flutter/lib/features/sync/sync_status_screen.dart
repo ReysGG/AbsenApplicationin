@@ -41,33 +41,34 @@ class SyncStatusScreen extends ConsumerWidget {
               // ── Status card ─────────────────────────────────────────────
               AnimatedEntrance(
                 child: SolidCard(
-                entrance: false,
-                child: Row(
-                  children: [
-                    _StatusIcon(synced: pending == 0, syncing: syncing),
-                    const SizedBox(width: AppSpacing.md),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            pending == 0
-                                ? 'Semua data tersinkron'
-                                : '$pending data menunggu sinkronisasi',
-                            style: AppTypography.labelMd,
-                          ),
-                          const SizedBox(height: 2),
-                          Text(
-                            'Data absen offline otomatis terkirim saat koneksi tersedia.',
-                            style: AppTypography.bodyMd
-                                .copyWith(color: AppColors.onSurfaceVariant),
-                          ),
-                        ],
+                  entrance: false,
+                  glowColor: pending == 0 ? AppColors.success : AppColors.pending,
+                  child: Row(
+                    children: [
+                      _StatusIcon(synced: pending == 0, syncing: syncing),
+                      const SizedBox(width: AppSpacing.md),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              pending == 0
+                                  ? 'Semua data tersinkron'
+                                  : '$pending data menunggu sinkronisasi',
+                              style: AppTypography.labelMd,
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              'Data absen offline otomatis terkirim saat koneksi tersedia.',
+                              style: AppTypography.bodyMd
+                                  .copyWith(color: AppColors.onSurfaceVariant),
+                            ),
+                          ],
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
-              ),
               ),
               const SizedBox(height: AppSpacing.md),
 
@@ -77,12 +78,12 @@ class SyncStatusScreen extends ConsumerWidget {
                   child: FilledButton.icon(
                     onPressed: () =>
                         ref.read(syncQueueProvider.notifier).syncNow(),
-                    icon: const Icon(Icons.sync),
+                    icon: const Icon(Icons.sync_rounded),
                     label: const Text('Sinkronkan Sekarang'),
                     style: FilledButton.styleFrom(
                       minimumSize: const Size.fromHeight(48),
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(AppRadius.lg),
+                        borderRadius: BorderRadius.circular(AppRadius.xl),
                       ),
                     ),
                   ),
@@ -98,7 +99,7 @@ class SyncStatusScreen extends ConsumerWidget {
               // ── Queue / empty / all-synced ──────────────────────────────
               if (queue.isEmpty)
                 _CalmEmpty(
-                  icon: Icons.inbox_outlined,
+                  icon: Icons.inbox_rounded,
                   message: 'Tidak ada antrian sinkronisasi',
                 )
               else if (allSynced)
@@ -168,17 +169,31 @@ class _StatusIconState extends State<_StatusIcon>
   @override
   Widget build(BuildContext context) {
     final color = widget.synced ? AppColors.success : AppColors.pending;
-    final icon = widget.synced ? Icons.cloud_done : Icons.cloud_sync;
+    final icon =
+        widget.synced ? Icons.cloud_done_rounded : Icons.cloud_sync_rounded;
 
-    Widget glyph = Icon(icon, color: color);
+    Widget glyph = Icon(icon, color: color, size: 24);
     if (widget.syncing) {
       // Continuous rotation while syncing.
       glyph = RotationTransition(turns: _spin, child: glyph);
     }
 
-    return CircleAvatar(
-      radius: 24,
-      backgroundColor: color.withValues(alpha: 0.12),
+    // Colorful rounded-square container (Modern Playful).
+    return Container(
+      width: 48,
+      height: 48,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            color.withValues(alpha: 0.20),
+            color.withValues(alpha: 0.08),
+          ],
+        ),
+        borderRadius: BorderRadius.circular(AppRadius.lg),
+      ),
       child: glyph,
     );
   }
@@ -201,37 +216,54 @@ class _QueueCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isSyncing = item.status == SyncStatus.syncing;
-    Widget leading = Icon(Icons.fingerprint, color: _statusColor);
+
+    Widget leading = Container(
+      width: 44,
+      height: 44,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            _statusColor.withValues(alpha: 0.20),
+            _statusColor.withValues(alpha: 0.08),
+          ],
+        ),
+        borderRadius: BorderRadius.circular(AppRadius.md),
+      ),
+      child: Icon(Icons.fingerprint_rounded, color: _statusColor, size: 22),
+    );
     if (isSyncing) {
       // Gentle pulse on the queue item that's actively syncing.
       leading = leading
           .animate(onPlay: (c) => c.repeat(reverse: true))
-          .scaleXY(begin: 0.9, end: 1.1, duration: 700.ms, curve: Curves.easeInOut);
+          .scaleXY(begin: 0.9, end: 1.06, duration: 700.ms, curve: Curves.easeInOut);
     }
 
     return AnimatedEntrance(
       delay: (70 * index).ms,
       slideBegin: 0.08,
       child: SolidCard(
-      entrance: false,
-      child: Row(
-        children: [
-          leading,
-          const SizedBox(width: AppSpacing.md),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(item.label, style: AppTypography.labelMd),
-                Text(item.detail,
-                    style: AppTypography.bodyMd
-                        .copyWith(color: AppColors.onSurfaceVariant)),
-              ],
+        entrance: false,
+        child: Row(
+          children: [
+            leading,
+            const SizedBox(width: AppSpacing.md),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(item.label, style: AppTypography.labelMd),
+                  Text(item.detail,
+                      style: AppTypography.bodyMd
+                          .copyWith(color: AppColors.onSurfaceVariant)),
+                ],
+              ),
             ),
-          ),
-          StatusBadge(label: item.status.label, color: _statusColor),
-        ],
-      ),
+            StatusBadge(label: item.status.label, color: _statusColor),
+          ],
+        ),
       ),
     );
   }
@@ -247,22 +279,23 @@ class _AllSyncedState extends StatelessWidget {
     return AnimatedEntrance(
       duration: 360.ms,
       child: SolidCard(
-      entrance: false,
-      child: Column(
-        children: [
-          const LottieIcon(LottieIcon.success, size: 120, repeat: false),
-          Text(
-            'Semua data sudah tersinkron',
-            style: AppTypography.labelMd,
-          ),
-          const SizedBox(height: AppSpacing.xs),
-          Text(
-            'Tidak ada yang menunggu dikirim.',
-            style: AppTypography.bodyMd
-                .copyWith(color: AppColors.onSurfaceVariant),
-          ),
-        ],
-      ),
+        entrance: false,
+        glowColor: AppColors.success,
+        child: Column(
+          children: [
+            const LottieIcon(LottieIcon.success, size: 120, repeat: false),
+            Text(
+              'Semua data sudah tersinkron',
+              style: AppTypography.labelMd,
+            ),
+            const SizedBox(height: AppSpacing.xs),
+            Text(
+              'Tidak ada yang menunggu dikirim.',
+              style: AppTypography.bodyMd
+                  .copyWith(color: AppColors.onSurfaceVariant),
+            ),
+          ],
+        ),
       ),
     );
   }

@@ -137,8 +137,8 @@ class _BrandHeader extends StatelessWidget {
               colors: AppColors.brandGradient,
             ),
             borderRadius: const BorderRadius.only(
-              bottomLeft: Radius.circular(24),
-              bottomRight: Radius.circular(24),
+              bottomLeft: Radius.circular(AppRadius.xxl),
+              bottomRight: Radius.circular(AppRadius.xxl),
             ),
             boxShadow: [
               BoxShadow(
@@ -177,19 +177,15 @@ class _BrandHeader extends StatelessWidget {
                   children: [
                     Text(
                       '${Formatters.greeting(now)},',
-                      style: TextStyle(
+                      style: AppTypography.bodySm.copyWith(
                         color: Colors.white.withValues(alpha: 0.85),
-                        fontSize: 13,
-                        fontFamily: 'Inter',
                       ),
                     ),
                     Text(
                       firstName.isEmpty ? 'Karyawan' : firstName,
-                      style: const TextStyle(
+                      style: AppTypography.headlineMd.copyWith(
                         color: Colors.white,
-                        fontSize: 18,
                         fontWeight: FontWeight.w700,
-                        fontFamily: 'Inter',
                       ),
                     ),
                   ],
@@ -298,8 +294,7 @@ class _ClockShiftCard extends StatelessWidget {
               // Big live clock
               Text(
                 Formatters.time(now),
-                style: const TextStyle(
-                  fontFamily: 'Inter',
+                style: AppTypography.display.copyWith(
                   fontSize: 44,
                   fontWeight: FontWeight.w800,
                   height: 1.0,
@@ -427,15 +422,22 @@ class _AttendanceActionCard extends StatelessWidget {
                   Container(
                     padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
-                      color: statusColor.withValues(alpha: 0.12),
+                      gradient: LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [
+                          statusColor.withValues(alpha: 0.20),
+                          statusColor.withValues(alpha: 0.08),
+                        ],
+                      ),
                       borderRadius: BorderRadius.circular(AppRadius.md),
                     ),
                     child: Icon(
                       hasCheckedOut
-                          ? Icons.check_circle
+                          ? Icons.check_circle_rounded
                           : hasCheckedIn
-                          ? Icons.work_history
-                          : Icons.touch_app,
+                          ? Icons.work_history_rounded
+                          : Icons.touch_app_rounded,
                       color: statusColor,
                       size: 20,
                     ),
@@ -539,7 +541,21 @@ class _HeroActionButtonState extends State<_HeroActionButton> {
           height: 54,
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(AppRadius.lg),
-            color: buttonColor,
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: AppColors.accentGradient(buttonColor),
+            ),
+            boxShadow: widget.glow
+                ? [
+                    BoxShadow(
+                      color: AppColors.softGlow(buttonColor),
+                      blurRadius: 20,
+                      offset: const Offset(0, 8),
+                      spreadRadius: -4,
+                    ),
+                  ]
+                : null,
           ),
           child: Material(
             color: Colors.transparent,
@@ -553,11 +569,9 @@ class _HeroActionButtonState extends State<_HeroActionButton> {
                   const SizedBox(width: AppSpacing.sm),
                   Text(
                     widget.label,
-                    style: const TextStyle(
+                    style: AppTypography.titleLg.copyWith(
                       color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 16,
-                      fontFamily: 'Inter',
+                      fontWeight: FontWeight.w700,
                     ),
                   ),
                 ],
@@ -567,11 +581,6 @@ class _HeroActionButtonState extends State<_HeroActionButton> {
         ),
       ),
     );
-
-    if (widget.glow) {
-      // Glow intentionally removed for a flat, clean look. The `glow` flag is
-      // kept for API compatibility but no longer renders a pulsing shadow.
-    }
 
     return button;
   }
@@ -684,8 +693,15 @@ class _QuickItemState extends State<_QuickItem> {
                   width: 48,
                   height: 48,
                   decoration: BoxDecoration(
-                    color: widget.color.withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(14),
+                    gradient: LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [
+                        widget.color.withValues(alpha: 0.20),
+                        widget.color.withValues(alpha: 0.08),
+                      ],
+                    ),
+                    borderRadius: BorderRadius.circular(AppRadius.lg),
                   ),
                   child: Icon(widget.icon, color: widget.color, size: 24),
                 ),

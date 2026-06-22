@@ -69,7 +69,7 @@ abstract final class AppColors {
   static const surfaceContainerHighestDark = Color(0xFF272B45);
 
   static const onSurfaceDark = Color(0xFFF0F2FA);
-  static const onSurfaceVariantDark = Color(0xFF9EA5C0);
+  static const onSurfaceVariantDark = Color(0xFFAEB6D0);
   static const inverseSurfaceDark = Color(0xFFE1E2EC);
   static const inverseOnSurfaceDark = Color(0xFF191B23);
 
@@ -162,6 +162,30 @@ abstract final class AppColors {
   /// Two-stop hero gradient used on brand headers (top-left → bottom-right).
   static const List<Color> brandGradient = [brandStart, brandEnd];
   static Color get pageBg => isDark ? backgroundDark : const Color(0xFFF6F7F9);
+
+  // ── Modern Playful gradients (theme-aware) ───────────────────────────────
+  /// Soft page backdrop: a gentle vertical wash behind scrollable content.
+  /// Light = near-white → faint cool tint; dark = two deep blue-greys.
+  static List<Color> get pageGradient => isDark
+      ? const [Color(0xFF0B0C12), Color(0xFF10131F)]
+      : const [Color(0xFFF7F8FB), Color(0xFFEDF1FB)];
+
+  /// Header / hero gradient that adapts to the active mode (diagonal).
+  static List<Color> get headerGradient => isDark
+      ? const [Color(0xFF1B3A86), Color(0xFF0C1E54)]
+      : const [brandStart, brandEnd];
+
+  /// Cheerful 2-stop gradient from any accent (e.g. a status or category hue).
+  /// Used for hero icon containers and pill fills.
+  static List<Color> accentGradient(Color c) => [
+        Color.lerp(c, Colors.white, isDark ? 0.10 : 0.18)!,
+        Color.lerp(c, Colors.black, isDark ? 0.18 : 0.04)!,
+      ];
+
+  /// Soft colored glow shadow keyed to an accent — the playful "lift" under a
+  /// hero card/button. Subtle by design (low alpha) to stay tasteful.
+  static Color softGlow(Color c) =>
+      c.withValues(alpha: isDark ? 0.34 : 0.26);
 
   // ── Flat card tokens (clean enterprise surfaces) ─────────────────────────
   static Color get cardBorder =>

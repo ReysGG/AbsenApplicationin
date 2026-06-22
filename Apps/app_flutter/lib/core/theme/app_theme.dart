@@ -4,8 +4,8 @@ import 'app_colors.dart';
 import 'app_spacing.dart';
 import 'app_typography.dart';
 
-/// Builds the AttendX [ThemeData]. Corporate Modern: clean white surfaces,
-/// blue primary, soft-square shapes, subtle borders.
+/// Builds the AttendX [ThemeData]. Modern Playful: soft surfaces, cheerful
+/// accents, rounded shapes, gentle gradients (applied in the widget layer).
 abstract final class AppTheme {
   static ThemeData light() {
     const colorScheme = ColorScheme(
@@ -48,7 +48,7 @@ abstract final class AppTheme {
       useMaterial3: true,
       colorScheme: colorScheme,
       scaffoldBackgroundColor: AppColors.backgroundLight,
-      fontFamily: 'Inter',
+      fontFamily: AppTypography.fontFamily,
     );
 
     return base.copyWith(
@@ -74,7 +74,7 @@ abstract final class AppTheme {
         color: AppColors.surfaceLight,
         elevation: 0,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(AppRadius.xl),
+          borderRadius: BorderRadius.circular(AppRadius.xxl),
           side: const BorderSide(color: AppColors.surfaceContainerHighLight),
         ),
         margin: EdgeInsets.zero,
@@ -89,7 +89,7 @@ abstract final class AppTheme {
             horizontal: AppSpacing.lg,
           ),
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(AppRadius.lg),
+            borderRadius: BorderRadius.circular(AppRadius.xl),
           ),
         ),
       ),
@@ -103,7 +103,7 @@ abstract final class AppTheme {
           ),
           side: const BorderSide(color: AppColors.outlineVariantLight),
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(AppRadius.lg),
+            borderRadius: BorderRadius.circular(AppRadius.xl),
           ),
         ),
       ),
@@ -191,7 +191,7 @@ abstract final class AppTheme {
       useMaterial3: true,
       colorScheme: colorScheme,
       scaffoldBackgroundColor: AppColors.backgroundDark,
-      fontFamily: 'Inter',
+      fontFamily: AppTypography.fontFamily,
     );
 
     return base.copyWith(
@@ -217,7 +217,7 @@ abstract final class AppTheme {
         color: AppColors.surfaceDark,
         elevation: 0,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(AppRadius.xl),
+          borderRadius: BorderRadius.circular(AppRadius.xxl),
           side: const BorderSide(color: AppColors.surfaceContainerHighDark),
         ),
         margin: EdgeInsets.zero,
@@ -232,7 +232,7 @@ abstract final class AppTheme {
             horizontal: AppSpacing.lg,
           ),
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(AppRadius.lg),
+            borderRadius: BorderRadius.circular(AppRadius.xl),
           ),
         ),
       ),
@@ -246,7 +246,7 @@ abstract final class AppTheme {
           ),
           side: const BorderSide(color: AppColors.outlineVariantDark),
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(AppRadius.lg),
+            borderRadius: BorderRadius.circular(AppRadius.xl),
           ),
         ),
       ),

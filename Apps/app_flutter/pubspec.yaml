@@ -71,6 +71,12 @@ flutter:
     - assets/anim/
 
   fonts:
+    # Primary family (Modern Playful). Variable font: a single asset covers the
+    # full weight axis (100–800); FontWeight on TextStyle selects the instance.
+    - family: Plus Jakarta Sans
+      fonts:
+        - asset: assets/fonts/PlusJakartaSans-Variable.ttf
+    # Kept as a fallback / legacy reference.
     - family: Inter
       fonts:
         - asset: assets/fonts/Inter-Regular.ttf

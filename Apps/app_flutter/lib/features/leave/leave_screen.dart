@@ -172,8 +172,20 @@ class _LeaveHero extends StatelessWidget {
     return Container(
           padding: const EdgeInsets.all(AppSpacing.md),
           decoration: BoxDecoration(
-            color: AppColors.brandMid,
-            borderRadius: BorderRadius.circular(AppRadius.xl),
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: AppColors.headerGradient,
+            ),
+            borderRadius: BorderRadius.circular(AppRadius.xxl),
+            boxShadow: [
+              BoxShadow(
+                color: AppColors.softGlow(AppColors.brandMid),
+                blurRadius: 24,
+                offset: const Offset(0, 10),
+                spreadRadius: -6,
+              ),
+            ],
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -586,8 +598,15 @@ class _EmptyLeaveState extends StatelessWidget {
                 width: 72,
                 height: 72,
                 decoration: BoxDecoration(
-                  color: AppColors.primary.withValues(alpha: 0.08),
-                  shape: BoxShape.circle,
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [
+                      AppColors.primary.withValues(alpha: 0.20),
+                      AppColors.primary.withValues(alpha: 0.08),
+                    ],
+                  ),
+                  borderRadius: BorderRadius.circular(AppRadius.xl),
                 ),
                 child: Icon(
                   filtered
@@ -652,7 +671,7 @@ class _LeaveLoading extends StatelessWidget {
               height: 220,
               decoration: BoxDecoration(
                 color: AppColors.surfaceContainerLow,
-                borderRadius: BorderRadius.circular(28),
+                borderRadius: BorderRadius.circular(AppRadius.xxxl),
               ),
             )
             .animate(onPlay: (c) => c.repeat(reverse: true))

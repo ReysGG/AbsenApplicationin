@@ -51,9 +51,9 @@ class _TabSpec {
   final String label;
 }
 
-/// Flat bottom nav bar: a solid surface with a top hairline border and one
-/// soft shadow. A pill indicator + icon bounce mark the active tab.
-/// Corporate Modern — no blur/translucency (see DESIGN.md).
+/// Floating bottom nav bar: a rounded surface pill that hovers above the
+/// content with a soft shadow. A gradient icon chip + spring bounce mark the
+/// active tab. Modern Playful (see DESIGN.md).
 class _AppNavBar extends StatelessWidget {
   const _AppNavBar({
     required this.tabs,
@@ -69,29 +69,34 @@ class _AppNavBar extends StatelessWidget {
   Widget build(BuildContext context) {
     final bottomPadding = MediaQuery.of(context).padding.bottom;
 
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        border: Border(
-          top: BorderSide(color: AppColors.cardBorder, width: 1),
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.cardShadow,
-            blurRadius: 16,
-            offset: const Offset(0, -3),
-          ),
-        ],
+    return Padding(
+      padding: EdgeInsets.fromLTRB(
+        AppSpacing.md,
+        0,
+        AppSpacing.md,
+        bottomPadding > 0 ? bottomPadding : AppSpacing.md,
       ),
-      child: SafeArea(
-        top: false,
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: AppColors.surface,
+          borderRadius: BorderRadius.circular(AppRadius.xxxl),
+          border: Border.all(color: AppColors.cardBorder),
+          boxShadow: [
+            BoxShadow(
+              color: AppColors.cardShadow,
+              blurRadius: 6,
+              offset: const Offset(0, 2),
+            ),
+            BoxShadow(
+              color: AppColors.cardShadowAmbient,
+              blurRadius: 28,
+              offset: const Offset(0, 12),
+              spreadRadius: -8,
+            ),
+          ],
+        ),
         child: Padding(
-          padding: EdgeInsets.only(
-            top: 6,
-            bottom: bottomPadding > 0 ? 2 : 8,
-            left: 4,
-            right: 4,
-          ),
+          padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: [

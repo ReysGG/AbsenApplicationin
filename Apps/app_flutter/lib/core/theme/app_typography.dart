@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 
-/// AttendX typography scale (Inter) — mirrors the named styles in
-/// `DESIGN (1).md`. We rely on the platform default sans for now (Inter can be
-/// bundled as a font asset later) but keep the exact sizes/weights/spacing.
+/// AttendX typography scale (Plus Jakarta Sans) — the Modern Playful type
+/// family. Variable font, so a single asset covers every weight; the named
+/// styles below keep a consistent, readable scale across the app.
 abstract final class AppTypography {
-  static const _family = 'Inter';
+  /// Public so screens can reference the family instead of hardcoding a string.
+  static const fontFamily = 'Plus Jakarta Sans';
+  static const _family = fontFamily;
 
   static const display = TextStyle(
     fontFamily: _family,

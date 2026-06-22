@@ -8,6 +8,7 @@ import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_spacing.dart';
 import '../../core/theme/app_typography.dart';
 import '../../core/widgets/page_background.dart';
+import '../../core/widgets/pressable.dart';
 import '../../core/widgets/solid_card.dart';
 import '../../shared/models/enums.dart';
 import 'checkin_flow_controller.dart';
@@ -81,8 +82,8 @@ class _CheckinPrepScreenState extends ConsumerState<CheckinPrepScreen> {
                       children: [
                         Icon(
                           flow.workMode == WorkMode.wfo
-                              ? Icons.business
-                              : Icons.home_work_outlined,
+                              ? Icons.business_rounded
+                              : Icons.home_work_rounded,
                           size: 18,
                           color: AppColors.primary,
                         ),
@@ -100,12 +101,12 @@ class _CheckinPrepScreenState extends ConsumerState<CheckinPrepScreen> {
                       ButtonSegment(
                         value: WorkMode.wfo,
                         label: Text('WFO'),
-                        icon: Icon(Icons.business, size: 18),
+                        icon: Icon(Icons.business_rounded, size: 18),
                       ),
                       ButtonSegment(
                         value: WorkMode.wfh,
                         label: Text('WFH'),
-                        icon: Icon(Icons.home_work_outlined, size: 18),
+                        icon: Icon(Icons.home_work_rounded, size: 18),
                       ),
                     ],
                     selected: {flow.workMode},
@@ -136,7 +137,7 @@ class _CheckinPrepScreenState extends ConsumerState<CheckinPrepScreen> {
                   ? Padding(
                       padding: const EdgeInsets.only(bottom: AppSpacing.sm),
                       child: const _InfoBanner(
-                        icon: Icons.info_outline,
+                        icon: Icons.info_rounded,
                         text:
                             'Mode WFH: validasi GPS dinonaktifkan, verifikasi wajah tetap aktif.',
                       )
@@ -154,7 +155,7 @@ class _CheckinPrepScreenState extends ConsumerState<CheckinPrepScreen> {
             const SizedBox(height: AppSpacing.sm),
             _PrereqCard(
               index: 0,
-              icon: Icons.location_on_outlined,
+              icon: Icons.location_on_rounded,
               title: 'Validasi Lokasi (GPS)',
               subtitle: flow.requiresGps
                   ? 'Pastikan kamu berada di radius lokasi kerja'
@@ -165,7 +166,7 @@ class _CheckinPrepScreenState extends ConsumerState<CheckinPrepScreen> {
             const SizedBox(height: AppSpacing.sm),
             _PrereqCard(
               index: 1,
-              icon: Icons.face_outlined,
+              icon: Icons.face_rounded,
               title: 'Validasi Wajah',
               subtitle: 'Pemindaian wajah real-time',
               done: flow.faceVerified,
@@ -174,7 +175,7 @@ class _CheckinPrepScreenState extends ConsumerState<CheckinPrepScreen> {
             const SizedBox(height: AppSpacing.sm),
             _PrereqCard(
               index: 2,
-              icon: Icons.visibility_outlined,
+              icon: Icons.visibility_rounded,
               title: 'Liveness Check',
               subtitle: 'Kedip / gerakkan kepala (anti foto statis)',
               done: flow.livenessPassed,
@@ -186,19 +187,26 @@ class _CheckinPrepScreenState extends ConsumerState<CheckinPrepScreen> {
       bottomNavigationBar: SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(AppSpacing.md),
-          child: _PressableButton(
-            onPressed: () {
-              // WFO → verify location first; WFH → skip straight to face.
-              if (flow.requiresGps) {
-                context.push(AppRoutes.locationValidation);
-              } else {
-                context.push(AppRoutes.faceVerification);
-              }
-            },
-            icon: Icons.arrow_forward,
-            label: flow.requiresGps
-                ? 'Mulai Validasi Lokasi'
-                : 'Mulai Verifikasi Wajah',
+          child: Pressable(
+            child: FilledButton.icon(
+              onPressed: () {
+                // WFO → verify location first; WFH → skip straight to face.
+                if (flow.requiresGps) {
+                  context.push(AppRoutes.locationValidation);
+                } else {
+                  context.push(AppRoutes.faceVerification);
+                }
+              },
+              icon: const Icon(Icons.arrow_forward_rounded),
+              label: Text(
+                flow.requiresGps
+                    ? 'Mulai Validasi Lokasi'
+                    : 'Mulai Verifikasi Wajah',
+              ),
+              style: FilledButton.styleFrom(
+                minimumSize: const Size.fromHeight(52),
+              ),
+            ),
           ),
         ),
       ),
@@ -234,11 +242,24 @@ class _PrereqCard extends StatelessWidget {
       entrance: false,
       child: Row(
         children: [
-          CircleAvatar(
-            radius: 22,
-            backgroundColor: color.withValues(alpha: 0.1),
+          // Colorful rounded-square container (Modern Playful).
+          Container(
+            width: 44,
+            height: 44,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  color.withValues(alpha: 0.18),
+                  color.withValues(alpha: 0.08),
+                ],
+              ),
+              borderRadius: BorderRadius.circular(AppRadius.md),
+            ),
             // Bounce-in the check glyph when the prereq becomes ready.
-            child: Icon(done ? Icons.check : icon, color: color)
+            child: Icon(done ? Icons.check_rounded : icon, color: color)
                 .animate(target: done ? 1 : 0)
                 .scaleXY(
                   begin: 0.6,
@@ -261,7 +282,7 @@ class _PrereqCard extends StatelessWidget {
             ),
           ),
           if (done)
-            Icon(Icons.check_circle, color: AppColors.success)
+            Icon(Icons.check_circle_rounded, color: AppColors.success)
                 .animate(target: done ? 1 : 0)
                 .scaleXY(
                   begin: 0.4,
@@ -271,7 +292,7 @@ class _PrereqCard extends StatelessWidget {
                 )
                 .fadeIn(duration: 200.ms)
           else if (enabled)
-            Icon(Icons.radio_button_unchecked,
+            Icon(Icons.radio_button_unchecked_rounded,
                 color: AppColors.outline),
         ],
       ),
@@ -282,51 +303,6 @@ class _PrereqCard extends StatelessWidget {
         .animate(delay: (120 + 80 * index).ms)
         .fadeIn(duration: 320.ms, curve: Curves.easeOut)
         .slideY(begin: 0.08, curve: Curves.easeOut);
-  }
-}
-
-/// Filled button that scales down briefly while pressed.
-class _PressableButton extends StatefulWidget {
-  const _PressableButton({
-    required this.onPressed,
-    required this.icon,
-    required this.label,
-  });
-  final VoidCallback onPressed;
-  final IconData icon;
-  final String label;
-
-  @override
-  State<_PressableButton> createState() => _PressableButtonState();
-}
-
-class _PressableButtonState extends State<_PressableButton> {
-  bool _pressed = false;
-
-  void _setPressed(bool v) {
-    if (_pressed != v) setState(() => _pressed = v);
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Listener(
-      onPointerDown: (_) => _setPressed(true),
-      onPointerUp: (_) => _setPressed(false),
-      onPointerCancel: (_) => _setPressed(false),
-      child: AnimatedScale(
-        scale: _pressed ? 0.96 : 1,
-        duration: 120.ms,
-        curve: Curves.easeOut,
-        child: FilledButton.icon(
-          onPressed: widget.onPressed,
-          icon: Icon(widget.icon),
-          label: Text(widget.label),
-          style: FilledButton.styleFrom(
-            minimumSize: const Size.fromHeight(52),
-          ),
-        ),
-      ),
-    );
   }
 }
 

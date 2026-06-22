@@ -20,8 +20,6 @@ class ProfileScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final profile = ref.watch(authControllerProvider).profile;
 
-
-
     return Scaffold(
       backgroundColor: AppColors.pageBg,
       body: Column(
@@ -37,20 +35,25 @@ class ProfileScreen extends ConsumerWidget {
               children: [
                 // ── Profile header ──────────────────────────────────────────
                 SolidCard(
+                  glowColor: AppColors.primary,
                   child: Column(
                     children: [
                       Stack(
                         alignment: Alignment.bottomRight,
                         children: [
-                          // Avatar with subtle brand ring/glow.
+                          // Avatar with a playful brand-gradient ring.
                           Container(
-                            decoration: const BoxDecoration(
+                            decoration: BoxDecoration(
                               shape: BoxShape.circle,
-                              color: AppColors.brandMid,
+                              gradient: LinearGradient(
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                                colors: AppColors.headerGradient,
+                              ),
                             ),
                             padding: const EdgeInsets.all(3),
                             child: CircleAvatar(
-                              radius: 40,
+                              radius: 42,
                               backgroundColor: AppColors.primaryFixed,
                               child: Text(
                                 profile?.firstName.characters.first ?? 'A',
@@ -65,10 +68,10 @@ class ProfileScreen extends ConsumerWidget {
                             decoration: BoxDecoration(
                               color: AppColors.success,
                               shape: BoxShape.circle,
-                              border:
-                                  Border.all(color: Colors.white, width: 2),
+                              border: Border.all(
+                                  color: AppColors.surface, width: 2),
                             ),
-                            child: const Icon(Icons.check,
+                            child: const Icon(Icons.check_rounded,
                                 size: 14, color: Colors.white),
                           )
                               .animate()
@@ -95,7 +98,7 @@ class ProfileScreen extends ConsumerWidget {
                         color: profile?.faceEnrolled == true
                             ? AppColors.success
                             : AppColors.pending,
-                        icon: Icons.face,
+                        icon: Icons.face_rounded,
                       ),
                       if (profile?.faceEnrolled != true) ...[
                         const SizedBox(height: AppSpacing.sm),
@@ -198,7 +201,10 @@ class ProfileScreen extends ConsumerWidget {
                       child: Column(
                         children: [
                           ListTile(
-                            leading: Icon(Icons.security, color: AppColors.onSurfaceVariant),
+                            leading: _SettingLeading(
+                              icon: Icons.security_rounded,
+                              tint: AppColors.primary,
+                            ),
                             title: const Text('Kunci Aplikasi (Sidik Jari / PIN)', style: AppTypography.labelMd),
                             trailing: Switch(
                               value: ref.watch(authControllerProvider).isAppLockEnabled,
@@ -211,25 +217,34 @@ class ProfileScreen extends ConsumerWidget {
                           ),
                           const Divider(height: 1),
                           ListTile(
-                            leading: Icon(Icons.sync, color: AppColors.onSurfaceVariant),
+                            leading: _SettingLeading(
+                              icon: Icons.sync_rounded,
+                              tint: AppColors.accentCyan,
+                            ),
                             title: const Text('Sinkronisasi Offline', style: AppTypography.labelMd),
-                            trailing: Icon(Icons.chevron_right, color: AppColors.outline),
+                            trailing: Icon(Icons.chevron_right_rounded, color: AppColors.outline),
                             onTap: () => context.push(AppRoutes.syncStatus),
                             splashColor: AppColors.surfaceContainerLow,
                           ),
                           const Divider(height: 1),
                           ListTile(
-                            leading: Icon(Icons.notifications_outlined, color: AppColors.onSurfaceVariant),
+                            leading: _SettingLeading(
+                              icon: Icons.notifications_rounded,
+                              tint: AppColors.accentViolet,
+                            ),
                             title: const Text('Notifikasi', style: AppTypography.labelMd),
-                            trailing: Icon(Icons.chevron_right, color: AppColors.outline),
+                            trailing: Icon(Icons.chevron_right_rounded, color: AppColors.outline),
                             onTap: () => context.push(AppRoutes.notifications),
                             splashColor: AppColors.surfaceContainerLow,
                           ),
                           const Divider(height: 1),
                           ListTile(
-                            leading: Icon(Icons.help_outline, color: AppColors.onSurfaceVariant),
+                            leading: _SettingLeading(
+                              icon: Icons.help_rounded,
+                              tint: AppColors.accentGreen,
+                            ),
                             title: const Text('Bantuan', style: AppTypography.labelMd),
-                            trailing: Icon(Icons.chevron_right, color: AppColors.outline),
+                            trailing: Icon(Icons.chevron_right_rounded, color: AppColors.outline),
                             onTap: () {},
                             splashColor: AppColors.surfaceContainerLow,
                           ),
@@ -247,15 +262,15 @@ class ProfileScreen extends ConsumerWidget {
                 Pressable(
                   child: OutlinedButton.icon(
                     onPressed: () => _confirmLogout(context, ref),
-                    icon: Icon(Icons.logout, color: AppColors.error),
+                    icon: Icon(Icons.logout_rounded, color: AppColors.error),
                     label: Text('Keluar',
                         style: TextStyle(color: AppColors.error)),
                     style: OutlinedButton.styleFrom(
                       minimumSize: const Size.fromHeight(52),
-                      backgroundColor: Colors.white,
+                      backgroundColor: AppColors.surface,
                       side: BorderSide(color: AppColors.error),
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(AppRadius.lg),
+                        borderRadius: BorderRadius.circular(AppRadius.xl),
                       ),
                     ),
                   ),
@@ -312,4 +327,29 @@ class ProfileScreen extends ConsumerWidget {
       );
 }
 
+/// A colorful rounded icon container for settings list rows (Modern Playful).
+class _SettingLeading extends StatelessWidget {
+  const _SettingLeading({required this.icon, required this.tint});
+  final IconData icon;
+  final Color tint;
 
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 38,
+      height: 38,
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            tint.withValues(alpha: 0.18),
+            tint.withValues(alpha: 0.08),
+          ],
+        ),
+        borderRadius: BorderRadius.circular(AppRadius.md),
+      ),
+      child: Icon(icon, size: 20, color: tint),
+    );
+  }
+}
