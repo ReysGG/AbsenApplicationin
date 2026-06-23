@@ -15,7 +15,12 @@
 import { prisma } from '../../config/prisma'
 import { writeAudit } from '../../lib/audit'
 import { NotFoundError, ValidationError } from '../../lib/errors'
-import { getFaceSignedUrl } from '../../config/faceStorage'
+import {
+  faceStorageUsesVercelBlob,
+  getFaceBlobObject,
+  getFaceSignedUrl,
+  type FaceBlobObject,
+} from '../../config/faceStorage'
 import type { ScopeFilter } from '../../types/auth'
 import type { AdjustmentNoteInput } from './attendance.schema'
 
@@ -351,9 +356,62 @@ export async function getAttendanceById(
   }
 
   const item = mapAttendanceLog(log)
-  item.checkInFaceUrl = await getFaceSignedUrl(log.checkInFaceKey)
-  item.checkOutFaceUrl = await getFaceSignedUrl(log.checkOutFaceKey)
+  if (faceStorageUsesVercelBlob()) {
+    item.checkInFaceUrl = log.checkInFaceKey
+      ? `/api/v1/attendance/${log.id}/face/check-in`
+      : null
+    item.checkOutFaceUrl = log.checkOutFaceKey
+      ? `/api/v1/attendance/${log.id}/face/check-out`
+      : null
+  } else {
+    item.checkInFaceUrl = await getFaceSignedUrl(log.checkInFaceKey)
+    item.checkOutFaceUrl = await getFaceSignedUrl(log.checkOutFaceKey)
+  }
   return item
+}
+
+// ---------------------------------------------------------------------------
+// getAttendanceFaceImage
+// ---------------------------------------------------------------------------
+
+/**
+ * Fetch a private attendance face image after workspace and scope checks.
+ */
+export async function getAttendanceFaceImage(
+  workspaceId: string,
+  attendanceId: string,
+  kind: 'check-in' | 'check-out',
+  scopeFilter?: ScopeFilter | null,
+): Promise<FaceBlobObject> {
+  const where: Record<string, unknown> = {
+    id: attendanceId,
+    ...buildAttendanceScopeWhere(workspaceId, scopeFilter),
+  }
+
+  const log = await (prisma as any).attendanceLog.findFirst({
+    where,
+    select: {
+      id: true,
+      checkInFaceKey: true,
+      checkOutFaceKey: true,
+    },
+  })
+
+  if (!log) {
+    throw new NotFoundError('Data absensi')
+  }
+
+  const key = kind === 'check-in' ? log.checkInFaceKey : log.checkOutFaceKey
+  if (!key) {
+    throw new NotFoundError('Foto absensi')
+  }
+
+  const image = await getFaceBlobObject(key)
+  if (!image) {
+    throw new NotFoundError('Foto absensi')
+  }
+
+  return image
 }
 
 // ---------------------------------------------------------------------------

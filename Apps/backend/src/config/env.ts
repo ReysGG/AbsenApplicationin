@@ -13,8 +13,12 @@ const envSchema = z.object({
   INTERNAL_JWT_SECRET: z.string().min(32, 'INTERNAL_JWT_SECRET must be at least 32 chars'),
   SUPABASE_URL: z.string().url().optional().or(z.literal('')),
   SUPABASE_SERVICE_ROLE_KEY: z.string().optional(),
+  // Vercel Blob private storage for attendance face captures. This is preferred
+  // over the legacy S3-compatible storage when BLOB_READ_WRITE_TOKEN is set.
+  BLOB_READ_WRITE_TOKEN: z.string().optional(),
+  BLOB_FACE_PREFIX: z.string().optional().default('face-captures'),
   // S3-compatible storage (Supabase Storage S3 endpoint) for attendance face
-  // captures. When unset, face upload is skipped (feature degrades gracefully).
+  // captures. Kept as a fallback when Vercel Blob is not configured.
   S3_ENDPOINT: z.string().optional().or(z.literal('')),
   S3_REGION: z.string().optional().default('ap-southeast-1'),
   S3_ACCESS_KEY_ID: z.string().optional(),

@@ -1,22 +1,44 @@
 /**
- * faceStorage.ts — uploads attendance face-capture images to an S3-compatible
- * bucket (Supabase Storage S3 endpoint) and produces short-lived presigned GET
- * URLs for HR review on the dashboard.
+ * faceStorage.ts - attendance face-capture object storage.
  *
- * Uses S3 access keys (storage-scoped), NOT the Supabase service_role key, so a
- * leak is limited to storage. When S3 env vars are unset the feature degrades
- * gracefully: upload is a no-op and signed-URL returns null (attendance still
- * works, just without a stored face image).
+ * Vercel Blob private storage is preferred when BLOB_READ_WRITE_TOKEN is set.
+ * The legacy S3-compatible Supabase Storage path remains as a fallback for older
+ * deployments. If no storage is configured, attendance still works without a
+ * stored face image.
  */
 
 import { S3Client, PutObjectCommand, GetObjectCommand } from '@aws-sdk/client-s3'
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner'
+import { get, put } from '@vercel/blob'
+import { Readable } from 'node:stream'
 import { env } from './env'
 import { logger } from '../lib/logger'
 
-const BUCKET = env.S3_FACE_BUCKET || 'face-captures'
+const S3_BUCKET = env.S3_FACE_BUCKET || 'face-captures'
+const BLOB_FACE_PREFIX = (env.BLOB_FACE_PREFIX || 'face-captures').replace(/^\/+|\/+$/g, '')
 
 let _client: S3Client | null = null
+
+export interface FaceBlobObject {
+  stream: Readable
+  contentType: string
+  size: number | null
+  etag: string | null
+}
+
+function blobToken(): string | null {
+  const token = env.BLOB_READ_WRITE_TOKEN?.trim()
+  return token ? token : null
+}
+
+function blobPath(key: string): string {
+  const normalizedKey = key.replace(/^\/+/, '')
+  if (!BLOB_FACE_PREFIX) return normalizedKey
+  if (normalizedKey === BLOB_FACE_PREFIX || normalizedKey.startsWith(`${BLOB_FACE_PREFIX}/`)) {
+    return normalizedKey
+  }
+  return `${BLOB_FACE_PREFIX}/${normalizedKey}`
+}
 
 function client(): S3Client | null {
   if (
@@ -30,7 +52,7 @@ function client(): S3Client | null {
   _client = new S3Client({
     endpoint: env.S3_ENDPOINT,
     region: env.S3_REGION || 'ap-southeast-1',
-    forcePathStyle: true, // Supabase S3 requires path-style addressing.
+    forcePathStyle: true,
     credentials: {
       accessKeyId: env.S3_ACCESS_KEY_ID,
       secretAccessKey: env.S3_SECRET_ACCESS_KEY,
@@ -39,26 +61,52 @@ function client(): S3Client | null {
   return _client
 }
 
-/** True when S3 credentials are configured. */
+/** True when either Vercel Blob or legacy S3 credentials are configured. */
 export function faceStorageConfigured(): boolean {
-  return client() !== null
+  return blobToken() !== null || client() !== null
+}
+
+/** True when attendance face reads must go through the authenticated proxy. */
+export function faceStorageUsesVercelBlob(): boolean {
+  return blobToken() !== null
 }
 
 /**
- * Upload a face-capture image. Returns the stored object key, or null if S3 is
- * not configured / the upload failed (best-effort — never throws).
+ * Upload a face-capture image. Returns the stored object key/pathname, or null
+ * if storage is not configured / the upload failed. This is best-effort and
+ * never blocks attendance.
  */
 export async function uploadFaceImage(
   key: string,
   body: Buffer,
   contentType = 'image/jpeg',
 ): Promise<string | null> {
+  const token = blobToken()
+  if (token) {
+    const pathname = blobPath(key)
+    try {
+      const blob = await put(pathname, body, {
+        access: 'private',
+        allowOverwrite: false,
+        contentType,
+        token,
+      })
+      return blob.pathname
+    } catch (err) {
+      logger.warn('faceStorage: Vercel Blob upload failed', {
+        key: pathname,
+        error: err instanceof Error ? err.message : String(err),
+      })
+      return null
+    }
+  }
+
   const c = client()
   if (!c) return null
   try {
     await c.send(
       new PutObjectCommand({
-        Bucket: BUCKET,
+        Bucket: S3_BUCKET,
         Key: key,
         Body: body,
         ContentType: contentType,
@@ -66,7 +114,7 @@ export async function uploadFaceImage(
     )
     return key
   } catch (err) {
-    logger.warn('faceStorage: upload failed', {
+    logger.warn('faceStorage: S3 upload failed', {
       key,
       error: err instanceof Error ? err.message : String(err),
     })
@@ -75,24 +123,29 @@ export async function uploadFaceImage(
 }
 
 /**
- * Presigned GET URL for a stored face image (default 6h). Returns null if S3 is
- * unconfigured, the key is empty, or signing fails.
+ * Stream a private Vercel Blob object for an already-authorized request.
  */
-export async function getFaceSignedUrl(
+export async function getFaceBlobObject(
   key: string | null | undefined,
-  expiresInSeconds = 60 * 60 * 6,
-): Promise<string | null> {
+): Promise<FaceBlobObject | null> {
   if (!key) return null
-  const c = client()
-  if (!c) return null
+  const token = blobToken()
+  if (!token) return null
+
   try {
-    return await getSignedUrl(
-      c,
-      new GetObjectCommand({ Bucket: BUCKET, Key: key }),
-      { expiresIn: expiresInSeconds },
-    )
+    const result = await get(key, { access: 'private', token })
+    if (!result || result.statusCode !== 200 || !result.stream) {
+      return null
+    }
+
+    return {
+      stream: Readable.fromWeb(result.stream as never),
+      contentType: result.blob.contentType ?? 'image/jpeg',
+      size: result.blob.size,
+      etag: result.blob.etag ?? null,
+    }
   } catch (err) {
-    logger.warn('faceStorage: signing failed', {
+    logger.warn('faceStorage: Vercel Blob read failed', {
       key,
       error: err instanceof Error ? err.message : String(err),
     })
@@ -100,4 +153,32 @@ export async function getFaceSignedUrl(
   }
 }
 
-export { BUCKET as FACE_BUCKET }
+/**
+ * Presigned GET URL for a stored legacy S3 image. Vercel Blob private objects
+ * are delivered through the authenticated attendance route.
+ */
+export async function getFaceSignedUrl(
+  key: string | null | undefined,
+  expiresInSeconds = 60 * 60 * 6,
+): Promise<string | null> {
+  if (!key) return null
+  if (blobToken()) return null
+
+  const c = client()
+  if (!c) return null
+  try {
+    return await getSignedUrl(
+      c,
+      new GetObjectCommand({ Bucket: S3_BUCKET, Key: key }),
+      { expiresIn: expiresInSeconds },
+    )
+  } catch (err) {
+    logger.warn('faceStorage: S3 signing failed', {
+      key,
+      error: err instanceof Error ? err.message : String(err),
+    })
+    return null
+  }
+}
+
+export { S3_BUCKET as FACE_BUCKET }

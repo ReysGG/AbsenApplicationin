@@ -23,6 +23,7 @@ import { PERMISSIONS } from '../../lib/permissions'
 import {
   listAttendanceHandler,
   getAttendanceHandler,
+  getAttendanceFaceHandler,
   addAdjustmentNoteHandler,
 } from './attendance.controller'
 
@@ -47,6 +48,19 @@ router.get(
 // ---------------------------------------------------------------------------
 // GET /api/v1/attendance/:id
 // Full attendance record detail.
+// Requirements: 6.8, 6.9
+// ---------------------------------------------------------------------------
+router.get(
+  '/attendance/:id/face/:kind',
+  ...baseGuard,
+  requirePermission(PERMISSIONS.VIEW_LIVE_ATTENDANCE),
+  enforceScope,
+  getAttendanceFaceHandler,
+)
+
+// ---------------------------------------------------------------------------
+// GET /api/v1/attendance/:id/face/:kind
+// Stream a private face-capture image after auth + scope checks.
 // Requirements: 6.8, 6.9
 // ---------------------------------------------------------------------------
 router.get(

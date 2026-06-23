@@ -9,10 +9,16 @@
  */
 
 import type { Request, Response, NextFunction } from 'express'
+import { pipeline } from 'node:stream/promises'
 import { sendSuccess } from '../../lib/response'
 import { ValidationError } from '../../lib/errors'
 import { listAttendanceQuerySchema, adjustmentNoteSchema } from './attendance.schema'
-import { listAttendance, getAttendanceById, addAdjustmentNote } from './attendance.service'
+import {
+  listAttendance,
+  getAttendanceById,
+  getAttendanceFaceImage,
+  addAdjustmentNote,
+} from './attendance.service'
 
 // ---------------------------------------------------------------------------
 // GET /attendance
@@ -94,6 +100,52 @@ export async function getAttendanceHandler(
 
     const log = await getAttendanceById(workspaceId, id, req.scopeFilter ?? null)
     sendSuccess(res, log)
+  } catch (err) {
+    next(err)
+  }
+}
+
+// ---------------------------------------------------------------------------
+// GET /attendance/:id/face/:kind
+// ---------------------------------------------------------------------------
+
+/**
+ * Stream a private attendance face image after auth, permission, and scope
+ * checks. This keeps Vercel Blob read tokens server-side.
+ */
+export async function getAttendanceFaceHandler(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
+  try {
+    const workspaceId = req.workspaceId!
+    const id = req.params['id'] as string
+    const kind = req.params['kind'] as string
+
+    if (kind !== 'check-in' && kind !== 'check-out') {
+      return next(new ValidationError('Jenis foto absensi tidak valid'))
+    }
+
+    const image = await getAttendanceFaceImage(
+      workspaceId,
+      id,
+      kind,
+      req.scopeFilter ?? null,
+    )
+
+    res.status(200)
+    res.setHeader('Content-Type', image.contentType)
+    res.setHeader('Cache-Control', 'private, no-store')
+    res.setHeader('X-Content-Type-Options', 'nosniff')
+    if (image.etag) {
+      res.setHeader('ETag', image.etag)
+    }
+    if (typeof image.size === 'number') {
+      res.setHeader('Content-Length', String(image.size))
+    }
+
+    await pipeline(image.stream, res)
   } catch (err) {
     next(err)
   }
