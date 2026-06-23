@@ -7,7 +7,6 @@ import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_spacing.dart';
 import '../../core/theme/app_typography.dart';
 import '../../core/widgets/page_background.dart';
-import '../../core/widgets/solid_card.dart';
 import 'auth_controller.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
@@ -44,7 +43,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             email: _emailCtrl.text.trim(),
             password: _passwordCtrl.text,
           );
-      // Router redirect handles navigation on auth state change.
     } catch (e) {
       setState(() => _error = e.toString().replaceFirst('Exception: ', ''));
     } finally {
@@ -60,273 +58,47 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         child: SafeArea(
           child: Center(
             child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 420),
+              constraints: const BoxConstraints(maxWidth: 440),
               child: SingleChildScrollView(
                 padding: const EdgeInsets.symmetric(
                   horizontal: AppSpacing.md,
-                  vertical: AppSpacing.xl,
+                  vertical: AppSpacing.lg,
                 ),
-                child: SolidCard(
-                  entrance: false,
-                  padding: const EdgeInsets.all(AppSpacing.lg),
-                  child: Form(
-                    key: _formKey,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        // Brand
-                        Row(
-                          children: [
-                            Container(
-                              width: 40,
-                              height: 40,
-                              decoration: BoxDecoration(
-                                color: AppColors.primary,
-                                borderRadius:
-                                    BorderRadius.circular(AppRadius.lg),
-                              ),
-                              child: Icon(Icons.verified_outlined,
-                                  color: AppColors.onPrimary, size: 22),
-                            )
-                                .animate()
-                                .scaleXY(
-                                  begin: 0.6,
-                                  end: 1.0,
-                                  duration: 500.ms,
-                                  curve: Curves.easeOutBack,
-                                )
-                                .fadeIn(),
-                            const SizedBox(width: AppSpacing.sm),
-                            Text(AppConfig.appName,
-                                style: AppTypography.titleLg.copyWith(
-                                  color: AppColors.primary,
-                                )),
-                          ],
-                        ),
-                        const SizedBox(height: AppSpacing.xl),
-                        Text('Selamat Datang Kembali', style: AppTypography.display)
-                            .animate(delay: 80.ms)
-                            .fadeIn(duration: 320.ms)
-                            .slideY(begin: 0.08, curve: Curves.easeOut),
-                        const SizedBox(height: AppSpacing.sm),
-                        Text(
-                          'Silakan masuk ke akun Anda untuk melanjutkan',
-                          style: AppTypography.bodyMd.copyWith(
-                            color: AppColors.onSurfaceVariant,
-                          ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    // ── Logo pill ──────────────────────────────────────────
+                    _LogoPill()
+                        .animate()
+                        .scaleXY(
+                          begin: 0.7,
+                          end: 1.0,
+                          duration: 450.ms,
+                          curve: Curves.easeOutBack,
                         )
-                            .animate(delay: 140.ms)
-                            .fadeIn(duration: 320.ms)
-                            .slideY(begin: 0.08, curve: Curves.easeOut),
-                        const SizedBox(height: AppSpacing.lg),
+                        .fadeIn(),
+                    const SizedBox(height: AppSpacing.lg),
 
-                        if (_error != null) ...[
-                          _ErrorBanner(message: _error!)
-                              .animate()
-                              .shake(hz: 4, curve: Curves.easeInOut)
-                              .fadeIn(duration: 240.ms),
-                          const SizedBox(height: AppSpacing.md),
-                        ],
-
-                        _Field(
-                          delay: 200.ms,
-                          label: 'Email',
-                          child: TextFormField(
-                            controller: _emailCtrl,
-                            keyboardType: TextInputType.emailAddress,
-                            textInputAction: TextInputAction.next,
-                            autofillHints: const [AutofillHints.email],
-                            style: TextStyle(
-                                color: AppColors.onSurface,
-                                fontSize: 15,
-                                fontFamily: 'Inter'),
-                            decoration: InputDecoration(
-                              hintText: 'nama@perusahaan.com',
-                              prefixIcon: const Icon(Icons.mail_outline),
-                              filled: true,
-                              fillColor: AppColors.surface,
-                              enabledBorder: OutlineInputBorder(
-                                borderRadius:
-                                    BorderRadius.circular(AppRadius.lg),
-                                borderSide: BorderSide(
-                                    color: AppColors.outlineVariant),
-                              ),
-                              focusedBorder: OutlineInputBorder(
-                                borderRadius:
-                                    BorderRadius.circular(AppRadius.lg),
-                                borderSide: BorderSide(
-                                    color: AppColors.primary, width: 2),
-                              ),
-                            ),
-                            validator: (v) {
-                              final value = v?.trim() ?? '';
-                              if (value.isEmpty) return 'Email wajib diisi';
-                              if (!value.contains('@')) {
-                                  return 'Format email tidak valid';
-                               }
-                              return null;
-                            },
-                          ),
-                        ),
-                        const SizedBox(height: AppSpacing.md),
-
-                        _Field(
-                          delay: 280.ms,
-                          label: 'Kata Sandi',
-                          child: TextFormField(
-                            controller: _passwordCtrl,
-                            obscureText: _obscure,
-                            textInputAction: TextInputAction.done,
-                            autofillHints: const [AutofillHints.password],
-                            onFieldSubmitted: (_) => _submit(),
-                            style: TextStyle(
-                                color: AppColors.onSurface,
-                                fontSize: 15,
-                                fontFamily: 'Inter'),
-                            decoration: InputDecoration(
-                              hintText: 'Masukkan kata sandi',
-                              prefixIcon: const Icon(Icons.lock_outline),
-                              filled: true,
-                              fillColor: AppColors.surface,
-                              enabledBorder: OutlineInputBorder(
-                                borderRadius:
-                                    BorderRadius.circular(AppRadius.lg),
-                                borderSide: BorderSide(
-                                    color: AppColors.outlineVariant),
-                              ),
-                              focusedBorder: OutlineInputBorder(
-                                borderRadius:
-                                    BorderRadius.circular(AppRadius.lg),
-                                borderSide: BorderSide(
-                                    color: AppColors.primary, width: 2),
-                              ),
-                              suffixIcon: IconButton(
-                                tooltip: _obscure
-                                    ? 'Tampilkan kata sandi'
-                                    : 'Sembunyikan kata sandi',
-                                icon: Icon(_obscure
-                                    ? Icons.visibility_outlined
-                                    : Icons.visibility_off_outlined),
-                                onPressed: () =>
-                                    setState(() => _obscure = !_obscure),
-                              ),
-                            ),
-                            validator: (v) {
-                              if ((v ?? '').isEmpty) {
-                                return 'Kata sandi wajib diisi';
-                              }
-                              return null;
-                            },
-                          ),
-                        ),
-                        const SizedBox(height: AppSpacing.sm),
-                        Align(
-                          alignment: Alignment.centerRight,
-                          child: TextButton(
-                            onPressed: () {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text(
-                                      'Hubungi admin HR untuk reset kata sandi.'),
-                                ),
-                              );
-                            },
-                            child: const Text('Lupa Kata Sandi?'),
-                          ),
-                        ),
-                        const SizedBox(height: AppSpacing.sm),
-                        _PressableButton(
-                          onPressed: _loading ? null : _submit,
-                          child: Container(
-                            decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(AppRadius.lg),
-                              color: AppColors.primary,
-                              boxShadow: [
-                                BoxShadow(
-                                  color: AppColors.primary.withValues(alpha: 0.25),
-                                  blurRadius: 16,
-                                  offset: const Offset(0, 6),
-                                ),
-                              ],
-                            ),
-                            child: Material(
-                              color: Colors.transparent,
-                              child: InkWell(
-                                onTap: _loading ? null : _submit,
-                                borderRadius: BorderRadius.circular(AppRadius.lg),
-                                child: Container(
-                                  height: 52,
-                                  alignment: Alignment.center,
-                                  child: _loading
-                                      ? const SizedBox(
-                                          width: 22,
-                                          height: 22,
-                                          child: CircularProgressIndicator(
-                                            strokeWidth: 2.5,
-                                            valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                                          ),
-                                        )
-                                      : const Text(
-                                          'Masuk',
-                                          style: TextStyle(
-                                            color: Colors.white,
-                                            fontWeight: FontWeight.bold,
-                                            fontSize: 16,
-                                          ),
-                                        ),
-                                ),
-                              ),
-                            ),
-                          ),
-                        )
-                            .animate(delay: 360.ms)
-                            .fadeIn(duration: 320.ms)
-                            .slideY(begin: 0.08, curve: Curves.easeOut),
-                        const SizedBox(height: AppSpacing.xl),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(Icons.shield_outlined,
-                                size: 18, color: AppColors.outline),
-                            const SizedBox(width: AppSpacing.xs),
-                            Expanded(
-                              child: Text(
-                                'Keamanan data Anda terjamin oleh sistem enkripsi kami.',
-                                style: AppTypography.labelSm.copyWith(
-                                  color: AppColors.outline,
-                                ),
-                                textAlign: TextAlign.center,
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: AppSpacing.md),
-                        Container(
-                          padding: const EdgeInsets.all(AppSpacing.sm),
-                          decoration: BoxDecoration(
-                            color: AppColors.surfaceContainerLow,
-                            borderRadius: BorderRadius.circular(AppRadius.md),
-                            border: Border.all(color: AppColors.outlineVariant),
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text('Akun demo',
-                                  style: AppTypography.labelSm.copyWith(
-                                      color: AppColors.brandMid,
-                                      letterSpacing: 0)),
-                              const SizedBox(height: 2),
-                              Text('karyawan@attendx.dev',
-                                  style: AppTypography.labelMd),
-                              Text('Attendx2024!',
-                                  style: AppTypography.bodyMd.copyWith(
-                                      color: AppColors.onSurfaceVariant)),
-                            ],
-                          ),
-                        ),
-                      ],
+                    // ── Card ───────────────────────────────────────────────
+                    _LoginCard(
+                      formKey: _formKey,
+                      emailCtrl: _emailCtrl,
+                      passwordCtrl: _passwordCtrl,
+                      obscure: _obscure,
+                      loading: _loading,
+                      error: _error,
+                      onToggleObscure: () =>
+                          setState(() => _obscure = !_obscure),
+                      onSubmit: _loading ? null : _submit,
                     ),
-                  ),
+                    const SizedBox(height: AppSpacing.lg),
+
+                    // ── Illustration ── (karakter di bawah card) ──────────
+                    _CharacterIllustration()
+                        .animate()
+                        .fadeIn(duration: 600.ms)
+                        .slideY(begin: 0.08, curve: Curves.easeOut),
+                  ],
                 ),
               ),
             ),
@@ -336,27 +108,360 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     );
   }
 }
- 
-/// Labelled form field with a soft glow when its descendant gains focus.
-/// Wraps the field in a [Focus] node and reacts via [AnimatedContainer].
+
+// ────────────────────────────────────────────────────────────────────────────
+// Logo Pill
+// ────────────────────────────────────────────────────────────────────────────
+class _LogoPill extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Container(
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.md,
+          vertical: AppSpacing.xs,
+        ),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: AppColors.headerGradient,
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          borderRadius: BorderRadius.circular(AppRadius.full),
+          boxShadow: [
+            BoxShadow(
+              color: AppColors.primary.withValues(alpha: 0.30),
+              blurRadius: 20,
+              offset: const Offset(0, 8),
+            ),
+          ],
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.verified_rounded, color: Colors.white, size: 20),
+            const SizedBox(width: 6),
+            Text(
+              AppConfig.appName,
+              style: AppTypography.titleLg.copyWith(
+                color: Colors.white,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// Character Illustration (bawah card)
+// ────────────────────────────────────────────────────────────────────────────
+class _CharacterIllustration extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: SizedBox(
+        height: 220,
+        child: Image.asset(
+          'assets/images/login_illustration.png',
+          fit: BoxFit.contain,
+          errorBuilder: (context, error, stackTrace) => const SizedBox.shrink(),
+        ),
+      ),
+    );
+  }
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// Login Card
+// ────────────────────────────────────────────────────────────────────────────
+class _LoginCard extends StatelessWidget {
+  const _LoginCard({
+    required this.formKey,
+    required this.emailCtrl,
+    required this.passwordCtrl,
+    required this.obscure,
+    required this.loading,
+    required this.error,
+    required this.onToggleObscure,
+    required this.onSubmit,
+  });
+
+  final GlobalKey<FormState> formKey;
+  final TextEditingController emailCtrl;
+  final TextEditingController passwordCtrl;
+  final bool obscure;
+  final bool loading;
+  final String? error;
+  final VoidCallback onToggleObscure;
+  final VoidCallback? onSubmit;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(AppRadius.xxl),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.08),
+            blurRadius: 24,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
+      padding: const EdgeInsets.all(AppSpacing.xl),
+      child: Form(
+        key: formKey,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            // Heading
+            Text('Selamat Datang Kembali', style: AppTypography.display)
+                .animate(delay: 80.ms)
+                .fadeIn(duration: 320.ms)
+                .slideY(begin: 0.08, curve: Curves.easeOut),
+            const SizedBox(height: AppSpacing.xs),
+            Text(
+              'Masuk untuk mencatat kehadiranmu hari ini',
+              style: AppTypography.bodyMd
+                  .copyWith(color: AppColors.onSurfaceVariant),
+            )
+                .animate(delay: 140.ms)
+                .fadeIn(duration: 320.ms)
+                .slideY(begin: 0.08, curve: Curves.easeOut),
+            const SizedBox(height: AppSpacing.lg),
+
+            if (error != null) ...[
+              _ErrorBanner(message: error!)
+                  .animate()
+                  .shake(hz: 4, curve: Curves.easeInOut)
+                  .fadeIn(duration: 240.ms),
+              const SizedBox(height: AppSpacing.md),
+            ],
+
+            // Email
+            _Field(
+              delay: 200.ms,
+              label: 'Email',
+              child: TextFormField(
+                controller: emailCtrl,
+                keyboardType: TextInputType.emailAddress,
+                textInputAction: TextInputAction.next,
+                autofillHints: const [AutofillHints.email],
+                style: TextStyle(
+                    color: AppColors.onSurface, fontSize: 15),
+                decoration: _inputDecoration(
+                  hint: 'nama@perusahaan.com',
+                  icon: Icons.mail_outline_rounded,
+                ),
+                validator: (v) {
+                  final value = v?.trim() ?? '';
+                  if (value.isEmpty) return 'Email wajib diisi';
+                  if (!value.contains('@')) return 'Format email tidak valid';
+                  return null;
+                },
+              ),
+            ),
+            const SizedBox(height: AppSpacing.md),
+
+            // Password
+            _Field(
+              delay: 280.ms,
+              label: 'Kata Sandi',
+              child: TextFormField(
+                controller: passwordCtrl,
+                obscureText: obscure,
+                textInputAction: TextInputAction.done,
+                autofillHints: const [AutofillHints.password],
+                onFieldSubmitted: (_) => onSubmit?.call(),
+                style: TextStyle(
+                    color: AppColors.onSurface, fontSize: 15),
+                decoration: _inputDecoration(
+                  hint: 'Masukkan kata sandi',
+                  icon: Icons.lock_outline_rounded,
+                  suffix: IconButton(
+                    tooltip: obscure
+                        ? 'Tampilkan kata sandi'
+                        : 'Sembunyikan kata sandi',
+                    icon: Icon(obscure
+                        ? Icons.visibility_outlined
+                        : Icons.visibility_off_outlined),
+                    onPressed: onToggleObscure,
+                  ),
+                ),
+                validator: (v) {
+                  if ((v ?? '').isEmpty) return 'Kata sandi wajib diisi';
+                  return null;
+                },
+              ),
+            ),
+            const SizedBox(height: AppSpacing.xs),
+            Align(
+              alignment: Alignment.centerRight,
+              child: TextButton(
+                onPressed: () {},
+                child: const Text('Lupa Kata Sandi?'),
+              ),
+            ),
+            const SizedBox(height: AppSpacing.sm),
+
+            // Submit button — gradient
+            _PressableButton(
+              onPressed: onSubmit,
+              child: Container(
+                height: 54,
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: AppColors.headerGradient,
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  borderRadius: BorderRadius.circular(AppRadius.xl),
+                  boxShadow: [
+                    BoxShadow(
+                      color: AppColors.primary.withValues(alpha: 0.30),
+                      blurRadius: 20,
+                      offset: const Offset(0, 8),
+                    ),
+                  ],
+                ),
+                alignment: Alignment.center,
+                child: loading
+                    ? const SizedBox(
+                        width: 22,
+                        height: 22,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2.5,
+                          valueColor:
+                              AlwaysStoppedAnimation<Color>(Colors.white),
+                        ),
+                      )
+                    : Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Icon(Icons.login_rounded,
+                              color: Colors.white, size: 20),
+                          const SizedBox(width: AppSpacing.xs),
+                          Text(
+                            'Masuk',
+                            style: AppTypography.titleLg.copyWith(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ],
+                      ),
+              ),
+            ).animate(delay: 360.ms).fadeIn(duration: 320.ms).slideY(
+                  begin: 0.08,
+                  curve: Curves.easeOut,
+                ),
+
+            const SizedBox(height: AppSpacing.xl),
+
+            // Security note
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.shield_outlined, size: 15, color: AppColors.outline),
+                const SizedBox(width: AppSpacing.xs),
+                Expanded(
+                  child: Text(
+                    'Data Anda dilindungi dengan enkripsi end-to-end',
+                    style:
+                        AppTypography.labelSm.copyWith(color: AppColors.outline),
+                    textAlign: TextAlign.center,
+                  ),
+                ),
+              ],
+            ),
+
+            const SizedBox(height: AppSpacing.md),
+
+            // Demo credentials
+            Container(
+              padding: const EdgeInsets.all(AppSpacing.sm),
+              decoration: BoxDecoration(
+                color: AppColors.surfaceContainerLow,
+                borderRadius: BorderRadius.circular(AppRadius.md),
+                border: Border.all(color: AppColors.outlineVariant),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Akun demo',
+                      style: AppTypography.labelSm
+                          .copyWith(color: AppColors.brandMid, letterSpacing: 0)),
+                  const SizedBox(height: 2),
+                  Text('karyawan@attendx.dev', style: AppTypography.labelMd),
+                  Text('Attendx2024!',
+                      style: AppTypography.bodyMd
+                          .copyWith(color: AppColors.onSurfaceVariant)),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  InputDecoration _inputDecoration({
+    required String hint,
+    required IconData icon,
+    Widget? suffix,
+  }) {
+    return InputDecoration(
+      hintText: hint,
+      prefixIcon: Icon(icon),
+      suffixIcon: suffix,
+      filled: true,
+      fillColor: AppColors.surface,
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(AppRadius.lg),
+        borderSide: BorderSide(color: AppColors.outlineVariant),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(AppRadius.lg),
+        borderSide: BorderSide(color: AppColors.primary, width: 2),
+      ),
+      errorBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(AppRadius.lg),
+        borderSide: BorderSide(color: AppColors.error),
+      ),
+      focusedErrorBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(AppRadius.lg),
+        borderSide: BorderSide(color: AppColors.error, width: 2),
+      ),
+    );
+  }
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// Helpers (shared with old code, kept identical to avoid regressions)
+// ────────────────────────────────────────────────────────────────────────────
+
 class _Field extends StatefulWidget {
   const _Field({
     required this.label,
     required this.child,
     required this.delay,
   });
- 
+
   final String label;
   final Widget child;
   final Duration delay;
- 
+
   @override
   State<_Field> createState() => _FieldState();
 }
- 
+
 class _FieldState extends State<_Field> {
   bool _focused = false;
- 
+
   @override
   Widget build(BuildContext context) {
     return Column(
@@ -391,26 +496,25 @@ class _FieldState extends State<_Field> {
         .slideY(begin: 0.08, curve: Curves.easeOut);
   }
 }
- 
-/// Scales its child down briefly on tap-down for tactile feedback.
+
 class _PressableButton extends StatefulWidget {
   const _PressableButton({required this.child, required this.onPressed});
- 
+
   final Widget child;
   final VoidCallback? onPressed;
- 
+
   @override
   State<_PressableButton> createState() => _PressableButtonState();
 }
- 
+
 class _PressableButtonState extends State<_PressableButton> {
   double _scale = 1.0;
- 
+
   void _set(double v) {
     if (widget.onPressed == null) return;
     setState(() => _scale = v);
   }
- 
+
   @override
   Widget build(BuildContext context) {
     return Listener(
@@ -426,11 +530,11 @@ class _PressableButtonState extends State<_PressableButton> {
     );
   }
 }
- 
+
 class _ErrorBanner extends StatelessWidget {
   const _ErrorBanner({required this.message});
   final String message;
- 
+
   @override
   Widget build(BuildContext context) {
     return Container(

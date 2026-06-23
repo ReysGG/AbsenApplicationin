@@ -1,11 +1,13 @@
 import 'dart:async';
 
 import 'package:camera/camera.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_mlkit_face_detection/google_mlkit_face_detection.dart';
 
+import '../../core/router/app_routes.dart';
 import '../../core/services/face_liveness_service.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_spacing.dart';
@@ -52,7 +54,7 @@ class _FaceEnrollScreenState extends ConsumerState<FaceEnrollScreen> {
   @override
   void initState() {
     super.initState();
-    _initCamera();
+    if (!kIsWeb) _initCamera();
   }
 
   Future<void> _initCamera() async {
@@ -226,6 +228,7 @@ class _FaceEnrollScreenState extends ConsumerState<FaceEnrollScreen> {
 
   @override
   Widget build(BuildContext context) {
+    if (kIsWeb) return _WebBypassView(onContinue: () => context.go(AppRoutes.home));
     return Scaffold(
       backgroundColor: AppColors.surface,
       appBar: AppBar(
@@ -356,6 +359,67 @@ class _ErrorView extends StatelessWidget {
               label: const Text('Coba Lagi'),
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+class _WebBypassView extends StatelessWidget {
+  const _WebBypassView({required this.onContinue});
+  final VoidCallback onContinue;
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: AppColors.surface,
+      body: SafeArea(
+        child: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(AppSpacing.xl),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 80,
+                  height: 80,
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: AppColors.headerGradient,
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                    borderRadius: BorderRadius.circular(24),
+                  ),
+                  child: const Icon(Icons.web_rounded, size: 40, color: Colors.white),
+                ),
+                const SizedBox(height: AppSpacing.xl),
+                Text(
+                  'Mode Web',
+                  style: AppTypography.headlineMd.copyWith(color: AppColors.onSurface),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: AppSpacing.sm),
+                Text(
+                  'Pendaftaran wajah tidak tersedia di browser.\nFitur ini hanya tersedia di aplikasi mobile.',
+                  style: AppTypography.bodyMd.copyWith(color: AppColors.onSurfaceVariant),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: AppSpacing.xl),
+                SizedBox(
+                  width: double.infinity,
+                  child: FilledButton.icon(
+                    onPressed: onContinue,
+                    icon: const Icon(Icons.arrow_forward_rounded),
+                    label: const Text('Lanjut ke Dashboard'),
+                    style: FilledButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
         ),
       ),
     );

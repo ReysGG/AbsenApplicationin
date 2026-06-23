@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -56,13 +57,19 @@ final routerProvider = Provider<GoRouter>((ref) {
         return loc == AppRoutes.lock ? null : AppRoutes.lock;
       }
 
-      // Authenticated + unlocked but face not yet enrolled → enroll first.
-      final profile = auth.profile;
-      if (profile != null && !profile.faceEnrolled) {
-        return loc == AppRoutes.faceEnroll ? null : AppRoutes.faceEnroll;
+      // On web: skip face enrollment entirely (camera/ML not supported).
+      if (!kIsWeb) {
+        // Authenticated + unlocked but face not yet enrolled → enroll first.
+        final profile = auth.profile;
+        if (profile != null && !profile.faceEnrolled) {
+          return loc == AppRoutes.faceEnroll ? null : AppRoutes.faceEnroll;
+        }
+        // Enrolled — don't let them linger on the enrollment screen.
+        if (loc == AppRoutes.faceEnroll) return AppRoutes.home;
+      } else {
+        // Web: bounce away from enroll screen if somehow navigated there.
+        if (loc == AppRoutes.faceEnroll) return AppRoutes.home;
       }
-      // Enrolled — don't let them linger on the enrollment screen.
-      if (loc == AppRoutes.faceEnroll) return AppRoutes.home;
 
       // Authenticated and unlocked: bounce away from splash/login/lock into the app.
       if (loc == AppRoutes.splash || loc == AppRoutes.login || loc == AppRoutes.lock) {
