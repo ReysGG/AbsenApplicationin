@@ -517,15 +517,23 @@ class _PressableButtonState extends State<_PressableButton> {
 
   @override
   Widget build(BuildContext context) {
-    return Listener(
-      onPointerDown: (_) => _set(0.96),
-      onPointerUp: (_) => _set(1.0),
-      onPointerCancel: (_) => _set(1.0),
-      child: AnimatedScale(
-        scale: _scale,
-        duration: const Duration(milliseconds: 120),
-        curve: Curves.easeOut,
-        child: widget.child,
+    return GestureDetector(
+      onTap: widget.onPressed,
+      child: Listener(
+        onPointerDown: (_) => _set(0.96),
+        onPointerUp: (_) => _set(1.0),
+        onPointerCancel: (_) => _set(1.0),
+        child: AnimatedScale(
+          scale: _scale,
+          duration: const Duration(milliseconds: 120),
+          curve: Curves.easeOut,
+          child: MouseRegion(
+            cursor: widget.onPressed != null
+                ? SystemMouseCursors.click
+                : SystemMouseCursors.basic,
+            child: widget.child,
+          ),
+        ),
       ),
     );
   }

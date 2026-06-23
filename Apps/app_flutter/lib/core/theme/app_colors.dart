@@ -13,7 +13,7 @@ abstract final class AppColors {
   static const surfaceDimLight       = Color(0xFFE2E4EB);
   static const surfaceBrightLight    = Color(0xFFF9FAFC);
   static const surfaceContainerLowestLight  = Color(0xFFFFFFFF);
-  static const surfaceContainerLowLight     = Color(0xFFF1F3FA);
+  static const surfaceContainerLowLight     = Color(0xFFF0F2FA);
   static const surfaceContainerLight        = Color(0xFFE8ECF5);
   static const surfaceContainerHighLight    = Color(0xFFDFE4F0);
   static const surfaceContainerHighestLight = Color(0xFFD5DCEB);
@@ -170,7 +170,7 @@ abstract final class AppColors {
   /// Soft page backdrop: a gentle vertical wash behind scrollable content.
   static List<Color> get pageGradient => isDark
       ? const [Color(0xFF09090E), Color(0xFF12121E)]
-      : const [Color(0xFFF5F6FA), Color(0xFFE8ECF5)];
+      : const [Color(0xFFF7F8FC), Color(0xFFEDEEF6)];
 
   /// Header / hero gradient that adapts to the active mode (diagonal).
   static List<Color> get headerGradient => isDark
@@ -194,15 +194,15 @@ abstract final class AppColors {
   static Color softGlow(Color c) =>
       c.withValues(alpha: isDark ? 0.34 : 0.26);
 
-  // ── Flat card tokens (clean enterprise surfaces with rounded feel) ───────
+  // ── Super Smooth Playful card shadow tokens (Ultra-diffuse shadow like Image #7) ──────────────────
   static Color get cardBorder =>
-      isDark ? const Color(0xFF27273F) : const Color(0xFFEBEBF5);
+      isDark ? const Color(0xFF222238) : const Color(0xFFECEEF5);
   static Color get cardShadow =>
-      isDark ? const Color(0x33000000) : const Color(0x0E2C2260); // Shadow with low alpha purple tint in light mode
+      isDark ? const Color(0x28000000) : const Color(0x044F3FBF); // Ultra-faint key shadow
 
-  /// Soft, wide ambient shadow paired with [cardShadow] for layered premium depth.
+  /// Soft, wide ambient shadow generating the smooth floating depth in Image #7
   static Color get cardShadowAmbient =>
-      isDark ? const Color(0x4D000000) : const Color(0x112C2260);
+      isDark ? const Color(0x3D000000) : const Color(0x0A4F3FBF); // Ultra-diffuse ambient shadow
 
   // ── Accent / category palette ────────────────────────────────────────────
   static const accentViolet = Color(0xFF8B5CF6);

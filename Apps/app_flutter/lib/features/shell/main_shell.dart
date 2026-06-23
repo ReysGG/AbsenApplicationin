@@ -95,19 +95,19 @@ class _AppNavBar extends StatelessWidget {
       child: DecoratedBox(
         decoration: BoxDecoration(
           color: AppColors.surface,
-          borderRadius: BorderRadius.circular(28), // Rounded custom shape (Image #1)
-          border: Border.all(color: AppColors.cardBorder, width: 1.2),
+          borderRadius: BorderRadius.circular(32), // Rounded custom shape (Image #1)
+          border: Border.all(color: AppColors.cardBorder, width: 1.0),
           boxShadow: [
             BoxShadow(
-              color: AppColors.cardShadow.withValues(alpha: AppColors.isDark ? 0.4 : 0.12),
-              blurRadius: 20,
+              color: AppColors.cardShadow.withValues(alpha: AppColors.isDark ? 0.3 : 0.05),
+              blurRadius: 24,
               offset: const Offset(0, 8),
             ),
             BoxShadow(
-              color: AppColors.cardShadowAmbient.withValues(alpha: AppColors.isDark ? 0.3 : 0.08),
-              blurRadius: 36,
+              color: AppColors.cardShadowAmbient.withValues(alpha: AppColors.isDark ? 0.22 : 0.03),
+              blurRadius: 40,
               offset: const Offset(0, 16),
-              spreadRadius: -10,
+              spreadRadius: -12,
             ),
           ],
         ),
@@ -206,8 +206,9 @@ class _NavItemState extends State<_NavItem>
             },
             child: AnimatedContainer(
               duration: const Duration(milliseconds: 250),
-              curve: Curves.easeInOutHorizontal,
-              padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 4),
+              curve: Curves.easeInOut,
+              padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 2),
+              margin: const EdgeInsets.symmetric(horizontal: 4),
               decoration: BoxDecoration(
                 // Capsules gradient background for active item (Image #1/#2)
                 gradient: selected
@@ -217,7 +218,7 @@ class _NavItemState extends State<_NavItem>
                         colors: AppColors.navActiveGradient,
                       )
                     : null,
-                borderRadius: BorderRadius.circular(22),
+                borderRadius: BorderRadius.circular(20),
               ),
               child: Column(
                 mainAxisSize: MainAxisSize.min,

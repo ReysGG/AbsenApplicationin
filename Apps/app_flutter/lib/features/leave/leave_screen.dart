@@ -10,6 +10,7 @@ import '../../core/theme/app_typography.dart';
 import '../../core/utils/formatters.dart';
 import '../../core/utils/status_styles.dart';
 import '../../core/widgets/animated_entrance.dart';
+import '../../core/widgets/brand_header.dart';
 import '../../core/widgets/solid_card.dart';
 import '../../core/widgets/status_badge.dart';
 import '../../shared/models/enums.dart';
@@ -35,14 +36,14 @@ class _LeaveScreenState extends ConsumerState<LeaveScreen> {
       backgroundColor: AppColors.pageBg,
       body: SafeArea(
         child: async.when(
-          loading: () => const _LeaveLoading(),
-          error: (e, _) => _LeaveError(
-            message: e.toString(),
-            onRetry: () => ref.refresh(leaveListProvider),
-          ),
-          data: _buildContent,
+              loading: () => const _LeaveLoading(),
+              error: (e, _) => _LeaveError(
+                message: e.toString(),
+                onRetry: () => ref.refresh(leaveListProvider),
+              ),
+              data: _buildContent,
+            ),
         ),
-      ),
     );
   }
 

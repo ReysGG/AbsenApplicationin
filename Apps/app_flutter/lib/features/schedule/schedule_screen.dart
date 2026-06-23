@@ -7,6 +7,7 @@ import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_spacing.dart';
 import '../../core/theme/app_typography.dart';
 import '../../core/utils/formatters.dart';
+import '../../core/widgets/brand_header.dart';
 import '../../core/widgets/solid_card.dart';
 import '../../shared/models/enums.dart';
 import '../../shared/models/shift.dart';

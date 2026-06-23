@@ -27,6 +27,11 @@ class ProfileScreen extends ConsumerWidget {
           BrandHeader(
             title: 'Profil',
             subtitle: profile?.workspaceName ?? 'AttendX',
+            trailing: BrandHeaderAction(
+              icon: Icons.settings_rounded,
+              onTap: () {},
+              tooltip: 'Pengaturan',
+            ),
           ),
           Expanded(
             child: ListView(

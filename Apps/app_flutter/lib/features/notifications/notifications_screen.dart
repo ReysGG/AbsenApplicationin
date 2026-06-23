@@ -8,7 +8,7 @@ import '../../core/theme/app_spacing.dart';
 import '../../core/theme/app_typography.dart';
 import '../../core/utils/formatters.dart';
 import '../../core/widgets/app_error_state.dart';
-import '../../core/widgets/page_background.dart';
+import '../../core/widgets/brand_header.dart';
 import '../../core/widgets/solid_card.dart';
 import '../../core/widgets/lottie_icon.dart';
 import '../../shared/models/app_notification.dart';
@@ -22,74 +22,72 @@ class NotificationsScreen extends ConsumerWidget {
     final async = ref.watch(notificationsListProvider);
 
     return Scaffold(
-      backgroundColor: Colors.transparent,
-      appBar: AppBar(
-        title: const Text('Notifikasi'),
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        actions: [
-          TextButton(
-            onPressed: () async {
-              await ref.read(notificationRepositoryProvider).markAllRead();
-              ref.invalidate(notificationsListProvider);
-            },
-            child: const Text('Tandai dibaca'),
+      backgroundColor: AppColors.pageBg,
+      body: Column(
+        children: [
+          BrandHeader(
+            title: 'Notifikasi',
+            subtitle: 'Pengingat dan status aktivitas Anda',
+            trailing: BrandHeaderAction(
+              icon: Icons.done_all_rounded,
+              onTap: () async {
+                await ref.read(notificationRepositoryProvider).markAllRead();
+                ref.invalidate(notificationsListProvider);
+              },
+              tooltip: 'Tandai Semua Dibaca',
+            ),
+          ),
+          Expanded(
+            child: async.when(
+              loading: () => const Center(
+                  child: LottieIcon(LottieIcon.loading, size: 96)),
+              error: (e, _) => AppErrorState(
+                  onRetry: () => ref.invalidate(notificationsListProvider)),
+              data: (items) {
+                if (items.isEmpty) {
+                  return _EmptyState();
+                }
+                final today =
+                    items.where((n) => _isToday(n.createdAt)).toList();
+                final earlier =
+                    items.where((n) => !_isToday(n.createdAt)).toList();
+
+                int idx = 0;
+                final children = <Widget>[];
+
+                if (today.isNotEmpty) {
+                  children.add(_section('Hari Ini'));
+                  for (final n in today) {
+                    children.add(_NotifCard(
+                      notification: n,
+                      index: idx++,
+                      ref: ref,
+                      key: ValueKey(n.id),
+                    ));
+                  }
+                }
+                if (earlier.isNotEmpty) {
+                  children.add(const SizedBox(height: AppSpacing.md));
+                  children.add(_section('Sebelumnya'));
+                  for (final n in earlier) {
+                    children.add(_NotifCard(
+                      notification: n,
+                      index: idx++,
+                      ref: ref,
+                      key: ValueKey(n.id),
+                    ));
+                  }
+                }
+
+                return ListView(
+                  padding: const EdgeInsets.fromLTRB(
+                      AppSpacing.md, AppSpacing.sm, AppSpacing.md, 110),
+                  children: children,
+                );
+              },
+            ),
           ),
         ],
-      ),
-      body: PageBackground(
-        child: SafeArea(
-          top: false,
-          child: async.when(
-            loading: () => const Center(
-                child: LottieIcon(LottieIcon.loading, size: 96)),
-            error: (e, _) => AppErrorState(
-                onRetry: () => ref.invalidate(notificationsListProvider)),
-            data: (items) {
-              if (items.isEmpty) {
-                return _EmptyState();
-              }
-              final today =
-                  items.where((n) => _isToday(n.createdAt)).toList();
-              final earlier =
-                  items.where((n) => !_isToday(n.createdAt)).toList();
-
-              // Build a flat indexed list so stagger is global.
-              int idx = 0;
-              final children = <Widget>[];
-
-              if (today.isNotEmpty) {
-                children.add(_section('Hari Ini'));
-                for (final n in today) {
-                  children.add(_NotifCard(
-                    notification: n,
-                    index: idx++,
-                    ref: ref,
-                    key: ValueKey(n.id),
-                  ));
-                }
-              }
-              if (earlier.isNotEmpty) {
-                children.add(const SizedBox(height: AppSpacing.md));
-                children.add(_section('Sebelumnya'));
-                for (final n in earlier) {
-                  children.add(_NotifCard(
-                    notification: n,
-                    index: idx++,
-                    ref: ref,
-                    key: ValueKey(n.id),
-                  ));
-                }
-              }
-
-              return ListView(
-                padding: const EdgeInsets.fromLTRB(
-                    AppSpacing.md, AppSpacing.sm, AppSpacing.md, 32),
-                children: children,
-              );
-            },
-          ),
-        ),
       ),
     );
   }
