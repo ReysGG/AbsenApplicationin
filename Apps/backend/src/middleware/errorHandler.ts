@@ -3,6 +3,29 @@ import { ZodError } from 'zod'
 import { AppError } from '../lib/errors'
 import { logger } from '../lib/logger'
 
+type BodyParserError = Error & {
+  status?: number
+  statusCode?: number
+  type?: string
+}
+
+function isBodyParserClientError(err: unknown): err is BodyParserError {
+  if (!(err instanceof Error)) {
+    return false
+  }
+
+  const candidate = err as BodyParserError
+  const statusCode = candidate.statusCode ?? candidate.status
+
+  return (
+    typeof statusCode === 'number' &&
+    statusCode >= 400 &&
+    statusCode < 500 &&
+    typeof candidate.type === 'string' &&
+    candidate.type.startsWith('entity.')
+  )
+}
+
 export function errorHandler(
   err: unknown,
   req: Request,
@@ -10,6 +33,24 @@ export function errorHandler(
   _next: NextFunction
 ): void {
   const requestId = req.requestId
+
+  if (isBodyParserClientError(err)) {
+    const statusCode = err.statusCode ?? err.status ?? 400
+    logger.warn('Invalid request body', {
+      requestId,
+      type: err.type,
+      statusCode,
+      path: req.path,
+    })
+    res.status(statusCode).json({
+      success: false,
+      error: {
+        code: 'VALIDATION_ERROR',
+        message: statusCode === 413 ? 'Payload terlalu besar' : 'Payload request tidak valid',
+      },
+    })
+    return
+  }
 
   if (err instanceof AppError) {
     logger.warn('App error', {
