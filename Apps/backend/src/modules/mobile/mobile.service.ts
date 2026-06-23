@@ -433,15 +433,20 @@ async function writeRawLog(
   },
 ): Promise<void> {
   try {
+    const { faceImageBase64, ...safePayload } = body
     await prisma.attendanceRawLog.create({
       data: {
         workspaceId: emp.workspaceId,
         employeeId: emp.id,
         eventType,
-        // Persist the raw client payload PLUS the server's evaluation so fraud
-        // attempts (e.g. forged face booleans, clock skew) are auditable.
+        // Persist raw client metadata plus the server evaluation. The face
+        // image itself is sensitive biometric material and belongs only in
+        // object storage via attendance_logs.checkInFaceKey/checkOutFaceKey.
         rawPayloadJson: {
-          ...(body as unknown as Record<string, unknown>),
+          ...(safePayload as unknown as Record<string, unknown>),
+          faceImageProvided: typeof faceImageBase64 === 'string' && faceImageBase64.length > 0,
+          faceImageBase64Length:
+            typeof faceImageBase64 === 'string' ? faceImageBase64.length : undefined,
           _serverEvaluation: extra.evaluation ?? null,
         } as unknown as object,
         deviceTime: now,
