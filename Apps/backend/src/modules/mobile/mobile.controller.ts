@@ -78,17 +78,19 @@ export async function loginHandler(
       return next(new UnauthenticatedError('Akun pengguna tidak ditemukan.'))
     }
 
-    const employee =
-      (await prisma.employee.findFirst({
-        where: { userId: user.id, employmentStatus: 'Active' },
-        include: { department: { select: { name: true } } },
-        orderBy: { createdAt: 'desc' },
-      })) ??
-      (await prisma.employee.findFirst({
-        where: { userId: user.id },
-        include: { department: { select: { name: true } } },
-        orderBy: { createdAt: 'desc' },
-      }))
+    if (user.status !== 'Active') {
+      return next(new UnauthenticatedError('Akun pengguna tidak aktif.'))
+    }
+
+    const employee = await prisma.employee.findFirst({
+      where: {
+        userId: user.id,
+        employmentStatus: 'Active',
+        accountStatus: 'Active',
+      },
+      include: { department: { select: { name: true } } },
+      orderBy: { createdAt: 'desc' },
+    })
 
     if (!employee) {
       return next(

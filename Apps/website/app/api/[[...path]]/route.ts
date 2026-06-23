@@ -57,7 +57,11 @@ function resolvePath(params: { path?: string[] }): string {
  * employee has no account/session yet. The BFF forwards these straight through
  * without signing a user-context header.
  */
-const PUBLIC_BACKEND_PATHS = ["/employees/activate"];
+const PUBLIC_BACKEND_PATHS = [
+  "/employees/activate",
+  "/auth/login-check",
+  "/auth/login-failed",
+];
 
 function isPublicBackendPath(path: string): boolean {
   return PUBLIC_BACKEND_PATHS.some((p) => path === p || path.startsWith(p + "/"));

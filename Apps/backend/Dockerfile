@@ -24,10 +24,13 @@ RUN npx prisma generate
 COPY src ./src
 # Type-check + emit JS to dist/.
 RUN npm run build
+# Keep only production dependencies for the runtime image. The seed is emitted
+# to dist/prisma/seed.js, so tsx/typescript are not needed after build.
+RUN npm prune --omit=dev --legacy-peer-deps
 
 # ---------------------------------------------------------------------------
-# Runtime image. Keeps node_modules (incl. prisma CLI + tsx) so the container
-# can run migrations and the seed on first boot via docker-entrypoint.sh.
+# Runtime image. Keeps production node_modules with the Prisma CLI so the
+# container can apply schema on first boot via docker-entrypoint.sh.
 # ---------------------------------------------------------------------------
 FROM node:22-alpine AS runner
 WORKDIR /app
@@ -38,9 +41,6 @@ COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/prisma ./prisma
 COPY prisma.config.ts tsconfig.json ./
-# Seed runs via tsx and imports sibling files (../lib/permissions, ../config/*).
-# Copy the whole src/ tree so those resolve at runtime.
-COPY src ./src
 COPY docker-entrypoint.sh ./docker-entrypoint.sh
 RUN chmod +x ./docker-entrypoint.sh
 

@@ -124,6 +124,11 @@ export async function authenticate(
       return next(new UnauthenticatedError('User tidak ditemukan'))
     }
 
+    if (userRecord.status !== 'Active') {
+      await recordUnauthorizedAccess(req, null, `Inactive user attempted access: ${userRecord.id}`)
+      return next(new UnauthenticatedError('Akun pengguna tidak aktif'))
+    }
+
     // 4b. Resolve workspaceId — use cookie value or fall back to first active workspace
     let resolvedWorkspaceId = payload.workspaceId ?? ''
     if (!resolvedWorkspaceId) {

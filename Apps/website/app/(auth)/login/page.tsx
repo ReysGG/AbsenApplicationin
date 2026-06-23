@@ -41,6 +41,44 @@ const loginSchema = z.object({
 
 type LoginValues = z.infer<typeof loginSchema>
 
+const GENERIC_LOGIN_ERROR = "Email atau password tidak valid"
+const LOCKOUT_LOGIN_ERROR =
+  "Terlalu banyak percobaan login. Coba lagi beberapa menit lagi."
+
+type AuthEventResult = {
+  ok: boolean
+  locked: boolean
+  message?: string
+}
+
+async function postAuthEvent(
+  event: "login-check" | "login-failed" | "login-event",
+  email: string
+): Promise<AuthEventResult> {
+  try {
+    const res = await fetch(`/api/v1/auth/${event}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email }),
+    })
+
+    if (res.status === 423) {
+      const body = (await res.json().catch(() => null)) as
+        | { error?: { message?: string } }
+        | null
+      return {
+        ok: false,
+        locked: true,
+        message: body?.error?.message ?? LOCKOUT_LOGIN_ERROR,
+      }
+    }
+
+    return { ok: res.ok, locked: false }
+  } catch {
+    return { ok: true, locked: false }
+  }
+}
+
 // ── Page ──────────────────────────────────────────────────────────────────────
 // useSearchParams() requires a Suspense boundary for static prerendering in
 // Next.js 16, so the form lives in a child component wrapped below.
@@ -74,6 +112,16 @@ function LoginForm() {
     setPending(true)
 
     try {
+      const lockoutCheck = await postAuthEvent("login-check", values.email)
+      if (!lockoutCheck.ok) {
+        setServerError(
+          lockoutCheck.locked
+            ? lockoutCheck.message ?? LOCKOUT_LOGIN_ERROR
+            : GENERIC_LOGIN_ERROR
+        )
+        return
+      }
+
       const result = await signIn.email({
         email: values.email,
         password: values.password,
@@ -82,15 +130,21 @@ function LoginForm() {
       })
 
       if (result?.error) {
+        const failureRecord = await postAuthEvent("login-failed", values.email)
         // Always show generic message — never reveal if the email exists (req 1.2)
-        setServerError("Email atau password tidak valid")
+        setServerError(
+          failureRecord.locked
+            ? failureRecord.message ?? LOCKOUT_LOGIN_ERROR
+            : GENERIC_LOGIN_ERROR
+        )
         return
       }
 
+      void postAuthEvent("login-event", values.email)
       router.push(callbackUrl)
       router.refresh()
     } catch {
-      setServerError("Email atau password tidak valid")
+      setServerError(GENERIC_LOGIN_ERROR)
     } finally {
       setPending(false)
     }

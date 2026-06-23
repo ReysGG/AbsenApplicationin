@@ -110,6 +110,81 @@ function buildScopeWhere(
   return { ...base, OR: orClauses }
 }
 
+function appendOrFilter(where: Record<string, unknown>, orClauses: Record<string, unknown>[]): void {
+  const existingOr = where['OR']
+  if (!existingOr) {
+    where['OR'] = orClauses
+    return
+  }
+
+  delete where['OR']
+
+  const existingAnd = where['AND']
+  const andClauses = Array.isArray(existingAnd)
+    ? [...existingAnd]
+    : existingAnd
+      ? [existingAnd]
+      : []
+
+  where['AND'] = [...andClauses, { OR: existingOr }, { OR: orClauses }]
+}
+
+function assertScopeCoversEmployeeTarget(
+  scopeFilter: ScopeFilter | undefined | null,
+  departmentId: string,
+  assignedLocationId: string | null | undefined,
+): void {
+  if (!scopeFilter || scopeFilter.isWorkspaceScope) return
+
+  const inDepartment = scopeFilter.departmentIds.includes(departmentId)
+  const inLocation = Boolean(
+    assignedLocationId && scopeFilter.locationIds.includes(assignedLocationId),
+  )
+
+  if (!inDepartment && !inLocation) {
+    throw new ForbiddenError(
+      'Anda tidak memiliki akses untuk menetapkan karyawan di luar scope Anda',
+    )
+  }
+}
+
+async function validateEmployeeAssignmentTargets(params: {
+  workspaceId: string
+  departmentId: string
+  assignedLocationId?: string | null
+  assignedShiftId?: string | null
+}): Promise<void> {
+  const { workspaceId, departmentId, assignedLocationId, assignedShiftId } = params
+
+  const department = await (prisma as any).department.findFirst({
+    where: { id: departmentId, workspaceId },
+    select: { id: true },
+  })
+  if (!department) {
+    throw new NotFoundError('Departemen')
+  }
+
+  if (assignedLocationId) {
+    const location = await (prisma as any).location.findFirst({
+      where: { id: assignedLocationId, workspaceId },
+      select: { id: true },
+    })
+    if (!location) {
+      throw new NotFoundError('Lokasi')
+    }
+  }
+
+  if (assignedShiftId) {
+    const shift = await (prisma as any).shift.findFirst({
+      where: { id: assignedShiftId, workspaceId },
+      select: { id: true },
+    })
+    if (!shift) {
+      throw new NotFoundError('Shift')
+    }
+  }
+}
+
 /** Auto-generate employee code in format EMP-YYYY-0001 */
 async function generateEmployeeCode(workspaceId: string): Promise<string> {
   const year = new Date().getFullYear().toString()
@@ -239,11 +314,11 @@ export async function listEmployees(params: {
 
   if (search && search.trim()) {
     const term = search.trim()
-    where['OR'] = [
+    appendOrFilter(where, [
       { fullName: { contains: term, mode: 'insensitive' } },
       { email: { contains: term, mode: 'insensitive' } },
       { employeeCode: { contains: term, mode: 'insensitive' } },
-    ]
+    ])
   }
 
   const skip = (page - 1) * pageSize
@@ -335,15 +410,13 @@ export async function createEmployee(params: {
 }): Promise<EmployeeDetail> {
   const { workspaceId, input, actorUserId, scopeFilter, ipAddress, userAgent, requestId } = params
 
-  // Scope check: Support Admin can only create in their scoped departments (R7.15)
-  if (scopeFilter && !scopeFilter.isWorkspaceScope) {
-    if (input.departmentId && !scopeFilter.departmentIds.includes(input.departmentId)) {
-      // Allow if no scope restriction or if location matches; department must be in scope
-      throw new ForbiddenError(
-        'Anda tidak memiliki akses untuk membuat karyawan di departemen ini',
-      )
-    }
-  }
+  assertScopeCoversEmployeeTarget(scopeFilter, input.departmentId, input.assignedLocationId ?? null)
+  await validateEmployeeAssignmentTargets({
+    workspaceId,
+    departmentId: input.departmentId,
+    assignedLocationId: input.assignedLocationId ?? null,
+    assignedShiftId: input.assignedShiftId ?? null,
+  })
 
   // Check email uniqueness within workspace (R7.6, R7.7)
   const emailExists = await (prisma as any).employee.findFirst({
@@ -367,15 +440,6 @@ export async function createEmployee(params: {
   })
   if (codeExists) {
     throw new ConflictError(`Kode karyawan "${employeeCode}" sudah digunakan di workspace ini`)
-  }
-
-  // Validate department exists in this workspace
-  const department = await (prisma as any).department.findFirst({
-    where: { id: input.departmentId, workspaceId },
-    select: { id: true },
-  })
-  if (!department) {
-    throw new NotFoundError('Departemen')
   }
 
   const joinedAt = new Date(input.joinDate)
@@ -501,16 +565,21 @@ export async function updateEmployee(params: {
     }
   }
 
-  // If changing department, validate it belongs to this workspace
-  if (input.departmentId !== undefined) {
-    const dept = await (prisma as any).department.findFirst({
-      where: { id: input.departmentId, workspaceId },
-      select: { id: true },
-    })
-    if (!dept) {
-      throw new NotFoundError('Departemen')
-    }
-  }
+  const nextDepartmentId = input.departmentId ?? existing.departmentId
+  const nextAssignedLocationId =
+    input.assignedLocationId !== undefined
+      ? input.assignedLocationId
+      : existing.assignedLocationId
+  const nextAssignedShiftId =
+    input.assignedShiftId !== undefined ? input.assignedShiftId : existing.assignedShiftId
+
+  assertScopeCoversEmployeeTarget(scopeFilter, nextDepartmentId, nextAssignedLocationId)
+  await validateEmployeeAssignmentTargets({
+    workspaceId,
+    departmentId: nextDepartmentId,
+    assignedLocationId: nextAssignedLocationId,
+    assignedShiftId: nextAssignedShiftId,
+  })
 
   const updateData: Record<string, unknown> = {}
   if (input.fullName !== undefined) updateData['fullName'] = input.fullName

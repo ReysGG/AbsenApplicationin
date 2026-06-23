@@ -23,7 +23,7 @@ echo "[entrypoint] Schema applied."
 # Idempotent seed of the demo workspace + accounts.
 if [ "${RUN_SEED:-true}" = "true" ]; then
   echo "[entrypoint] Running seed (idempotent)..."
-  npx tsx src/prisma/seed.ts || echo "[entrypoint] Seed skipped/failed (non-fatal)."
+  node dist/prisma/seed.js || echo "[entrypoint] Seed skipped/failed (non-fatal)."
 fi
 
 echo "[entrypoint] Starting backend: $*"

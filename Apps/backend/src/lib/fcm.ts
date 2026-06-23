@@ -12,15 +12,14 @@
  */
 
 import { readFileSync } from 'node:fs'
-import type * as admin from 'firebase-admin'
+import type { App, ServiceAccount } from 'firebase-admin/app'
+import type { Messaging, SendResponse } from 'firebase-admin/messaging'
 import { prisma } from '../config/prisma'
 import { logger } from './logger'
 
 // ---------------------------------------------------------------------------
 // Lazy init state
 // ---------------------------------------------------------------------------
-
-type Messaging = admin.messaging.Messaging
 
 let initialized = false
 let messaging: Messaging | null = null
@@ -72,15 +71,14 @@ async function getMessaging(): Promise<Messaging | null> {
   }
 
   try {
-    const adminModule = (await import('firebase-admin')).default
-    const app = adminModule.apps.length
-      ? adminModule.app()
-      : adminModule.initializeApp({
-          credential: adminModule.credential.cert(
-            serviceAccount as admin.ServiceAccount,
-          ),
+    const appModule = await import('firebase-admin/app')
+    const messagingModule = await import('firebase-admin/messaging')
+    const app: App = appModule.getApps().length
+      ? appModule.getApp()
+      : appModule.initializeApp({
+          credential: appModule.cert(serviceAccount as ServiceAccount),
         })
-    messaging = adminModule.messaging(app)
+    messaging = messagingModule.getMessaging(app)
     return messaging
   } catch (err) {
     logger.warn('FCM disabled: firebase-admin init failed', {
@@ -129,7 +127,7 @@ export async function sendPushToUser(
 
     // Prune tokens that are no longer registered.
     const staleTokens: string[] = []
-    response.responses.forEach((r, idx) => {
+    response.responses.forEach((r: SendResponse, idx: number) => {
       if (!r.success) {
         const code = r.error?.code
         if (

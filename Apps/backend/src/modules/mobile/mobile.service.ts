@@ -462,6 +462,15 @@ async function writeRawLog(
  * Best-effort face-capture upload to S3 storage. Returns the stored object key
  * or null (never throws) so attendance is never blocked by a storage hiccup.
  */
+function isJpegBuffer(buffer: Buffer): boolean {
+  return (
+    buffer.length >= 4 &&
+    buffer[0] === 0xff &&
+    buffer[1] === 0xd8 &&
+    buffer[2] === 0xff
+  )
+}
+
 async function maybeUploadFace(
   b64: string | undefined,
   key: string,
@@ -473,6 +482,7 @@ async function maybeUploadFace(
       b64.startsWith('data:') && comma >= 0 ? b64.slice(comma + 1) : b64
     const buf = Buffer.from(raw, 'base64')
     if (buf.length === 0 || buf.length > 6 * 1024 * 1024) return null
+    if (!isJpegBuffer(buf)) return null
     return await uploadFaceImage(key, buf, 'image/jpeg')
   } catch {
     return null

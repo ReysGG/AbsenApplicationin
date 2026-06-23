@@ -47,19 +47,21 @@ export async function authenticateMobile(
       return next(new UnauthenticatedError('Akun pengguna tidak ditemukan'))
     }
 
-    // 3. Resolve the active employee profile (+ department).
-    //    Prefer an Active employment; fall back to the most recent record.
-    const employee =
-      (await prisma.employee.findFirst({
-        where: { userId: user.id, employmentStatus: 'Active' },
-        include: { department: { select: { name: true } } },
-        orderBy: { createdAt: 'desc' },
-      })) ??
-      (await prisma.employee.findFirst({
-        where: { userId: user.id },
-        include: { department: { select: { name: true } } },
-        orderBy: { createdAt: 'desc' },
-      }))
+    if (user.status !== 'Active') {
+      return next(new UnauthenticatedError('Akun pengguna tidak aktif'))
+    }
+
+    // 3. Resolve the active employee profile (+ department). Mobile self-service
+    // is only valid for employees whose login account and employment are active.
+    const employee = await prisma.employee.findFirst({
+      where: {
+        userId: user.id,
+        employmentStatus: 'Active',
+        accountStatus: 'Active',
+      },
+      include: { department: { select: { name: true } } },
+      orderBy: { createdAt: 'desc' },
+    })
 
     if (!employee) {
       return next(

@@ -3,6 +3,7 @@
  *
  * GET  /me                     → authenticate only
  * GET  /workspaces/current     → authenticate + resolveActiveWorkspace
+ * POST /auth/login-check       → loginGuard + open (BFF: before sign-in)
  * POST /auth/login-event       → authenticate (BFF: after successful sign-in)
  * POST /auth/logout-event      → authenticate (BFF: before sign-out)
  * POST /auth/login-failed      → loginGuard + open (BFF: after failed sign-in)
@@ -17,6 +18,7 @@ import { loginGuard } from '../../middleware/loginGuard'
 import {
   meHandler,
   currentWorkspaceHandler,
+  loginCheckHandler,
   loginEventHandler,
   logoutEventHandler,
   loginFailedHandler,
@@ -37,6 +39,13 @@ router.get('/me', authenticate, meHandler)
  * Returns the active workspace configuration.
  */
 router.get('/workspaces/current', authenticate, resolveActiveWorkspace, currentWorkspaceHandler)
+
+/**
+ * POST /api/v1/auth/login-check
+ * BFF calls this before better-auth sign-in.
+ * Applies loginGuard without incrementing failed-attempt counters.
+ */
+router.post('/auth/login-check', loginGuard, loginCheckHandler)
 
 /**
  * POST /api/v1/auth/login-event

@@ -5,6 +5,7 @@
  * GET  /api/v1/workspaces/current   — workspace aktif user
  * POST /api/v1/auth/login-event     — BFF calls after successful sign-in
  * POST /api/v1/auth/logout-event    — BFF calls before sign-out
+ * POST /api/v1/auth/login-check     — BFF checks lockout before better-auth sign-in
  * POST /api/v1/auth/login-failed    — BFF calls when better-auth rejects credentials
  *
  * Requirements: 1.1, 1.7, 1.12, 1.13, 3.2, 3.3, 4.7, 14.1
@@ -71,6 +72,31 @@ export function currentWorkspaceHandler(
 // ---------------------------------------------------------------------------
 // Login / Logout event handlers
 // ---------------------------------------------------------------------------
+
+/**
+ * POST /api/v1/auth/login-check
+ *
+ * Called by the BFF before better-auth sign-in. `loginGuard` rejects locked
+ * emails before this handler runs; this handler only validates the shape.
+ */
+export function loginCheckHandler(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): void {
+  try {
+    const body = req.body as Record<string, unknown>
+    const email = body?.email
+
+    if (typeof email !== 'string' || !email) {
+      return next(new ValidationError('email diperlukan'))
+    }
+
+    sendSuccess(res, null, 'Login diperbolehkan')
+  } catch (err) {
+    next(err)
+  }
+}
 
 /**
  * POST /api/v1/auth/login-event

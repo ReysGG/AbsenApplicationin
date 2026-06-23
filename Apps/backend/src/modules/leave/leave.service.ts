@@ -92,6 +92,31 @@ const leaveInclude = {
   },
 }
 
+function detectAttachmentMime(buffer: Buffer): string | null {
+  if (buffer.length >= 5 && buffer.subarray(0, 5).toString('ascii') === '%PDF-') {
+    return 'application/pdf'
+  }
+
+  const pngSignature = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]
+  if (
+    buffer.length >= pngSignature.length &&
+    pngSignature.every((byte, index) => buffer[index] === byte)
+  ) {
+    return 'image/png'
+  }
+
+  if (
+    buffer.length >= 4 &&
+    buffer[0] === 0xff &&
+    buffer[1] === 0xd8 &&
+    buffer[2] === 0xff
+  ) {
+    return 'image/jpeg'
+  }
+
+  return null
+}
+
 /** Map raw Prisma row → API shape */
 function mapLeaveRequest(
   leave: {
@@ -457,7 +482,7 @@ export async function createLeaveRequest(params: {
   userAgent?: string | null
   requestId?: string | null
 }): Promise<LeaveRequestItem> {
-  const { workspaceId, input, actorUserId, ipAddress, userAgent, requestId } = params
+  const { workspaceId, input, actorUserId, scopeFilter, ipAddress, userAgent, requestId } = params
 
   const startDate = new Date(`${input.startDate}T00:00:00.000Z`)
   const endDate = new Date(`${input.endDate}T23:59:59.999Z`)
@@ -468,6 +493,8 @@ export async function createLeaveRequest(params: {
     select: { id: true },
   })
   if (!employee) throw new NotFoundError('Karyawan')
+
+  await assertApproverHasScopeOverEmployee(workspaceId, input.employeeId, scopeFilter)
 
   // Overlap check (R11.9)
   await assertNoOverlap(workspaceId, input.employeeId, startDate, endDate)
@@ -719,11 +746,13 @@ export async function cancelLeaveRequest(params: {
   userAgent?: string | null
   requestId?: string | null
 }): Promise<LeaveRequestItem> {
-  const { workspaceId, leaveId, actorUserId, ipAddress, userAgent, requestId } = params
+  const { workspaceId, leaveId, actorUserId, scopeFilter, ipAddress, userAgent, requestId } = params
 
-  // No scope filter on cancel — any approve_leave user can cancel a Pending request
   const leave = await prisma.leaveRequest.findFirst({
-    where: { id: leaveId, workspaceId },
+    where: {
+      id: leaveId,
+      ...buildLeaveScopeWhere(workspaceId, scopeFilter),
+    },
     include: leaveInclude,
   })
   if (!leave) throw new NotFoundError('Permintaan cuti')
@@ -812,6 +841,13 @@ export async function uploadLeaveAttachment(params: {
   if (fileBuffer.length > MAX_ATTACHMENT_SIZE_BYTES) {
     throw new ValidationError(
       `Ukuran file melebihi 5 MB. Ukuran aktual: ${(fileBuffer.length / 1024 / 1024).toFixed(2)} MB (R17.7)`,
+    )
+  }
+
+  const detectedMime = detectAttachmentMime(fileBuffer)
+  if (detectedMime !== input.mimeType) {
+    throw new ValidationError(
+      'Isi file tidak sesuai dengan tipe file yang dikirim. Gunakan PDF, JPG, atau PNG yang valid.',
     )
   }
 
