@@ -13,15 +13,16 @@ class AttendXApp extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final router = ref.watch(routerProvider);
 
-    // The Corporate-Modern design (see DESIGN.md) is tuned for light mode.
-    // Lock to light so a phone's system dark mode can't render everything black.
-    AppColors.isDark = false;
+    // Read active system brightness to dynamically update isDark.
+    final brightness = MediaQuery.platformBrightnessOf(context);
+    AppColors.isDark = brightness == Brightness.dark;
 
     return MaterialApp.router(
       title: AppConfig.appName,
       debugShowCheckedModeBanner: false,
       theme: AppTheme.light(),
-      themeMode: ThemeMode.light,
+      darkTheme: AppTheme.dark(),
+      themeMode: ThemeMode.system, // Follow system automatically
       routerConfig: router,
     );
   }

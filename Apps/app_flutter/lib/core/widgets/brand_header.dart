@@ -8,8 +8,8 @@ import 'pressable.dart';
 
 /// Brand header band used across screens for a consistent look. Modern Playful:
 /// a soft diagonal brand gradient, rounded bottom corners, and a gentle colored
-/// lift. Carries a title, optional back button, optional subtitle, and an
-/// optional trailing action.
+/// lift with decorative blobs. Carries a title, optional back button, optional subtitle,
+/// and an optional trailing action.
 ///
 /// Pair with a transparent Scaffold over [PageBackground].
 class BrandHeader extends StatelessWidget {
@@ -32,68 +32,116 @@ class BrandHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     final top = MediaQuery.of(context).padding.top;
     final tr = trailing;
-    return Container(
-      width: double.infinity,
-      padding: EdgeInsets.fromLTRB(
-          AppSpacing.md, top + AppSpacing.md, AppSpacing.md, AppSpacing.lg),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: AppColors.headerGradient,
-        ),
-        borderRadius: const BorderRadius.only(
-          bottomLeft: Radius.circular(AppRadius.xxl),
-          bottomRight: Radius.circular(AppRadius.xxl),
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.softGlow(AppColors.brandStart),
-            blurRadius: 24,
-            offset: const Offset(0, 10),
-            spreadRadius: -8,
-          ),
-        ],
+    return ClipRRect(
+      borderRadius: const BorderRadius.only(
+        bottomLeft: Radius.circular(AppRadius.xxxl),
+        bottomRight: Radius.circular(AppRadius.xxxl),
       ),
-      child: Row(
-        children: [
-          if (showBack)
-            Padding(
-              padding: const EdgeInsets.only(right: AppSpacing.xs),
-              child: Material(
-                color: Colors.white.withValues(alpha: 0.18),
-                shape: const CircleBorder(),
-                child: InkWell(
-                  customBorder: const CircleBorder(),
-                  onTap: onBack ?? () => Navigator.of(context).maybePop(),
-                  child: const Padding(
-                    padding: EdgeInsets.all(8),
-                    child: Icon(Icons.arrow_back_ios_new_rounded,
-                        color: Colors.white, size: 18),
-                  ),
+      child: Container(
+        width: double.infinity,
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: AppColors.headerGradient,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: AppColors.softGlow(AppColors.brandStart),
+              blurRadius: 24,
+              offset: const Offset(0, 10),
+              spreadRadius: -8,
+            ),
+          ],
+        ),
+        child: Stack(
+          children: [
+            // Decorative Blobs/Circles for playful look
+            Positioned(
+              right: -30,
+              top: -30,
+              child: Container(
+                width: 140,
+                height: 140,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: Colors.white.withValues(alpha: 0.05),
                 ),
               ),
             ),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(title,
-                    style: AppTypography.headlineMd.copyWith(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w700,
-                    )),
-                if (subtitle != null)
-                  Text(subtitle!,
-                      style: AppTypography.bodySm.copyWith(
-                        color: Colors.white.withValues(alpha: 0.88),
-                      )),
-              ],
+            Positioned(
+              right: 40,
+              top: -60,
+              child: Container(
+                width: 100,
+                height: 100,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: Colors.white.withValues(alpha: 0.03),
+                ),
+              ),
             ),
-          ),
-          // ignore: use_null_aware_elements
-          if (tr != null) tr,
-        ],
+
+            // Header Content
+            Padding(
+              padding: EdgeInsets.fromLTRB(
+                AppSpacing.md,
+                top + AppSpacing.md,
+                AppSpacing.md,
+                AppSpacing.lg + 4,
+              ),
+              child: Row(
+                children: [
+                  if (showBack)
+                    Padding(
+                      padding: const EdgeInsets.only(right: AppSpacing.xs),
+                      child: Material(
+                        color: Colors.white.withValues(alpha: 0.18),
+                        shape: const CircleBorder(),
+                        child: InkWell(
+                          customBorder: const CircleBorder(),
+                          onTap: onBack ?? () => Navigator.of(context).maybePop(),
+                          child: const Padding(
+                            padding: EdgeInsets.all(8),
+                            child: Icon(
+                              Icons.arrow_back_ios_new_rounded,
+                              color: Colors.white,
+                              size: 18,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          title,
+                          style: AppTypography.headlineMd.copyWith(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                        if (subtitle != null) ...[
+                          const SizedBox(height: 2),
+                          Text(
+                            subtitle!,
+                            style: AppTypography.bodySm.copyWith(
+                              color: Colors.white.withValues(alpha: 0.88),
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                  if (tr != null) tr,
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     )
         .animate()
@@ -114,9 +162,6 @@ class BrandHeaderAction extends StatelessWidget {
 
   final IconData icon;
   final VoidCallback onTap;
-
-  /// Accessibility label / hover hint. Icon-only buttons must describe their
-  /// action for screen readers (see DESIGN.md a11y principles).
   final String? tooltip;
   final bool badge;
 

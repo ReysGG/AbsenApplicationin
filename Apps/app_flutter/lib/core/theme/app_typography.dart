@@ -12,7 +12,7 @@ abstract final class AppTypography {
     fontFamily: _family,
     fontSize: 32,
     height: 40 / 32,
-    fontWeight: FontWeight.w700,
+    fontWeight: FontWeight.w800, // Thicker for playful feel
     letterSpacing: -0.02 * 32,
   );
 
@@ -20,7 +20,7 @@ abstract final class AppTypography {
     fontFamily: _family,
     fontSize: 24,
     height: 32 / 24,
-    fontWeight: FontWeight.w600,
+    fontWeight: FontWeight.w700, // Bold
     letterSpacing: -0.01 * 24,
   );
 
@@ -28,21 +28,21 @@ abstract final class AppTypography {
     fontFamily: _family,
     fontSize: 20,
     height: 28 / 20,
-    fontWeight: FontWeight.w600,
+    fontWeight: FontWeight.w700, // Bold
   );
 
   static const titleLg = TextStyle(
     fontFamily: _family,
     fontSize: 18,
     height: 24 / 18,
-    fontWeight: FontWeight.w600,
+    fontWeight: FontWeight.w700, // Bold
   );
 
   static const bodyLg = TextStyle(
     fontFamily: _family,
     fontSize: 16,
     height: 24 / 16,
-    fontWeight: FontWeight.w400,
+    fontWeight: FontWeight.w500, // SemiBold-ish for readability on Plus Jakarta Sans
   );
 
   static const bodyMd = TextStyle(
@@ -63,7 +63,7 @@ abstract final class AppTypography {
     fontFamily: _family,
     fontSize: 12,
     height: 16 / 12,
-    fontWeight: FontWeight.w500,
+    fontWeight: FontWeight.w600, // Bold label
     letterSpacing: 0.01 * 12,
   );
 
@@ -71,6 +71,6 @@ abstract final class AppTypography {
     fontFamily: _family,
     fontSize: 10,
     height: 12 / 10,
-    fontWeight: FontWeight.w600,
+    fontWeight: FontWeight.w700, // Thicker label
   );
 }

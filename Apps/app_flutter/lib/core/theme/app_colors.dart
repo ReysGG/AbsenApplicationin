@@ -1,110 +1,109 @@
 import 'package:flutter/material.dart';
 
-/// AttendX color tokens — sourced from `DESIGN (1).md` and the mockup
-/// (`ubahflutter.md`) Tailwind config. Centralized so every screen pulls from
-/// a single source of truth.
+/// AttendX color tokens — redesigned to a vibrant/playful royal purple theme.
+/// Centralized so every screen pulls from a single source of truth.
 abstract final class AppColors {
   /// Global state to switch color palette between Light and Dark mode.
   /// Set in the root widget before build.
   static bool isDark = false;
 
-  // ── Light Theme Palette ──────────────────────────────────────────────────
-  static const backgroundLight = Color(0xFFF8F9FA);
-  static const surfaceLight = Color(0xFFFFFFFF);
-  static const surfaceDimLight = Color(0xFFD9DADB);
-  static const surfaceBrightLight = Color(0xFFF8F9FA);
-  static const surfaceContainerLowestLight = Color(0xFFFFFFFF);
-  static const surfaceContainerLowLight = Color(0xFFF3F4F5);
-  static const surfaceContainerLight = Color(0xFFEDEEEF);
-  static const surfaceContainerHighLight = Color(0xFFE7E8E9);
-  static const surfaceContainerHighestLight = Color(0xFFE1E3E4);
+  // ── Light Theme Palette (Royal Purple & Indigo) ──────────────────────────
+  static const backgroundLight       = Color(0xFFF7F8FB);
+  static const surfaceLight          = Color(0xFFFFFFFF);
+  static const surfaceDimLight       = Color(0xFFE2E4EB);
+  static const surfaceBrightLight    = Color(0xFFF9FAFC);
+  static const surfaceContainerLowestLight  = Color(0xFFFFFFFF);
+  static const surfaceContainerLowLight     = Color(0xFFF1F3FA);
+  static const surfaceContainerLight        = Color(0xFFE8ECF5);
+  static const surfaceContainerHighLight    = Color(0xFFDFE4F0);
+  static const surfaceContainerHighestLight = Color(0xFFD5DCEB);
 
-  static const onSurfaceLight = Color(0xFF191C1D);
-  static const onSurfaceVariantLight = Color(0xFF434654);
-  static const inverseSurfaceLight = Color(0xFF2E3132);
-  static const inverseOnSurfaceLight = Color(0xFFF0F1F2);
+  static const onSurfaceLight        = Color(0xFF161726);
+  static const onSurfaceVariantLight = Color(0xFF555770);
+  static const inverseSurfaceLight   = Color(0xFF2C2D3B);
+  static const inverseOnSurfaceLight = Color(0xFFF1F2F9);
 
-  static const outlineLight = Color(0xFF737685);
-  static const outlineVariantLight = Color(0xFFC3C6D6);
+  static const outlineLight          = Color(0xFF7E809A);
+  static const outlineVariantLight   = Color(0xFFD2D4EA);
 
-  static const primaryLight = Color(0xFF003D9B);
-  static const onPrimaryLight = Color(0xFFFFFFFF);
-  static const primaryContainerLight = Color(0xFF0052CC);
-  static const onPrimaryContainerLight = Color(0xFFC4D2FF);
-  static const primaryFixedLight = Color(0xFFDAE2FF);
-  static const primaryFixedDimLight = Color(0xFFB2C5FF);
-  static const onPrimaryFixedLight = Color(0xFF001848);
+  static const primaryLight            = Color(0xFF5B3FBF); // Vibrant Royal Purple
+  static const onPrimaryLight          = Color(0xFFFFFFFF);
+  static const primaryContainerLight   = Color(0xFF3B2E8C); // Deep indigo-purple
+  static const onPrimaryContainerLight = Color(0xFFE5DEFF);
+  static const primaryFixedLight       = Color(0xFFE5DEFF);
+  static const primaryFixedDimLight    = Color(0xFFC7B8FF);
+  static const onPrimaryFixedLight     = Color(0xFF1B0066);
 
-  static const secondaryLight = Color(0xFF4C5E83);
-  static const onSecondaryLight = Color(0xFFFFFFFF);
-  static const secondaryContainerLight = Color(0xFFBFD2FD);
-  static const onSecondaryContainerLight = Color(0xFF475A7E);
-  static const secondaryFixedLight = Color(0xFFD7E2FF);
-  static const secondaryFixedDimLight = Color(0xFFB4C7F1);
+  static const secondaryLight          = Color(0xFF7C3AED); // Secondary Purple
+  static const onSecondaryLight        = Color(0xFFFFFFFF);
+  static const secondaryContainerLight = Color(0xFFF3E8FF);
+  static const onSecondaryContainerLight = Color(0xFF6B21A8);
+  static const secondaryFixedLight     = Color(0xFFF3E8FF);
+  static const secondaryFixedDimLight  = Color(0xFFE9D5FF);
 
-  static const tertiaryLight = Color(0xFF004E32);
-  static const onTertiaryLight = Color(0xFFFFFFFF);
-  static const tertiaryContainerLight = Color(0xFF006844);
+  static const tertiaryLight          = Color(0xFF0D9488); // Teal
+  static const onTertiaryLight        = Color(0xFFFFFFFF);
+  static const tertiaryContainerLight = Color(0xFFCCFBF1);
 
-  static const errorLight = Color(0xFFBA1A1A);
-  static const onErrorLight = Color(0xFFFFFFFF);
-  static const errorContainerLight = Color(0xFFFFDAD6);
-  static const onErrorContainerLight = Color(0xFF93000A);
+  static const errorLight            = Color(0xFFE11D48); // Rose red
+  static const onErrorLight          = Color(0xFFFFFFFF);
+  static const errorContainerLight   = Color(0xFFFFE4E6);
+  static const onErrorContainerLight = Color(0xFF881337);
 
   static const successLight = Color(0xFF10B981);
   static const pendingLight = Color(0xFFF59E0B);
 
-  static const surfaceVariantLight = Color(0xFFE1E2EC);
-  static const surfaceTintLight = Color(0xFF005AC2);
+  static const surfaceVariantLight = Color(0xFFE5DEFF);
+  static const surfaceTintLight    = Color(0xFF5B3FBF);
 
-  // ── Dark Theme Palette ───────────────────────────────────────────────────
-  static const backgroundDark = Color(0xFF07080B);
-  static const surfaceDark = Color(0xFF0F111A);
-  static const surfaceDimDark = Color(0xFF0B0C12);
-  static const surfaceBrightDark = Color(0xFF161824);
-  static const surfaceContainerLowestDark = Color(0xFF090A0E);
-  static const surfaceContainerLowDark = Color(0xFF121420);
-  static const surfaceContainerDark = Color(0xFF171A2B);
-  static const surfaceContainerHighDark = Color(0xFF1F2338);
-  static const surfaceContainerHighestDark = Color(0xFF272B45);
+  // ── Dark Theme Palette (Deep Neon Purple & Charcoal) ─────────────────────
+  static const backgroundDark             = Color(0xFF09090E);
+  static const surfaceDark                = Color(0xFF12121E);
+  static const surfaceDimDark             = Color(0xFF0D0D15);
+  static const surfaceBrightDark          = Color(0xFF1B1B2C);
+  static const surfaceContainerLowestDark = Color(0xFF07070A);
+  static const surfaceContainerLowDark    = Color(0xFF171727);
+  static const surfaceContainerDark       = Color(0xFF1E1E34);
+  static const surfaceContainerHighDark   = Color(0xFF262640);
+  static const surfaceContainerHighestDark= Color(0xFF2E2E4C);
 
-  static const onSurfaceDark = Color(0xFFF0F2FA);
-  static const onSurfaceVariantDark = Color(0xFFAEB6D0);
-  static const inverseSurfaceDark = Color(0xFFE1E2EC);
-  static const inverseOnSurfaceDark = Color(0xFF191B23);
+  static const onSurfaceDark        = Color(0xFFF2F2FA);
+  static const onSurfaceVariantDark = Color(0xFFAEB2D0);
+  static const inverseSurfaceDark   = Color(0xFFE5DEFF);
+  static const inverseOnSurfaceDark = Color(0xFF12121E);
 
-  static const outlineDark = Color(0xFF8A93B2);
-  static const outlineVariantDark = Color(0xFF3E445F);
+  static const outlineDark        = Color(0xFF8C8FA6);
+  static const outlineVariantDark = Color(0xFF383857);
 
-  static const primaryDark = Color(0xFF3B82F6);
-  static const onPrimaryDark = Color(0xFFFFFFFF);
-  static const primaryContainerDark = Color(0xFF1E3A8A);
-  static const onPrimaryContainerDark = Color(0xFFD8E2FF);
-  static const primaryFixedDark = Color(0xFF1E3A8A);
-  static const primaryFixedDimDark = Color(0xFF3B82F6);
-  static const onPrimaryFixedDark = Color(0xFFD8E2FF);
+  static const primaryDark            = Color(0xFF8B7AE5); // Bright pastel purple
+  static const onPrimaryDark          = Color(0xFFFFFFFF);
+  static const primaryContainerDark   = Color(0xFF3B2E8C);
+  static const onPrimaryContainerDark = Color(0xFFE5DEFF);
+  static const primaryFixedDark       = Color(0xFF3B2E8C);
+  static const primaryFixedDimDark    = Color(0xFF8B7AE5);
+  static const onPrimaryFixedDark     = Color(0xFFE5DEFF);
 
-  static const secondaryDark = Color(0xFFB845FF);
-  static const onSecondaryDark = Color(0xFFFFFFFF);
-  static const secondaryContainerDark = Color(0xFF581C87);
-  static const onSecondaryContainerDark = Color(0xFFF0DBFF);
-  static const secondaryFixedDark = Color(0xFF581C87);
-  static const secondaryFixedDimDark = Color(0xFFB845FF);
+  static const secondaryDark            = Color(0xFFC084FC); // Pastel secondary purple
+  static const onSecondaryDark          = Color(0xFFFFFFFF);
+  static const secondaryContainerDark   = Color(0xFF581C87);
+  static const onSecondaryContainerDark = Color(0xFFF3E8FF);
+  static const secondaryFixedDark       = Color(0xFF581C87);
+  static const secondaryFixedDimDark    = Color(0xFFC084FC);
 
-  static const tertiaryDark = Color(0xFFF59E0B);
-  static const onTertiaryDark = Color(0xFF1E1B4B);
-  static const tertiaryContainerDark = Color(0xFF78350F);
+  static const tertiaryDark            = Color(0xFF2DD4BF);
+  static const onTertiaryDark          = Color(0xFF115E59);
+  static const tertiaryContainerDark   = Color(0xFF134E4A);
 
-  static const errorDark = Color(0xFFFF5252);
-  static const onErrorDark = Color(0xFFFFFFFF);
-  static const errorContainerDark = Color(0xFF93000A);
-  static const onErrorContainerDark = Color(0xFFFFDAD6);
+  static const errorDark            = Color(0xFFFB7185);
+  static const onErrorDark          = Color(0xFFFFFFFF);
+  static const errorContainerDark   = Color(0xFF881337);
+  static const onErrorContainerDark = Color(0xFFFFE4E6);
 
-  static const successDark = Color(0xFF10B981);
-  static const pendingDark = Color(0xFFF59E0B);
+  static const successDark = Color(0xFF34D399);
+  static const pendingDark = Color(0xFFFBBF24);
 
-  static const surfaceVariantDark = Color(0xFF1F2338);
-  static const surfaceTintDark = Color(0xFF3B82F6);
+  static const surfaceVariantDark = Color(0xFF262640);
+  static const surfaceTintDark    = Color(0xFF8B7AE5);
 
   // ── Dynamic Getters ──────────────────────────────────────────────────────
   static Color get background => isDark ? backgroundDark : backgroundLight;
@@ -155,55 +154,59 @@ abstract final class AppColors {
   static Color get surfaceVariant => isDark ? surfaceVariantDark : surfaceVariantLight;
   static Color get surfaceTint => isDark ? surfaceTintDark : surfaceTintLight;
 
-  // ── Brand header band (subtle premium gradient — deep, not flashy) ───────
-  static const brandStart = Color(0xFF0A5BDB);
-  static const brandMid = Color(0xFF0052CC);
-  static const brandEnd = Color(0xFF003D9B);
-  /// Two-stop hero gradient used on brand headers (top-left → bottom-right).
-  static const List<Color> brandGradient = [brandStart, brandEnd];
-  static Color get pageBg => isDark ? backgroundDark : const Color(0xFFF6F7F9);
+  // ── Brand header band (Vibrant Royal Purple Gradient) ─────────────────────
+  static const brandStart = Color(0xFF5B3FBF);
+  static const brandMid   = Color(0xFF3B2E8C);
+  static const brandEnd   = Color(0xFF1A1060);
+
+  /// Two-stop gradient used for brand headers (Royal Purple to Deep Night Purple).
+  static List<Color> get brandGradient => isDark
+      ? const [Color(0xFF3B2E8C), Color(0xFF1A1060)]
+      : const [Color(0xFF5B3FBF), Color(0xFF3B2E8C)];
+
+  static Color get pageBg => isDark ? backgroundDark : const Color(0xFFF5F6FA);
 
   // ── Modern Playful gradients (theme-aware) ───────────────────────────────
   /// Soft page backdrop: a gentle vertical wash behind scrollable content.
-  /// Light = near-white → faint cool tint; dark = two deep blue-greys.
   static List<Color> get pageGradient => isDark
-      ? const [Color(0xFF0B0C12), Color(0xFF10131F)]
-      : const [Color(0xFFF7F8FB), Color(0xFFEDF1FB)];
+      ? const [Color(0xFF09090E), Color(0xFF12121E)]
+      : const [Color(0xFFF5F6FA), Color(0xFFE8ECF5)];
 
   /// Header / hero gradient that adapts to the active mode (diagonal).
   static List<Color> get headerGradient => isDark
-      ? const [Color(0xFF1B3A86), Color(0xFF0C1E54)]
-      : const [brandStart, brandEnd];
+      ? const [Color(0xFF3B2E8C), Color(0xFF1A1060)]
+      : const [Color(0xFF5B3FBF), Color(0xFF3B2E8C)];
+
+  /// Bottom navigation gradient (from Image #2 concept: vibrant modern gradient on primary active tab)
+  static List<Color> get navActiveGradient => const [
+        Color(0xFF5B3FBF),
+        Color(0xFF7C3AED),
+      ];
 
   /// Cheerful 2-stop gradient from any accent (e.g. a status or category hue).
-  /// Used for hero icon containers and pill fills.
   static List<Color> accentGradient(Color c) => [
         Color.lerp(c, Colors.white, isDark ? 0.10 : 0.18)!,
         Color.lerp(c, Colors.black, isDark ? 0.18 : 0.04)!,
       ];
 
   /// Soft colored glow shadow keyed to an accent — the playful "lift" under a
-  /// hero card/button. Subtle by design (low alpha) to stay tasteful.
+  /// hero card/button.
   static Color softGlow(Color c) =>
       c.withValues(alpha: isDark ? 0.34 : 0.26);
 
-  // ── Flat card tokens (clean enterprise surfaces) ─────────────────────────
+  // ── Flat card tokens (clean enterprise surfaces with rounded feel) ───────
   static Color get cardBorder =>
-      isDark ? const Color(0xFF272B45) : const Color(0xFFE8EAF0);
+      isDark ? const Color(0xFF27273F) : const Color(0xFFEBEBF5);
   static Color get cardShadow =>
-      isDark ? const Color(0x33000000) : const Color(0x12172B4D);
+      isDark ? const Color(0x33000000) : const Color(0x0E2C2260); // Shadow with low alpha purple tint in light mode
 
-  /// Soft, wide ambient shadow paired with [cardShadow] for layered premium
-  /// depth (the diffuse "float" under a card).
+  /// Soft, wide ambient shadow paired with [cardShadow] for layered premium depth.
   static Color get cardShadowAmbient =>
-      isDark ? const Color(0x4D000000) : const Color(0x14172B4D);
+      isDark ? const Color(0x4D000000) : const Color(0x112C2260);
 
   // ── Accent / category palette ────────────────────────────────────────────
-  // Functional hues for categorizing items (home quick-action tiles, leave
-  // types). Each carries category meaning, not decoration. `accentViolet`
-  // matches the workspace secondary (#8127CF). Single value — app ships light.
-  static const accentViolet = Color(0xFF8127CF);
-  static const accentCyan = Color(0xFF0891B2);
-  static const accentGreen = Color(0xFF0E9F6E);
-  static const accentRose = Color(0xFFE11D48);
+  static const accentViolet = Color(0xFF8B5CF6);
+  static const accentCyan   = Color(0xFF06B6D4);
+  static const accentGreen  = Color(0xFF10B981);
+  static const accentRose   = Color(0xFFF43F5E);
 }

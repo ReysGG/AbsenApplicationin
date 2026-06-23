@@ -33,6 +33,9 @@ class MainShell extends StatelessWidget {
     final current = navigationShell.currentIndex;
     return AppDataRefresher(
       child: Scaffold(
+        // Set to true so body spans under the floating navigation bar,
+        // but we add safe sizing to avoid content clipping.
+        extendBody: true,
         body: navigationShell,
         bottomNavigationBar: _AppNavBar(
           tabs: _tabs,
@@ -51,9 +54,8 @@ class _TabSpec {
   final String label;
 }
 
-/// Floating bottom nav bar: a rounded surface pill that hovers above the
-/// content with a soft shadow. A gradient icon chip + spring bounce mark the
-/// active tab. Modern Playful (see DESIGN.md).
+/// Floating bottom nav bar from Image #1/#2 concepts:
+/// Melayang (floating) with rounded borders, smooth gradients, and no raw overlap bugs.
 class _AppNavBar extends StatelessWidget {
   const _AppNavBar({
     required this.tabs,
@@ -69,34 +71,48 @@ class _AppNavBar extends StatelessWidget {
   Widget build(BuildContext context) {
     final bottomPadding = MediaQuery.of(context).padding.bottom;
 
-    return Padding(
+    return Container(
+      // Smooth gradient overlay at the very bottom of the screen (from Image #2 concept)
+      // to blend the floating nav beautifully with the scroll background.
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [
+            AppColors.background.withValues(alpha: 0.0),
+            AppColors.background.withValues(alpha: 0.8),
+            AppColors.background,
+          ],
+          stops: const [0.0, 0.4, 1.0],
+        ),
+      ),
       padding: EdgeInsets.fromLTRB(
         AppSpacing.md,
-        0,
+        24, // spacing above the nav bar to blend the gradient smoothly
         AppSpacing.md,
-        bottomPadding > 0 ? bottomPadding : AppSpacing.md,
+        bottomPadding > 0 ? bottomPadding + 6 : AppSpacing.md,
       ),
       child: DecoratedBox(
         decoration: BoxDecoration(
           color: AppColors.surface,
-          borderRadius: BorderRadius.circular(AppRadius.xxxl),
-          border: Border.all(color: AppColors.cardBorder),
+          borderRadius: BorderRadius.circular(28), // Rounded custom shape (Image #1)
+          border: Border.all(color: AppColors.cardBorder, width: 1.2),
           boxShadow: [
             BoxShadow(
-              color: AppColors.cardShadow,
-              blurRadius: 6,
-              offset: const Offset(0, 2),
+              color: AppColors.cardShadow.withValues(alpha: AppColors.isDark ? 0.4 : 0.12),
+              blurRadius: 20,
+              offset: const Offset(0, 8),
             ),
             BoxShadow(
-              color: AppColors.cardShadowAmbient,
-              blurRadius: 28,
-              offset: const Offset(0, 12),
-              spreadRadius: -8,
+              color: AppColors.cardShadowAmbient.withValues(alpha: AppColors.isDark ? 0.3 : 0.08),
+              blurRadius: 36,
+              offset: const Offset(0, 16),
+              spreadRadius: -10,
             ),
           ],
         ),
         child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
+          padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: [
@@ -139,7 +155,7 @@ class _NavItemState extends State<_NavItem>
     super.initState();
     _bounce = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 380),
+      duration: const Duration(milliseconds: 320),
     );
     _prevSelected = widget.selected;
   }
@@ -147,7 +163,6 @@ class _NavItemState extends State<_NavItem>
   @override
   void didUpdateWidget(_NavItem old) {
     super.didUpdateWidget(old);
-    // Trigger bounce only on the moment of selection.
     if (widget.selected && !_prevSelected) {
       _bounce.forward(from: 0);
     }
@@ -164,11 +179,11 @@ class _NavItemState extends State<_NavItem>
   Widget build(BuildContext context) {
     final selected = widget.selected;
     final labelColor = selected
-        ? AppColors.primary
-        : AppColors.onSurfaceVariant;
+        ? Colors.white
+        : AppColors.onSurfaceVariant.withValues(alpha: 0.8);
     final iconColor = selected
-        ? AppColors.onPrimary
-        : AppColors.onSurfaceVariant;
+        ? Colors.white
+        : AppColors.onSurfaceVariant.withValues(alpha: 0.8);
 
     return Expanded(
       child: Semantics(
@@ -179,63 +194,53 @@ class _NavItemState extends State<_NavItem>
         child: GestureDetector(
           onTap: widget.onTap,
           behavior: HitTestBehavior.opaque,
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 300),
-            curve: Curves.easeOutCubic,
-            padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 4),
-            margin: const EdgeInsets.symmetric(horizontal: 2),
-            decoration: BoxDecoration(
-              color: selected
-                  ? AppColors.primary.withValues(alpha: 0.13)
-                  : Colors.transparent,
-              borderRadius: BorderRadius.circular(AppRadius.full),
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                // Icon with spring-bounce scale on selection.
-                AnimatedBuilder(
-                  animation: _bounce,
-                  builder: (context, child) {
-                    // Spring: overshoot then settle using easeOutBack applied
-                    // to the bounce controller value.
-                    final t = Curves.easeOutBack.transform(_bounce.value);
-                    final scale = selected
-                        ? 1.0 + 0.28 * (1 - (t - 1).abs().clamp(0.0, 1.0))
-                        : 1.0;
-                    return Transform.scale(scale: scale, child: child);
-                  },
-                  child: AnimatedContainer(
-                    duration: const Duration(milliseconds: 300),
-                    curve: Curves.easeOutCubic,
-                    width: 32,
-                    height: 32,
-                    decoration: BoxDecoration(
-                      color: selected ? AppColors.primary : Colors.transparent,
-                      borderRadius: BorderRadius.circular(AppRadius.full),
-                    ),
-                    child: Icon(
-                      selected ? widget.spec.activeIcon : widget.spec.icon,
-                      color: iconColor,
-                      size: 22,
-                    ),
+          child: AnimatedBuilder(
+            animation: _bounce,
+            builder: (context, child) {
+              final t = Curves.easeOutBack.transform(_bounce.value);
+              // Slight stretch bounce scale for active tab
+              final scale = selected
+                  ? 1.0 + 0.12 * (1 - (t - 1).abs().clamp(0.0, 1.0))
+                  : 1.0;
+              return Transform.scale(scale: scale, child: child);
+            },
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 250),
+              curve: Curves.easeInOutHorizontal,
+              padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 4),
+              decoration: BoxDecoration(
+                // Capsules gradient background for active item (Image #1/#2)
+                gradient: selected
+                    ? LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: AppColors.navActiveGradient,
+                      )
+                    : null,
+                borderRadius: BorderRadius.circular(22),
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    selected ? widget.spec.activeIcon : widget.spec.icon,
+                    color: iconColor,
+                    size: 24,
                   ),
-                ),
-                const SizedBox(height: 3),
-                AnimatedDefaultTextStyle(
-                  duration: const Duration(milliseconds: 200),
-                  style: AppTypography.labelSm.copyWith(
-                    color: labelColor,
-                    letterSpacing: 0,
-                    fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
-                  ),
-                  child: Text(
+                  const SizedBox(height: 4),
+                  Text(
                     widget.spec.label,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
+                    style: AppTypography.labelSm.copyWith(
+                      color: labelColor,
+                      fontSize: 10,
+                      fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         ),

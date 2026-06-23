@@ -66,7 +66,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 AppSpacing.md,
                 AppSpacing.md,
                 AppSpacing.md,
-                AppSpacing.lg,
+                110, // Extra space at bottom so scroll content doesn't get hidden under floating bottom bar
               ),
               sliver: SliverList(
                 delegate: SliverChildListDelegate([
@@ -124,80 +124,125 @@ class _BrandHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     final top = MediaQuery.of(context).padding.top;
     return Container(
-          padding: EdgeInsets.fromLTRB(
-            AppSpacing.md,
-            top + AppSpacing.md,
-            AppSpacing.md,
-            AppSpacing.lg,
+      // Gradient header with bottom curve
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: AppColors.brandGradient,
+        ),
+        borderRadius: const BorderRadius.only(
+          bottomLeft: Radius.circular(32),
+          bottomRight: Radius.circular(32),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.brandEnd.withValues(alpha: AppColors.isDark ? 0.35 : 0.22),
+            blurRadius: 20,
+            offset: const Offset(0, 8),
           ),
-          decoration: BoxDecoration(
-            gradient: const LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: AppColors.brandGradient,
-            ),
-            borderRadius: const BorderRadius.only(
-              bottomLeft: Radius.circular(AppRadius.xxl),
-              bottomRight: Radius.circular(AppRadius.xxl),
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: AppColors.brandEnd.withValues(alpha: 0.28),
-                blurRadius: 20,
-                offset: const Offset(0, 8),
+        ],
+      ),
+      child: Stack(
+        children: [
+          // Playful background circle elements
+          Positioned(
+            right: -30,
+            top: -20,
+            child: Container(
+              width: 140,
+              height: 140,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: Colors.white.withValues(alpha: 0.05),
               ),
-            ],
+            ),
           ),
-          child: Row(
-            children: [
-              Container(
-                width: 44,
-                height: 44,
-                decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.22),
-                  shape: BoxShape.circle,
-                  border: Border.all(
-                    color: Colors.white.withValues(alpha: 0.5),
+          Positioned(
+            right: 50,
+            top: -50,
+            child: Container(
+              width: 90,
+              height: 90,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: Colors.white.withValues(alpha: 0.03),
+              ),
+            ),
+          ),
+
+          Padding(
+            padding: EdgeInsets.fromLTRB(
+              AppSpacing.md,
+              top + AppSpacing.md,
+              AppSpacing.md,
+              AppSpacing.lg + 4,
+            ),
+            child: Row(
+              children: [
+                // Avatar with border
+                Container(
+                  width: 48,
+                  height: 48,
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.22),
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                      color: Colors.white.withValues(alpha: 0.5),
+                      width: 1.5,
+                    ),
+                  ),
+                  alignment: Alignment.center,
+                  child: Text(
+                    initial,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w800,
+                      fontSize: 18,
+                      fontFamily: AppTypography.fontFamily,
+                    ),
                   ),
                 ),
-                alignment: Alignment.center,
-                child: Text(
-                  initial,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w700,
-                    fontSize: 18,
+                const SizedBox(width: AppSpacing.sm + 4),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        '${Formatters.greeting(now)},',
+                        style: AppTypography.bodySm.copyWith(
+                          color: Colors.white.withValues(alpha: 0.85),
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        firstName.isEmpty ? 'Karyawan' : firstName,
+                        style: AppTypography.headlineLg.copyWith(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        'Semangatkan harimu! 🚀',
+                        style: AppTypography.labelSm.copyWith(
+                          color: Colors.white.withValues(alpha: 0.75),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-              ),
-              const SizedBox(width: AppSpacing.sm),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      '${Formatters.greeting(now)},',
-                      style: AppTypography.bodySm.copyWith(
-                        color: Colors.white.withValues(alpha: 0.85),
-                      ),
-                    ),
-                    Text(
-                      firstName.isEmpty ? 'Karyawan' : firstName,
-                      style: AppTypography.headlineMd.copyWith(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ],
+                _IconBubble(
+                  icon: Icons.notifications_none_rounded,
+                  onTap: onBell,
                 ),
-              ),
-              _IconBubble(
-                icon: Icons.notifications_none_rounded,
-                onTap: onBell,
-              ),
-            ],
+              ],
+            ),
           ),
-        )
+        ],
+      ),
+    )
         .animate()
         .fadeIn(duration: 350.ms)
         .slideY(begin: -0.15, curve: Curves.easeOut);
@@ -239,13 +284,12 @@ class _SectionLabel extends StatelessWidget {
       text,
       style: AppTypography.labelMd.copyWith(
         color: AppColors.onSurface,
-        fontWeight: FontWeight.w700,
+        fontWeight: FontWeight.w800,
       ),
     ).animate(delay: 280.ms).fadeIn(duration: 320.ms);
   }
 }
 
-/// Pulsing dots loader.
 class _HomeLoader extends StatelessWidget {
   const _HomeLoader();
 
@@ -280,6 +324,7 @@ class _HomeLoader extends StatelessWidget {
   }
 }
 
+// ── Clock & Shift Card (Image #1 Concept) ──────────────────────────────────
 class _ClockShiftCard extends StatelessWidget {
   const _ClockShiftCard({required this.now, required this.sh});
   final DateTime now;
@@ -288,100 +333,154 @@ class _ClockShiftCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SolidCard(
-          entrance: false,
-          child: Column(
-            children: [
-              // Big live clock
-              Text(
-                Formatters.time(now),
-                style: AppTypography.display.copyWith(
-                  fontSize: 44,
-                  fontWeight: FontWeight.w800,
-                  height: 1.0,
-                  letterSpacing: -1,
-                  color: AppColors.brandMid,
-                ),
-              ),
-              const SizedBox(height: 2),
-              Text(
-                'Waktu Lokal (WIB)',
-                style: AppTypography.bodyMd.copyWith(
-                  color: AppColors.onSurfaceVariant,
-                ),
-              ),
-              const SizedBox(height: AppSpacing.md),
-              const Divider(height: 1),
-              const SizedBox(height: AppSpacing.md),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Row(
-                    children: [
-                      Icon(Icons.schedule, size: 18, color: AppColors.brandMid),
-                      const SizedBox(width: 6),
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Shift Hari Ini',
-                            style: AppTypography.labelSm.copyWith(
-                              color: AppColors.onSurfaceVariant,
-                              letterSpacing: 0,
+      entrance: false,
+      padding: EdgeInsets.zero, // Zero padding so image can align perfectly at bottom
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Use IntrinsicHeight to align image perfectly to bottom without flying gaps
+          IntrinsicHeight(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                // Left text side
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 20, 8, 12),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        // Clock text with icon
+                        Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(8),
+                              decoration: BoxDecoration(
+                                color: AppColors.primary.withValues(alpha: 0.1),
+                                shape: BoxShape.circle,
+                              ),
+                              child: Icon(
+                                Icons.access_time_filled_rounded,
+                                color: AppColors.primary,
+                                size: 24,
+                              ),
                             ),
-                          ),
-                          Text(
-                            sh?.rangeLabel ?? 'Tidak ada shift',
-                            style: AppTypography.labelMd.copyWith(
-                              fontWeight: FontWeight.w700,
+                            const SizedBox(width: AppSpacing.sm + 4),
+                            Text(
+                              Formatters.time(now),
+                              style: AppTypography.display.copyWith(
+                                fontSize: 36,
+                                fontWeight: FontWeight.w800,
+                                height: 1.0,
+                                letterSpacing: -1,
+                                color: AppColors.primaryContainer,
+                              ),
                             ),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          'Waktu Lokal (WIB)',
+                          style: AppTypography.bodySm.copyWith(
+                            color: AppColors.onSurfaceVariant,
+                            fontWeight: FontWeight.w500,
                           ),
-                        ],
-                      ),
-                    ],
-                  ),
-                  if (sh != null)
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 10,
-                        vertical: 5,
-                      ),
-                      decoration: BoxDecoration(
-                        color: AppColors.brandMid.withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(AppRadius.full),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(
-                            sh!.workMode == WorkMode.wfo
-                                ? Icons.business
-                                : Icons.home_work_outlined,
-                            size: 13,
-                            color: AppColors.brandMid,
-                          ),
-                          const SizedBox(width: 4),
-                          Text(
-                            sh!.workMode.label,
-                            style: AppTypography.labelSm.copyWith(
-                              color: AppColors.brandMid,
-                              letterSpacing: 0,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                        ],
-                      ),
+                        ),
+                      ],
                     ),
-                ],
-              ),
-            ],
+                  ),
+                ),
+
+                // Right image side (tucked to bottom and sitting flat)
+                Container(
+                  width: 130,
+                  alignment: Alignment.bottomCenter,
+                  child: Image.asset(
+                    'assets/images/clock_character.png',
+                    fit: BoxFit.contain,
+                    alignment: Alignment.bottomCenter,
+                  ),
+                ),
+              ],
+            ),
           ),
-        )
+          const Divider(height: 1, indent: 20, endIndent: 20),
+          // Shift and WFO status bar
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 12, 20, 16),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Row(
+                  children: [
+                    Icon(Icons.schedule_rounded, size: 20, color: AppColors.primary),
+                    const SizedBox(width: 8),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Shift Hari Ini',
+                          style: AppTypography.labelSm.copyWith(
+                            color: AppColors.onSurfaceVariant,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                        Text(
+                          sh?.rangeLabel ?? 'Tidak ada shift',
+                          style: AppTypography.labelMd.copyWith(
+                            fontWeight: FontWeight.w800,
+                            color: AppColors.onSurface,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+                if (sh != null)
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 6,
+                    ),
+                    decoration: BoxDecoration(
+                      color: AppColors.primary.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(AppRadius.lg),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          sh!.workMode == WorkMode.wfo
+                              ? Icons.business_rounded
+                              : Icons.home_work_rounded,
+                          size: 14,
+                          color: AppColors.primary,
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          sh!.workMode.label,
+                          style: AppTypography.labelSm.copyWith(
+                            color: AppColors.primary,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    )
         .animate()
         .fadeIn(duration: 360.ms, delay: 120.ms)
-        .slideY(begin: 0.1, curve: Curves.easeOut);
+        .slideY(begin: 0.08, curve: Curves.easeOut);
   }
 }
 
+// ── Attendance Action Card (Fingerprint + Door Image Concept) ──────────────
 class _AttendanceActionCard extends StatelessWidget {
   const _AttendanceActionCard({required this.today});
   final dynamic today;
@@ -396,7 +495,7 @@ class _AttendanceActionCard extends StatelessWidget {
       hasCheckedOut,
     )) {
       (false, _) => (
-        AppColors.pending,
+        AppColors.primary, // Vibrant accent color
         'Belum Check-in',
         'Jangan lupa absen sebelum jam masuk',
       ),
@@ -406,99 +505,126 @@ class _AttendanceActionCard extends StatelessWidget {
         'Selamat bekerja! Jangan lupa check-out nanti',
       ),
       (true, true) => (
-        AppColors.brandMid,
+        AppColors.secondary,
         'Absensi Selesai',
         'Kamu sudah check-in & check-out hari ini',
       ),
     };
 
     return SolidCard(
-          entrance: false,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                        colors: [
-                          statusColor.withValues(alpha: 0.20),
-                          statusColor.withValues(alpha: 0.08),
-                        ],
-                      ),
-                      borderRadius: BorderRadius.circular(AppRadius.md),
-                    ),
-                    child: Icon(
-                      hasCheckedOut
-                          ? Icons.check_circle_rounded
-                          : hasCheckedIn
-                          ? Icons.work_history_rounded
-                          : Icons.touch_app_rounded,
-                      color: statusColor,
-                      size: 20,
-                    ),
-                  ),
-                  const SizedBox(width: AppSpacing.sm),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+      entrance: false,
+      padding: EdgeInsets.zero, // Zero padding for alignment
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          IntrinsicHeight(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                // Info block
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 20, 8, 12),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.center,
                       children: [
-                        Text(
-                          statusText,
-                          style: AppTypography.labelMd.copyWith(
+                        // Fingerprint container
+                        Container(
+                          width: 56,
+                          height: 56,
+                          decoration: BoxDecoration(
+                            color: statusColor.withValues(alpha: 0.12),
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          alignment: Alignment.center,
+                          child: Icon(
+                            Icons.fingerprint_rounded,
                             color: statusColor,
-                            fontWeight: FontWeight.w700,
+                            size: 32,
                           ),
                         ),
-                        Text(
-                          hint,
-                          style: AppTypography.bodyMd.copyWith(
-                            color: AppColors.onSurfaceVariant,
-                            fontSize: 12,
+                        const SizedBox(width: AppSpacing.md),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Text(
+                                statusText,
+                                style: AppTypography.titleLg.copyWith(
+                                  color: statusColor,
+                                  fontWeight: FontWeight.w800,
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                hint,
+                                style: AppTypography.bodySm.copyWith(
+                                  color: AppColors.onSurfaceVariant,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ],
                           ),
                         ),
                       ],
                     ),
                   ),
-                ],
-              ),
-              const SizedBox(height: AppSpacing.md),
-              if (!hasCheckedIn)
-                _HeroActionButton(
-                  glow: true,
-                  onPressed: () => context.push(AppRoutes.checkinPrep),
-                  icon: Icons.login,
-                  label: 'Check-in Sekarang',
-                )
-              else if (!hasCheckedOut)
-                _HeroActionButton(
-                  glow: false,
-                  onPressed: () => context.push(
-                    '${AppRoutes.checkinPrep}?mode=checkout'
-                    '&wm=${today.checkIn?.workMode?.name ?? "wfo"}',
-                  ),
-                  icon: Icons.logout,
-                  label: 'Check-out Sekarang',
-                )
-              else
-                OutlinedButton.icon(
-                  onPressed: null,
-                  icon: const Icon(Icons.check_circle_outline),
-                  label: const Text('Absensi Hari Ini Selesai'),
-                  style: OutlinedButton.styleFrom(
-                    minimumSize: const Size.fromHeight(48),
-                  ),
                 ),
-            ],
+
+                // Door image touching the bottom flat (only if attendance not fully done)
+                if (!hasCheckedOut)
+                  Container(
+                    width: 100,
+                    alignment: Alignment.bottomCenter,
+                    child: Image.asset(
+                      'assets/images/checkin_door.png',
+                      fit: BoxFit.contain,
+                      alignment: Alignment.bottomCenter,
+                    ),
+                  ),
+              ],
+            ),
           ),
-        )
+
+          // Action Button Section
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 8, 20, 20),
+            child: !hasCheckedIn
+                ? _HeroActionButton(
+                    glow: true,
+                    onPressed: () => context.push(AppRoutes.checkinPrep),
+                    icon: Icons.double_arrow_rounded,
+                    label: 'Check-in Sekarang',
+                  )
+                : !hasCheckedOut
+                    ? _HeroActionButton(
+                        glow: false,
+                        onPressed: () => context.push(
+                          '${AppRoutes.checkinPrep}?mode=checkout'
+                          '&wm=${today.checkIn?.workMode?.name ?? "wfo"}',
+                        ),
+                        icon: Icons.logout_rounded,
+                        label: 'Check-out Sekarang',
+                      )
+                    : OutlinedButton.icon(
+                        onPressed: null,
+                        icon: const Icon(Icons.check_circle_outline_rounded),
+                        label: const Text('Absensi Hari Ini Selesai'),
+                        style: OutlinedButton.styleFrom(
+                          minimumSize: const Size.fromHeight(54),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(AppRadius.xl),
+                          ),
+                        ),
+                      ),
+          ),
+        ],
+      ),
+    )
         .animate()
         .fadeIn(duration: 360.ms, delay: 200.ms)
-        .slideY(begin: 0.1, curve: Curves.easeOut);
+        .slideY(begin: 0.08, curve: Curves.easeOut);
   }
 }
 
@@ -524,23 +650,23 @@ class _HeroActionButtonState extends State<_HeroActionButton> {
 
   @override
   Widget build(BuildContext context) {
-    final isCheckOut = widget.icon == Icons.logout;
+    final isCheckOut = widget.icon == Icons.logout_rounded;
     final Color buttonColor =
         isCheckOut ? AppColors.accentRose : AppColors.primary;
 
-    Widget button = Listener(
+    return Listener(
       onPointerDown: (_) => setState(() => _scale = 0.96),
       onPointerUp: (_) => setState(() => _scale = 1.0),
       onPointerCancel: (_) => setState(() => _scale = 1.0),
       child: AnimatedScale(
         scale: _scale,
-        duration: const Duration(milliseconds: 120),
+        duration: const Duration(milliseconds: 100),
         curve: Curves.easeOut,
         child: Container(
           width: double.infinity,
           height: 54,
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(AppRadius.lg),
+            borderRadius: BorderRadius.circular(AppRadius.lg + 2),
             gradient: LinearGradient(
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
@@ -561,7 +687,7 @@ class _HeroActionButtonState extends State<_HeroActionButton> {
             color: Colors.transparent,
             child: InkWell(
               onTap: widget.onPressed,
-              borderRadius: BorderRadius.circular(AppRadius.lg),
+              borderRadius: BorderRadius.circular(AppRadius.lg + 2),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
@@ -569,9 +695,9 @@ class _HeroActionButtonState extends State<_HeroActionButton> {
                   const SizedBox(width: AppSpacing.sm),
                   Text(
                     widget.label,
-                    style: AppTypography.titleLg.copyWith(
+                    style: AppTypography.bodyLg.copyWith(
                       color: Colors.white,
-                      fontWeight: FontWeight.w700,
+                      fontWeight: FontWeight.w800,
                     ),
                   ),
                 ],
@@ -581,8 +707,6 @@ class _HeroActionButtonState extends State<_HeroActionButton> {
         ),
       ),
     );
-
-    return button;
   }
 }
 
@@ -616,38 +740,38 @@ class _QuickGrid extends StatelessWidget {
       (
         Icons.history_rounded,
         'Riwayat',
-        AppColors.brandMid,
+        AppColors.primary,
         AppRoutes.history,
         false,
       ),
     ];
 
     return SolidCard(
-          entrance: false,
-          padding: const EdgeInsets.symmetric(
-            vertical: AppSpacing.md,
-            horizontal: AppSpacing.sm,
-          ),
-          child: Row(
-            children: [
-              for (var i = 0; i < items.length; i++)
-                Expanded(
-                  child: _QuickItem(
-                    index: i,
-                    icon: items[i].$1,
-                    label: items[i].$2,
-                    color: items[i].$3,
-                    onTap: () => items[i].$5
-                        ? context.push(items[i].$4)
-                        : context.go(items[i].$4),
-                  ),
-                ),
-            ],
-          ),
-        )
+      entrance: false,
+      padding: const EdgeInsets.symmetric(
+        vertical: AppSpacing.md + 2,
+        horizontal: AppSpacing.sm,
+      ),
+      child: Row(
+        children: [
+          for (var i = 0; i < items.length; i++)
+            Expanded(
+              child: _QuickItem(
+                index: i,
+                icon: items[i].$1,
+                label: items[i].$2,
+                color: items[i].$3,
+                onTap: () => items[i].$5
+                    ? context.push(items[i].$4)
+                    : context.go(items[i].$4),
+              ),
+            ),
+        ],
+      ),
+    )
         .animate(delay: 320.ms)
         .fadeIn(duration: 320.ms)
-        .slideY(begin: 0.1, curve: Curves.easeOut);
+        .slideY(begin: 0.08, curve: Curves.easeOut);
   }
 }
 
@@ -690,27 +814,28 @@ class _QuickItemState extends State<_QuickItem> {
             child: Column(
               children: [
                 Container(
-                  width: 48,
-                  height: 48,
+                  width: 52,
+                  height: 52,
                   decoration: BoxDecoration(
                     gradient: LinearGradient(
                       begin: Alignment.topLeft,
                       end: Alignment.bottomRight,
                       colors: [
-                        widget.color.withValues(alpha: 0.20),
-                        widget.color.withValues(alpha: 0.08),
+                        color.withValues(alpha: 0.20),
+                        color.withValues(alpha: 0.06),
                       ],
                     ),
                     borderRadius: BorderRadius.circular(AppRadius.lg),
                   ),
-                  child: Icon(widget.icon, color: widget.color, size: 24),
+                  child: Icon(icon, color: color, size: 24),
                 ),
-                const SizedBox(height: 6),
+                const SizedBox(height: 8),
                 Text(
-                  widget.label,
+                  label,
                   style: AppTypography.labelSm.copyWith(
                     color: AppColors.onSurface,
                     letterSpacing: 0,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
               ],
@@ -733,7 +858,7 @@ class _ErrorState extends StatelessWidget {
       padding: const EdgeInsets.symmetric(vertical: 32),
       child: Column(
         children: [
-          Icon(Icons.cloud_off, size: 40, color: AppColors.outline),
+          Icon(Icons.cloud_off_rounded, size: 40, color: AppColors.outline),
           const SizedBox(height: AppSpacing.sm),
           Text(
             message,
@@ -750,8 +875,6 @@ class _ErrorState extends StatelessWidget {
   }
 }
 
-/// Prompt shown on Home when the employee hasn't enrolled their face yet.
-/// HR creates the account; the employee completes face enrollment from here.
 class _FaceEnrollBanner extends StatelessWidget {
   const _FaceEnrollBanner({required this.onTap});
   final VoidCallback onTap;
@@ -765,16 +888,19 @@ class _FaceEnrollBanner extends StatelessWidget {
       child: Row(
         children: [
           Container(
-            width: 44,
-            height: 44,
+            width: 48,
+            height: 48,
             decoration: BoxDecoration(
               color: AppColors.pending.withValues(alpha: 0.18),
               borderRadius: BorderRadius.circular(AppRadius.lg),
             ),
-            child: Icon(Icons.face_retouching_natural_rounded,
-                color: AppColors.pending),
+            child: Icon(
+              Icons.face_retouching_natural_rounded,
+              color: AppColors.pending,
+              size: 26,
+            ),
           ),
-          const SizedBox(width: AppSpacing.sm),
+          const SizedBox(width: AppSpacing.sm + 4),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -784,13 +910,15 @@ class _FaceEnrollBanner extends StatelessWidget {
                   style: AppTypography.labelMd.copyWith(
                     color: AppColors.onSurface,
                     fontWeight: FontWeight.w800,
+                    fontSize: 14,
                   ),
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  'Wajib sebelum bisa absen. Hanya butuh beberapa detik.',
+                  'Wajib sebelum bisa absen. Cukup beberapa detik.',
                   style: AppTypography.bodySm.copyWith(
                     color: AppColors.onSurfaceVariant,
+                    fontWeight: FontWeight.w500,
                   ),
                 ),
               ],

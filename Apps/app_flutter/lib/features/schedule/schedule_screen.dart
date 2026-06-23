@@ -133,79 +133,127 @@ class _ScheduleHero extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-          padding: const EdgeInsets.all(AppSpacing.md),
           decoration: BoxDecoration(
-            color: AppColors.brandMid,
-            borderRadius: BorderRadius.circular(AppRadius.xl),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Container(
-                    width: 50,
-                    height: 50,
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.18),
-                      borderRadius: BorderRadius.circular(AppRadius.xl),
-                    ),
-                    child: Icon(
-                      selected.isDayOff
-                          ? Icons.weekend_rounded
-                          : Icons.calendar_month_rounded,
-                      color: Colors.white,
-                    ),
-                  ),
-                  const SizedBox(width: AppSpacing.sm),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Jadwal Shift',
-                          style: AppTypography.headlineLg.copyWith(
-                            color: Colors.white,
-                            fontWeight: FontWeight.w800,
-                          ),
-                        ),
-                        Text(
-                          _weekRangeLabel(selected.date, totalDays),
-                          style: AppTypography.bodySm.copyWith(
-                            color: Colors.white.withValues(alpha: 0.82),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  _HeroBadge(
-                    label: selected.isDayOff
-                        ? 'Libur'
-                        : selected.workMode.label,
-                    icon: selected.isDayOff
-                        ? Icons.coffee_rounded
-                        : selected.workMode == WorkMode.wfo
-                        ? Icons.business_rounded
-                        : Icons.home_work_rounded,
-                  ),
-                ],
-              ),
-              const SizedBox(height: AppSpacing.md),
-              Row(
-                children: [
-                  Expanded(
-                    child: _HeroMetric(value: '$workDays', label: 'Hari kerja'),
-                  ),
-                  const SizedBox(width: AppSpacing.sm),
-                  Expanded(
-                    child: _HeroMetric(
-                      value: selected.rangeLabel,
-                      label: 'Shift dipilih',
-                    ),
-                  ),
-                ],
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: AppColors.brandGradient,
+            ),
+            borderRadius: BorderRadius.circular(AppRadius.xxl),
+            boxShadow: [
+              BoxShadow(
+                color: AppColors.brandEnd.withValues(alpha: AppColors.isDark ? 0.35 : 0.22),
+                blurRadius: 20,
+                offset: const Offset(0, 8),
               ),
             ],
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(AppRadius.xxl),
+            child: Stack(
+              children: [
+                // Playful background circle elements
+                Positioned(
+                  right: -30,
+                  top: -20,
+                  child: Container(
+                    width: 140,
+                    height: 140,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: Colors.white.withValues(alpha: 0.05),
+                    ),
+                  ),
+                ),
+                Positioned(
+                  right: 50,
+                  top: -50,
+                  child: Container(
+                    width: 90,
+                    height: 90,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: Colors.white.withValues(alpha: 0.03),
+                    ),
+                  ),
+                ),
+
+                Padding(
+                  padding: const EdgeInsets.all(AppSpacing.md + 4),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Container(
+                            width: 50,
+                            height: 50,
+                            decoration: BoxDecoration(
+                              color: Colors.white.withValues(alpha: 0.18),
+                              borderRadius: BorderRadius.circular(AppRadius.xl),
+                            ),
+                            child: Icon(
+                              selected.isDayOff
+                                  ? Icons.weekend_rounded
+                                  : Icons.calendar_month_rounded,
+                              color: Colors.white,
+                              size: 26,
+                            ),
+                          ),
+                          const SizedBox(width: AppSpacing.sm),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Jadwal Shift',
+                                  style: AppTypography.headlineLg.copyWith(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.w800,
+                                  ),
+                                ),
+                                Text(
+                                  _weekRangeLabel(selected.date, totalDays),
+                                  style: AppTypography.bodySm.copyWith(
+                                    color: Colors.white.withValues(alpha: 0.82),
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          _HeroBadge(
+                            label: selected.isDayOff
+                                ? 'Libur'
+                                : selected.workMode.label,
+                            icon: selected.isDayOff
+                                ? Icons.coffee_rounded
+                                : selected.workMode == WorkMode.wfo
+                                ? Icons.business_rounded
+                                : Icons.home_work_rounded,
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: AppSpacing.md + 4),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: _HeroMetric(value: '$workDays', label: 'Hari kerja'),
+                          ),
+                          const SizedBox(width: AppSpacing.sm + 4),
+                          Expanded(
+                            child: _HeroMetric(
+                              value: selected.rangeLabel,
+                              label: 'Shift dipilih',
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
           ),
         )
         .animate()
@@ -224,8 +272,8 @@ class _HeroBadge extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.sm,
-        vertical: AppSpacing.xs,
+        horizontal: AppSpacing.sm + 2,
+        vertical: AppSpacing.xs + 1,
       ),
       decoration: BoxDecoration(
         color: Colors.white.withValues(alpha: 0.16),
@@ -242,6 +290,7 @@ class _HeroBadge extends StatelessWidget {
             style: AppTypography.labelSm.copyWith(
               color: Colors.white,
               letterSpacing: 0,
+              fontWeight: FontWeight.w800,
             ),
           ),
         ],
@@ -259,10 +308,10 @@ class _HeroMetric extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(AppSpacing.sm),
+      padding: const EdgeInsets.all(AppSpacing.sm + 2),
       decoration: BoxDecoration(
         color: Colors.white.withValues(alpha: 0.14),
-        borderRadius: BorderRadius.circular(AppRadius.lg),
+        borderRadius: BorderRadius.circular(AppRadius.xl),
         border: Border.all(color: Colors.white.withValues(alpha: 0.18)),
       ),
       child: Column(
@@ -277,11 +326,13 @@ class _HeroMetric extends StatelessWidget {
               fontWeight: FontWeight.w800,
             ),
           ),
+          const SizedBox(height: 2),
           Text(
             label,
             style: AppTypography.labelSm.copyWith(
               color: Colors.white.withValues(alpha: 0.74),
               letterSpacing: 0,
+              fontWeight: FontWeight.w500,
             ),
           ),
         ],
@@ -321,9 +372,9 @@ class _DayRibbon extends StatelessWidget {
               ),
             ),
           ),
-          const SizedBox(height: AppSpacing.sm),
+          const SizedBox(height: AppSpacing.sm + 2),
           SizedBox(
-            height: 88,
+            height: 94,
             child: ListView.separated(
               scrollDirection: Axis.horizontal,
               itemCount: shifts.length,
@@ -361,20 +412,25 @@ class _DayPill extends StatelessWidget {
 
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(AppRadius.lg),
+      borderRadius: BorderRadius.circular(AppRadius.xl),
       child: AnimatedContainer(
         duration: 180.ms,
         curve: Curves.easeOut,
-        width: 64,
-        padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
+        width: 68,
+        padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm + 2),
         decoration: BoxDecoration(
-          color: selected
-              ? AppColors.primary
-              : AppColors.surfaceContainerLowest,
-          borderRadius: BorderRadius.circular(AppRadius.lg),
+          gradient: selected
+              ? LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: AppColors.navActiveGradient,
+                )
+              : null,
+          color: selected ? null : AppColors.surfaceContainerLowest,
+          borderRadius: BorderRadius.circular(AppRadius.xl),
           border: Border.all(
             color: selected
-                ? AppColors.primary
+                ? Colors.transparent
                 : isToday
                 ? AppColors.primary.withValues(alpha: 0.5)
                 : AppColors.outlineVariant,
@@ -383,9 +439,10 @@ class _DayPill extends StatelessWidget {
           boxShadow: selected
               ? [
                   BoxShadow(
-                    color: AppColors.primary.withValues(alpha: 0.22),
+                    color: AppColors.softGlow(AppColors.primary),
                     blurRadius: 14,
                     offset: const Offset(0, 8),
+                    spreadRadius: -3,
                   ),
                 ]
               : null,
@@ -397,17 +454,19 @@ class _DayPill extends StatelessWidget {
               Formatters.dayNameShort(shift.date).toUpperCase(),
               style: AppTypography.labelSm.copyWith(
                 color: selected
-                    ? AppColors.onPrimary.withValues(alpha: 0.78)
+                    ? Colors.white.withValues(alpha: 0.78)
                     : AppColors.onSurfaceVariant,
                 letterSpacing: 0.5,
+                fontWeight: FontWeight.w600,
               ),
             ),
             const SizedBox(height: AppSpacing.xs),
             Text(
               '${shift.date.day}',
               style: AppTypography.headlineMd.copyWith(
-                color: selected ? AppColors.onPrimary : AppColors.onSurface,
+                color: selected ? Colors.white : AppColors.onSurface,
                 fontWeight: FontWeight.w800,
+                fontSize: 18,
               ),
             ),
             const SizedBox(height: AppSpacing.xs),
@@ -415,7 +474,7 @@ class _DayPill extends StatelessWidget {
               width: 8,
               height: 8,
               decoration: BoxDecoration(
-                color: selected ? AppColors.onPrimary : accent,
+                color: selected ? Colors.white : accent,
                 shape: BoxShape.circle,
               ),
             ),
@@ -443,12 +502,12 @@ class _ShiftDetailCard extends StatelessWidget {
       entrance: false,
       padding: EdgeInsets.zero,
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(AppRadius.xl),
+        borderRadius: BorderRadius.circular(AppRadius.xxl),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Padding(
-              padding: const EdgeInsets.all(AppSpacing.md),
+              padding: const EdgeInsets.all(AppSpacing.md + 4),
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -456,7 +515,14 @@ class _ShiftDetailCard extends StatelessWidget {
                     width: 48,
                     height: 48,
                     decoration: BoxDecoration(
-                      color: modeColor.withValues(alpha: 0.12),
+                      gradient: LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [
+                          modeColor.withValues(alpha: 0.18),
+                          modeColor.withValues(alpha: 0.06),
+                        ],
+                      ),
                       borderRadius: BorderRadius.circular(AppRadius.lg),
                     ),
                     child: Icon(
@@ -466,7 +532,7 @@ class _ShiftDetailCard extends StatelessWidget {
                       color: modeColor,
                     ),
                   ),
-                  const SizedBox(width: AppSpacing.sm),
+                  const SizedBox(width: AppSpacing.sm + 4),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -478,10 +544,12 @@ class _ShiftDetailCard extends StatelessWidget {
                             fontWeight: FontWeight.w800,
                           ),
                         ),
+                        const SizedBox(height: 2),
                         Text(
                           Formatters.fullDate(shift.date),
                           style: AppTypography.bodySm.copyWith(
                             color: AppColors.onSurfaceVariant,
+                            fontWeight: FontWeight.w500,
                           ),
                         ),
                       ],
@@ -493,7 +561,7 @@ class _ShiftDetailCard extends StatelessWidget {
             ),
             const Divider(height: 1),
             Padding(
-              padding: const EdgeInsets.all(AppSpacing.md),
+              padding: const EdgeInsets.all(AppSpacing.md + 4),
               child: LayoutBuilder(
                 builder: (context, constraints) {
                   final compact = constraints.maxWidth < 340;
@@ -523,7 +591,7 @@ class _ShiftDetailCard extends StatelessWidget {
                   return Row(
                     children: [
                       Expanded(child: start),
-                      const SizedBox(width: AppSpacing.sm),
+                      const SizedBox(width: AppSpacing.sm + 4),
                       Expanded(child: end),
                     ],
                   );
@@ -532,12 +600,12 @@ class _ShiftDetailCard extends StatelessWidget {
             ),
             Container(
               width: double.infinity,
-              padding: const EdgeInsets.all(AppSpacing.md),
+              padding: const EdgeInsets.all(AppSpacing.md + 4),
               decoration: BoxDecoration(
                 color: AppColors.surfaceContainerLow,
                 borderRadius: const BorderRadius.only(
-                  bottomLeft: Radius.circular(AppRadius.xl),
-                  bottomRight: Radius.circular(AppRadius.xl),
+                  bottomLeft: Radius.circular(AppRadius.xxl),
+                  bottomRight: Radius.circular(AppRadius.xxl),
                 ),
               ),
               child: Row(
@@ -556,6 +624,7 @@ class _ShiftDetailCard extends StatelessWidget {
                           : 'Absensi WFH mengikuti lokasi kerja yang disetujui. Toleransi keterlambatan ${shift.gracePeriodMinutes} menit.',
                       style: AppTypography.bodySm.copyWith(
                         color: AppColors.onSurfaceVariant,
+                        fontWeight: FontWeight.w500,
                       ),
                     ),
                   ),
@@ -584,7 +653,14 @@ class _DayOffCard extends StatelessWidget {
             width: 78,
             height: 78,
             decoration: BoxDecoration(
-              color: AppColors.pending.withValues(alpha: 0.1),
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  AppColors.pending.withValues(alpha: 0.16),
+                  AppColors.pending.withValues(alpha: 0.04),
+                ],
+              ),
               shape: BoxShape.circle,
             ),
             child: Icon(
@@ -611,14 +687,19 @@ class _DayOffCard extends StatelessWidget {
             Formatters.fullDate(shift.date),
             style: AppTypography.bodyMd.copyWith(
               color: AppColors.onSurfaceVariant,
+              fontWeight: FontWeight.w500,
             ),
           ),
           const SizedBox(height: AppSpacing.sm),
-          Text(
-            'Tidak ada shift aktif di tanggal ini. Nikmati waktu istirahatmu.',
-            textAlign: TextAlign.center,
-            style: AppTypography.bodyMd.copyWith(
-              color: AppColors.onSurfaceVariant,
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Text(
+              'Tidak ada shift aktif di tanggal ini. Nikmati waktu istirahatmu.',
+              textAlign: TextAlign.center,
+              style: AppTypography.bodyMd.copyWith(
+                color: AppColors.onSurfaceVariant,
+                fontWeight: FontWeight.w500,
+              ),
             ),
           ),
         ],
@@ -638,13 +719,13 @@ class _ModeBadge extends StatelessWidget {
 
     return Container(
       padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.sm,
-        vertical: AppSpacing.xs,
+        horizontal: AppSpacing.sm + 2,
+        vertical: AppSpacing.xs + 1,
       ),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.1),
+        color: color.withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(AppRadius.full),
-        border: Border.all(color: color.withValues(alpha: 0.18)),
+        border: Border.all(color: color.withValues(alpha: 0.2)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -653,7 +734,7 @@ class _ModeBadge extends StatelessWidget {
             shift.workMode == WorkMode.wfo
                 ? Icons.business_rounded
                 : Icons.home_work_rounded,
-            size: 14,
+            size: 13,
             color: color,
           ),
           const SizedBox(width: 4),
@@ -690,7 +771,7 @@ class _TimeTile extends StatelessWidget {
       padding: const EdgeInsets.all(AppSpacing.md),
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(AppRadius.lg),
+        borderRadius: BorderRadius.circular(AppRadius.xl),
         border: Border.all(color: color.withValues(alpha: 0.14)),
       ),
       child: Row(
@@ -699,12 +780,19 @@ class _TimeTile extends StatelessWidget {
             width: 38,
             height: 38,
             decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.12),
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  color.withValues(alpha: 0.18),
+                  color.withValues(alpha: 0.08),
+                ],
+              ),
               shape: BoxShape.circle,
             ),
             child: Icon(icon, color: color, size: 20),
           ),
-          const SizedBox(width: AppSpacing.sm),
+          const SizedBox(width: AppSpacing.sm + 2),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -714,6 +802,7 @@ class _TimeTile extends StatelessWidget {
                   style: AppTypography.labelSm.copyWith(
                     color: AppColors.onSurfaceVariant,
                     letterSpacing: 0,
+                    fontWeight: FontWeight.w500,
                   ),
                 ),
                 FittedBox(
@@ -847,7 +936,14 @@ class _EmptySchedule extends StatelessWidget {
                 width: 76,
                 height: 76,
                 decoration: BoxDecoration(
-                  color: AppColors.primary.withValues(alpha: 0.08),
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [
+                      AppColors.primary.withValues(alpha: 0.16),
+                      AppColors.primary.withValues(alpha: 0.04),
+                    ],
+                  ),
                   shape: BoxShape.circle,
                 ),
                 child: Icon(
@@ -865,14 +961,18 @@ class _EmptySchedule extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: AppSpacing.xs),
-              Text(
-                'Akun ini belum memiliki shift aktif. Hubungi HR/admin untuk penjadwalan.',
-                textAlign: TextAlign.center,
-                style: AppTypography.bodyMd.copyWith(
-                  color: AppColors.onSurfaceVariant,
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Text(
+                  'Akun ini belum memiliki shift aktif. Hubungi HR/admin untuk penjadwalan.',
+                  textAlign: TextAlign.center,
+                  style: AppTypography.bodyMd.copyWith(
+                    color: AppColors.onSurfaceVariant,
+                    fontWeight: FontWeight.w500,
+                  ),
                 ),
               ),
-              const SizedBox(height: AppSpacing.md),
+              const SizedBox(height: AppSpacing.md + 4),
               OutlinedButton.icon(
                 onPressed: onRetry,
                 icon: const Icon(Icons.refresh_rounded),
@@ -888,7 +988,7 @@ class _EmptySchedule extends StatelessWidget {
 
 Color _modeColor(Shift shift) => switch (shift.workMode) {
   WorkMode.wfo => AppColors.success,
-  WorkMode.wfh => AppColors.brandMid,
+  WorkMode.wfh => AppColors.primary, // Redesigned to primary purple
 };
 
 DateTime _dateOnly(DateTime date) => DateTime(date.year, date.month, date.day);
