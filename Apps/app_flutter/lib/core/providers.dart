@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../shared/data/attendance_repository.dart';
 import '../shared/data/auth_repository.dart';
@@ -61,19 +62,39 @@ final syncServiceProvider = Provider<SyncService>((ref) {
 });
 
 /// State management for theme mode switching (Light / Dark).
-final themeModeProvider = StateNotifierProvider<ThemeModeNotifier, ThemeMode>((ref) {
+final themeModeProvider = StateNotifierProvider<ThemeModeNotifier, ThemeMode>((
+  ref,
+) {
   return ThemeModeNotifier();
 });
 
 class ThemeModeNotifier extends StateNotifier<ThemeMode> {
-  ThemeModeNotifier() : super(ThemeMode.system);
+  ThemeModeNotifier() : super(ThemeMode.system) {
+    _load();
+  }
+
+  static const _storageKey = 'theme_mode';
+
+  Future<void> _load() async {
+    final prefs = await SharedPreferences.getInstance();
+    state = switch (prefs.getString(_storageKey)) {
+      'light' => ThemeMode.light,
+      'dark' => ThemeMode.dark,
+      _ => ThemeMode.system,
+    };
+  }
 
   void toggleTheme() {
-    state = state == ThemeMode.dark ? ThemeMode.light : ThemeMode.dark;
+    setThemeMode(state == ThemeMode.dark ? ThemeMode.light : ThemeMode.dark);
   }
 
-  void setThemeMode(ThemeMode mode) {
+  Future<void> setThemeMode(ThemeMode mode) async {
     state = mode;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_storageKey, switch (mode) {
+      ThemeMode.light => 'light',
+      ThemeMode.dark => 'dark',
+      ThemeMode.system => 'system',
+    });
   }
 }
-

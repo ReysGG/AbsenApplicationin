@@ -16,33 +16,11 @@ import '../../shared/models/shift.dart';
 import '../auth/auth_controller.dart';
 import 'home_controller.dart';
 
-class HomeScreen extends ConsumerStatefulWidget {
+class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
 
   @override
-  ConsumerState<HomeScreen> createState() => _HomeScreenState();
-}
-
-class _HomeScreenState extends ConsumerState<HomeScreen> {
-  late Timer _clock;
-  DateTime _now = DateTime.now();
-
-  @override
-  void initState() {
-    super.initState();
-    _clock = Timer.periodic(const Duration(seconds: 1), (_) {
-      if (mounted) setState(() => _now = DateTime.now());
-    });
-  }
-
-  @override
-  void dispose() {
-    _clock.cancel();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final profile = ref.watch(authControllerProvider).profile;
     final homeAsync = ref.watch(homeDataProvider);
 
@@ -54,11 +32,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           slivers: [
             // ── Brand header band ───────────────────────────────────────
             SliverToBoxAdapter(
-              child: _BrandHeader(
-                now: _now,
-                firstName: profile?.firstName ?? '',
-                initial: profile?.firstName.characters.first ?? 'A',
-                onBell: () => context.push(AppRoutes.notifications),
+              child: _MinuteTicker(
+                builder: (context, now) => _BrandHeader(
+                  now: now,
+                  firstName: profile?.firstName ?? '',
+                  initial: profile?.firstName.characters.first ?? 'A',
+                  onBell: () => context.push(AppRoutes.notifications),
+                ),
               ),
             ),
             SliverPadding(
@@ -76,7 +56,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     ),
                     const SizedBox(height: AppSpacing.md),
                   ],
-                  _ClockShiftCard(now: _now, sh: _shiftOf(homeAsync)),
+                  _MinuteTicker(
+                    builder: (context, now) =>
+                        _ClockShiftCard(now: now, sh: _shiftOf(homeAsync)),
+                  ),
                   const SizedBox(height: AppSpacing.md),
                   homeAsync.when(
                     loading: () => const Padding(
@@ -107,6 +90,53 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 }
 
 // ── Brand header band ──────────────────────────────────────────────────────
+class _MinuteTicker extends StatefulWidget {
+  const _MinuteTicker({required this.builder});
+
+  final Widget Function(BuildContext context, DateTime now) builder;
+
+  @override
+  State<_MinuteTicker> createState() => _MinuteTickerState();
+}
+
+class _MinuteTickerState extends State<_MinuteTicker> {
+  Timer? _timer;
+  DateTime _now = DateTime.now();
+
+  @override
+  void initState() {
+    super.initState();
+    _scheduleNextMinute();
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
+
+  void _scheduleNextMinute() {
+    final now = DateTime.now();
+    final delay = Duration(
+      minutes: 1,
+      seconds: -now.second,
+      milliseconds: -now.millisecond,
+      microseconds: -now.microsecond,
+    );
+
+    _timer = Timer(delay, () {
+      if (!mounted) return;
+      setState(() => _now = DateTime.now());
+      _timer = Timer.periodic(const Duration(minutes: 1), (_) {
+        if (mounted) setState(() => _now = DateTime.now());
+      });
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) => widget.builder(context, _now);
+}
+
 class _BrandHeader extends StatelessWidget {
   const _BrandHeader({
     required this.now,
@@ -145,7 +175,9 @@ class _BrandHeader extends StatelessWidget {
             ),
             boxShadow: [
               BoxShadow(
-                color: AppColors.brandEnd.withValues(alpha: AppColors.isDark ? 0.35 : 0.22),
+                color: AppColors.brandEnd.withValues(
+                  alpha: AppColors.isDark ? 0.35 : 0.22,
+                ),
                 blurRadius: 24,
                 offset: const Offset(0, 10),
               ),
@@ -342,6 +374,7 @@ class _ClockShiftCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final clockColor = AppColors.isDark ? AppColors.primary : _purple;
     return SolidCard(
           entrance: false,
           padding: EdgeInsets.zero,
@@ -372,13 +405,13 @@ class _ClockShiftCard extends StatelessWidget {
                               width: 40,
                               height: 40,
                               decoration: BoxDecoration(
-                                color: _purple.withValues(alpha: 0.10),
+                                color: clockColor.withValues(alpha: 0.14),
                                 shape: BoxShape.circle,
                               ),
-                              child: const Icon(
+                              child: Icon(
                                 Icons.access_time_rounded,
                                 size: 20,
-                                color: _purple,
+                                color: clockColor,
                               ),
                             ),
                             const SizedBox(width: 10),
@@ -388,8 +421,8 @@ class _ClockShiftCard extends StatelessWidget {
                                 fontSize: 40,
                                 fontWeight: FontWeight.w800,
                                 height: 1.0,
-                                letterSpacing: -1.5,
-                                color: _purple,
+                                letterSpacing: 0,
+                                color: clockColor,
                               ),
                             ),
                           ],
@@ -397,7 +430,9 @@ class _ClockShiftCard extends StatelessWidget {
                         const SizedBox(height: 4),
                         // Aligning "Waktu Lokal" exactly under the start of time text
                         Padding(
-                          padding: const EdgeInsets.only(left: 50), // 40 (icon width) + 10 (spacing)
+                          padding: const EdgeInsets.only(
+                            left: 50,
+                          ), // 40 (icon width) + 10 (spacing)
                           child: Text(
                             'Waktu Lokal (WIB)',
                             style: AppTypography.bodySm.copyWith(
@@ -429,13 +464,15 @@ class _ClockShiftCard extends StatelessWidget {
                               width: 32,
                               height: 32,
                               decoration: BoxDecoration(
-                                color: _purple.withValues(alpha: 0.08),
-                                borderRadius: BorderRadius.circular(AppRadius.md),
+                                color: clockColor.withValues(alpha: 0.12),
+                                borderRadius: BorderRadius.circular(
+                                  AppRadius.md,
+                                ),
                               ),
-                              child: const Icon(
+                              child: Icon(
                                 Icons.calendar_today_rounded,
                                 size: 16,
-                                color: _purple,
+                                color: clockColor,
                               ),
                             ),
                             const SizedBox(width: AppSpacing.sm),
@@ -467,8 +504,10 @@ class _ClockShiftCard extends StatelessWidget {
                               vertical: 6,
                             ),
                             decoration: BoxDecoration(
-                              color: _purple.withValues(alpha: 0.10),
-                              borderRadius: BorderRadius.circular(AppRadius.full),
+                              color: clockColor.withValues(alpha: 0.12),
+                              borderRadius: BorderRadius.circular(
+                                AppRadius.full,
+                              ),
                             ),
                             child: Row(
                               mainAxisSize: MainAxisSize.min,
@@ -478,13 +517,13 @@ class _ClockShiftCard extends StatelessWidget {
                                       ? Icons.business_rounded
                                       : Icons.home_work_rounded,
                                   size: 13,
-                                  color: _purple,
+                                  color: clockColor,
                                 ),
                                 const SizedBox(width: 4),
                                 Text(
                                   sh!.workMode.label,
                                   style: AppTypography.labelSm.copyWith(
-                                    color: _purple,
+                                    color: clockColor,
                                     letterSpacing: 0,
                                     fontWeight: FontWeight.w700,
                                   ),
@@ -502,7 +541,8 @@ class _ClockShiftCard extends StatelessWidget {
               // overlapping the divider and drawing ON TOP values (Canva layer)
               Positioned(
                 right: 12,
-                bottom: 40, // sit right on top of the shift section divider boundary
+                bottom:
+                    40, // sit right on top of the shift section divider boundary
                 child: Image.asset(
                   'assets/images/clock_character.png',
                   width: 110,
@@ -529,6 +569,8 @@ class _AttendanceActionCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final hasCheckedIn = today.hasCheckedIn as bool;
     final hasCheckedOut = today.hasCheckedOut as bool;
+    final isDark = AppColors.isDark;
+    final completedColor = isDark ? AppColors.primary : _purple;
 
     final (statusColor, statusText, hint) = switch ((
       hasCheckedIn,
@@ -545,7 +587,7 @@ class _AttendanceActionCard extends StatelessWidget {
         'Selamat bekerja! Jangan lupa check-out nanti',
       ),
       (true, true) => (
-        _purple,
+        completedColor,
         'Absensi Selesai',
         'Kamu sudah check-in & check-out hari ini',
       ),
@@ -554,6 +596,13 @@ class _AttendanceActionCard extends StatelessWidget {
     return SolidCard(
           entrance: false,
           padding: EdgeInsets.zero,
+          gradient: isDark
+              ? const LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [Color(0xFF151527), Color(0xFF10101C)],
+                )
+              : null,
           child: Stack(
             clipBehavior: Clip.none,
             // Stack manages top column texts and divider/button layouts,
@@ -638,21 +687,27 @@ class _AttendanceActionCard extends StatelessWidget {
                     child: hasCheckedOut
                         ? OutlinedButton.icon(
                             onPressed: null,
-                            icon: const Icon(Icons.check_circle_outline_rounded),
+                            icon: const Icon(
+                              Icons.check_circle_outline_rounded,
+                            ),
                             label: const Text('Absensi Hari Ini Selesai'),
                             style: OutlinedButton.styleFrom(
                               minimumSize: const Size.fromHeight(54),
                               shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(AppRadius.xl),
+                                borderRadius: BorderRadius.circular(
+                                  AppRadius.xl,
+                                ),
                               ),
                             ),
                           )
                         : !hasCheckedIn
                         ? _HeroActionButton(
                             glow: true,
-                            onPressed: () => context.push(AppRoutes.checkinPrep),
+                            onPressed: () =>
+                                context.push(AppRoutes.checkinPrep),
                             icon: Icons.login_rounded,
                             label: 'Check-in Sekarang',
+                            reserveArtworkSpace: true,
                           )
                         : _HeroActionButton(
                             glow: false,
@@ -662,6 +717,7 @@ class _AttendanceActionCard extends StatelessWidget {
                             ),
                             icon: Icons.logout_rounded,
                             label: 'Check-out Sekarang',
+                            reserveArtworkSpace: true,
                           ),
                   ),
                 ],
@@ -670,11 +726,11 @@ class _AttendanceActionCard extends StatelessWidget {
               // Door illustration alignment: sits flat at the bottom-right over the button row boundary
               if (!hasCheckedOut)
                 Positioned(
-                  right: 12,
-                  bottom: 58, // sits perfectly on top of the button section boundary line
+                  right: 10,
+                  bottom: 13,
                   child: Image.asset(
                     'assets/images/checkin_door.png',
-                    width: 78,
+                    width: 112,
                     fit: BoxFit.contain,
                   ),
                 ),
@@ -693,12 +749,14 @@ class _HeroActionButton extends StatefulWidget {
     required this.icon,
     required this.label,
     required this.glow,
+    this.reserveArtworkSpace = false,
   });
 
   final VoidCallback onPressed;
   final IconData icon;
   final String label;
   final bool glow;
+  final bool reserveArtworkSpace;
 
   @override
   State<_HeroActionButton> createState() => _HeroActionButtonState();
@@ -755,19 +813,31 @@ class _HeroActionButtonState extends State<_HeroActionButton> {
             child: InkWell(
               onTap: widget.onPressed,
               borderRadius: BorderRadius.circular(AppRadius.xl),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(widget.icon, color: Colors.white, size: 20),
-                  const SizedBox(width: AppSpacing.sm),
-                  Text(
-                    widget.label,
-                    style: AppTypography.bodyLg.copyWith(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w800,
+              child: Padding(
+                padding: EdgeInsets.only(
+                  left: widget.reserveArtworkSpace ? 42 : 0,
+                  right: widget.reserveArtworkSpace ? 112 : 0,
+                ),
+                child: Row(
+                  mainAxisAlignment: widget.reserveArtworkSpace
+                      ? MainAxisAlignment.start
+                      : MainAxisAlignment.center,
+                  children: [
+                    Icon(widget.icon, color: Colors.white, size: 20),
+                    const SizedBox(width: AppSpacing.sm),
+                    Flexible(
+                      child: Text(
+                        widget.label,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: AppTypography.bodyLg.copyWith(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
           ),

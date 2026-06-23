@@ -7,7 +7,6 @@ import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_spacing.dart';
 import '../../core/theme/app_typography.dart';
 import '../../core/utils/formatters.dart';
-import '../../core/widgets/brand_header.dart';
 import '../../core/widgets/solid_card.dart';
 import '../../shared/models/enums.dart';
 import '../../shared/models/shift.dart';
@@ -143,7 +142,9 @@ class _ScheduleHero extends StatelessWidget {
             borderRadius: BorderRadius.circular(AppRadius.xxl),
             boxShadow: [
               BoxShadow(
-                color: AppColors.brandEnd.withValues(alpha: AppColors.isDark ? 0.35 : 0.22),
+                color: AppColors.brandEnd.withValues(
+                  alpha: AppColors.isDark ? 0.35 : 0.22,
+                ),
                 blurRadius: 20,
                 offset: const Offset(0, 8),
               ),
@@ -239,7 +240,10 @@ class _ScheduleHero extends StatelessWidget {
                       Row(
                         children: [
                           Expanded(
-                            child: _HeroMetric(value: '$workDays', label: 'Hari kerja'),
+                            child: _HeroMetric(
+                              value: '$workDays',
+                              label: 'Hari kerja',
+                            ),
                           ),
                           const SizedBox(width: AppSpacing.sm + 4),
                           Expanded(

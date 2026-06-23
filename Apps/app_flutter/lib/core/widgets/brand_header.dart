@@ -44,7 +44,9 @@ class BrandHeader extends StatelessWidget {
         ),
         boxShadow: [
           BoxShadow(
-            color: AppColors.brandEnd.withValues(alpha: AppColors.isDark ? 0.35 : 0.22),
+            color: AppColors.brandEnd.withValues(
+              alpha: AppColors.isDark ? 0.35 : 0.22,
+            ),
             blurRadius: 24,
             offset: const Offset(0, 10),
           ),
@@ -90,63 +92,61 @@ class BrandHeader extends StatelessWidget {
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
-                if (showBack)
-                  Padding(
-                    padding: const EdgeInsets.only(right: AppSpacing.sm),
-                    child: Material(
-                      color: Colors.white.withValues(alpha: 0.18),
-                      shape: const CircleBorder(),
-                      child: InkWell(
-                        customBorder: const CircleBorder(),
-                        onTap: onBack ?? () => Navigator.of(context).maybePop(),
-                        child: const Padding(
-                          padding: EdgeInsets.all(8),
-                          child: Icon(
-                            Icons.arrow_back_ios_new_rounded,
-                            color: Colors.white,
-                            size: 18,
+                  if (showBack)
+                    Padding(
+                      padding: const EdgeInsets.only(right: AppSpacing.sm),
+                      child: Material(
+                        color: Colors.white.withValues(alpha: 0.18),
+                        shape: const CircleBorder(),
+                        child: InkWell(
+                          customBorder: const CircleBorder(),
+                          onTap:
+                              onBack ?? () => Navigator.of(context).maybePop(),
+                          child: const Padding(
+                            padding: EdgeInsets.all(8),
+                            child: Icon(
+                              Icons.arrow_back_ios_new_rounded,
+                              color: Colors.white,
+                              size: 18,
+                            ),
                           ),
                         ),
                       ),
                     ),
-                  ),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        title,
-                        style: AppTypography.headlineMd.copyWith(
-                          color: Colors.white,
-                          fontWeight: FontWeight.w800,
-                          height: 1.1,
-                        ),
-                      ),
-                      if (subtitle != null) ...[
-                        const SizedBox(height: 2),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
                         Text(
-                          subtitle!,
-                          style: AppTypography.bodySm.copyWith(
-                            color: Colors.white.withValues(alpha: 0.78),
-                            fontWeight: FontWeight.w500,
+                          title,
+                          style: AppTypography.headlineMd.copyWith(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w800,
+                            height: 1.1,
                           ),
                         ),
+                        if (subtitle != null) ...[
+                          const SizedBox(height: 2),
+                          Text(
+                            subtitle!,
+                            style: AppTypography.bodySm.copyWith(
+                              color: Colors.white.withValues(alpha: 0.78),
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ],
                       ],
-                    ],
+                    ),
                   ),
-                ),
-                if (tr != null) tr,
+                  ?tr,
                 ],
               ),
             ),
           ),
         ],
       ),
-    )
-        .animate()
-        .fadeIn(duration: 350.ms)
-        .slideY(begin: -0.15, curve: Curves.easeOut);
+    ).animate().fadeIn(duration: 350.ms).slideY(begin: -0.15, curve: Curves.easeOut);
   }
 }
 
