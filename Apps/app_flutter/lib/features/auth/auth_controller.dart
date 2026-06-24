@@ -114,6 +114,27 @@ class AuthController extends StateNotifier<AuthState> {
   }
 }
 
+/// Granular selectors — each widget should watch the narrowest slice it needs
+/// so that unrelated state changes (e.g. isLocked toggling) don't trigger
+/// rebuilds of unrelated widgets.
+
+/// Selects the auth status (authenticated / unauthenticated).
+final authStatusProvider = Provider<AuthStatus>((ref) {
+  return ref.watch(authControllerProvider.select((s) => s.status));
+});
+
+/// Selects the user profile. Rebuilds only when the profile changes.
+final authProfileProvider = Provider<UserProfile?>((ref) {
+  return ref.watch(authControllerProvider.select((s) => s.profile));
+});
+
+/// Selects the app-lock state. Rebuilds only when lock state changes.
+final authLockProvider = Provider<({bool isAppLockEnabled, bool isLocked})>((ref) {
+  return ref.watch(authControllerProvider.select(
+    (s) => (isAppLockEnabled: s.isAppLockEnabled, isLocked: s.isLocked),
+  ));
+});
+
 final authControllerProvider =
     StateNotifierProvider<AuthController, AuthState>((ref) {
   return AuthController(ref);

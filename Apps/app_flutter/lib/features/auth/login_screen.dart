@@ -165,7 +165,7 @@ class _CharacterIllustration extends StatelessWidget {
       child: SizedBox(
         height: 220,
         child: Image.asset(
-          'assets/images/login_illustration.png',
+          'assets/images/login_illustration.webp',
           fit: BoxFit.contain,
           errorBuilder: (context, error, stackTrace) => const SizedBox.shrink(),
         ),

@@ -19,7 +19,7 @@ class ProfileScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final profile = ref.watch(authControllerProvider).profile;
+    final profile = ref.watch(authProfileProvider);
     final themeMode = ref.watch(themeModeProvider);
     final isDarkMode =
         themeMode == ThemeMode.dark ||

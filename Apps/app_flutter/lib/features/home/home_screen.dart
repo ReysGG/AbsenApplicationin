@@ -21,7 +21,7 @@ class HomeScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final profile = ref.watch(authControllerProvider).profile;
+    final profile = ref.watch(authProfileProvider);
     final homeAsync = ref.watch(homeDataProvider);
 
     return Scaffold(
@@ -161,34 +161,37 @@ class _BrandHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final top = MediaQuery.of(context).padding.top;
-    return Container(
-          clipBehavior: Clip.hardEdge,
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: AppColors.brandGradient,
-            ),
-            borderRadius: const BorderRadius.only(
-              bottomLeft: Radius.circular(32),
-              bottomRight: Radius.circular(32),
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: AppColors.brandEnd.withValues(
-                  alpha: AppColors.isDark ? 0.35 : 0.22,
-                ),
-                blurRadius: 24,
-                offset: const Offset(0, 10),
-              ),
-            ],
+    // Split into static decoration (cached) + dynamic content (rebuilds on minute tick).
+    return RepaintBoundary(
+      child: Container(
+        clipBehavior: Clip.hardEdge,
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: AppColors.brandGradient,
           ),
-          child: Stack(
-            children: [
-              // ── Decorative blobs ─────────────────────────────────────
-              Positioned(
-                right: -30,
-                top: -20,
+          borderRadius: const BorderRadius.only(
+            bottomLeft: Radius.circular(32),
+            bottomRight: Radius.circular(32),
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: AppColors.brandEnd.withValues(
+                alpha: AppColors.isDark ? 0.35 : 0.22,
+              ),
+              blurRadius: 24,
+              offset: const Offset(0, 10),
+            ),
+          ],
+        ),
+        child: Stack(
+          children: [
+            // ── Decorative blobs (static — repaint boundary isolates) ───
+            Positioned(
+              right: -30,
+              top: -20,
+              child: RepaintBoundary(
                 child: Container(
                   width: 140,
                   height: 140,
@@ -198,9 +201,11 @@ class _BrandHeader extends StatelessWidget {
                   ),
                 ),
               ),
-              Positioned(
-                right: 30,
-                top: 30,
+            ),
+            Positioned(
+              right: 30,
+              top: 30,
+              child: RepaintBoundary(
                 child: Container(
                   width: 90,
                   height: 90,
@@ -210,82 +215,81 @@ class _BrandHeader extends StatelessWidget {
                   ),
                 ),
               ),
-              // ── Content ───────────────────────────────────────────────
-              Padding(
-                padding: EdgeInsets.fromLTRB(
-                  AppSpacing.md,
-                  top + AppSpacing.md,
-                  AppSpacing.md,
-                  AppSpacing.lg,
-                ),
-                child: Row(
-                  children: [
-                    // Avatar circle
-                    Container(
-                      width: 56,
-                      height: 56,
-                      decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.18),
-                        shape: BoxShape.circle,
-                        border: Border.all(
-                          color: Colors.white.withValues(alpha: 0.45),
-                          width: 2,
-                        ),
-                      ),
-                      alignment: Alignment.center,
-                      child: Text(
-                        initial,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.w800,
-                          fontSize: 22,
-                          fontFamily: AppTypography.fontFamily,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: AppSpacing.sm),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            '${Formatters.greeting(now)},',
-                            style: AppTypography.bodySm.copyWith(
-                              color: Colors.white.withValues(alpha: 0.78),
-                            ),
-                          ),
-                          Text(
-                            firstName.isEmpty ? 'Karyawan' : firstName,
-                            style: AppTypography.headlineMd.copyWith(
-                              color: Colors.white,
-                              fontWeight: FontWeight.w800,
-                              height: 1.1,
-                            ),
-                          ),
-                          const SizedBox(height: 2),
-                          Text(
-                            _motivasi(now),
-                            style: AppTypography.bodySm.copyWith(
-                              color: Colors.white.withValues(alpha: 0.65),
-                              fontSize: 11,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    _IconBubble(
-                      icon: Icons.notifications_none_rounded,
-                      onTap: onBell,
-                    ),
-                  ],
-                ),
+            ),
+            // ── Dynamic content ───────────────────────────────────────────
+            Padding(
+              padding: EdgeInsets.fromLTRB(
+                AppSpacing.md,
+                top + AppSpacing.md,
+                AppSpacing.md,
+                AppSpacing.lg,
               ),
-            ],
-          ),
-        )
-        .animate()
-        .fadeIn(duration: 350.ms)
-        .slideY(begin: -0.15, curve: Curves.easeOut);
+              child: Row(
+                children: [
+                  // Avatar circle
+                  Container(
+                    width: 56,
+                    height: 56,
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.18),
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                        color: Colors.white.withValues(alpha: 0.45),
+                        width: 2,
+                      ),
+                    ),
+                    alignment: Alignment.center,
+                    child: Text(
+                      initial,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w800,
+                        fontSize: 22,
+                        fontFamily: AppTypography.fontFamily,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: AppSpacing.sm),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          '${Formatters.greeting(now)},',
+                          style: AppTypography.bodySm.copyWith(
+                            color: Colors.white.withValues(alpha: 0.78),
+                          ),
+                        ),
+                        Text(
+                          firstName.isEmpty ? 'Karyawan' : firstName,
+                          style: AppTypography.headlineMd.copyWith(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w800,
+                            height: 1.1,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          _motivasi(now),
+                          style: AppTypography.bodySm.copyWith(
+                            color: Colors.white.withValues(alpha: 0.65),
+                            fontSize: 11,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  _IconBubble(
+                    icon: Icons.notifications_none_rounded,
+                    onTap: onBell,
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }
 
@@ -544,7 +548,7 @@ class _ClockShiftCard extends StatelessWidget {
                 bottom:
                     40, // sit right on top of the shift section divider boundary
                 child: Image.asset(
-                  'assets/images/clock_character.png',
+                  'assets/images/clock_character.webp',
                   width: 110,
                   fit: BoxFit.contain,
                 ),
@@ -729,7 +733,7 @@ class _AttendanceActionCard extends StatelessWidget {
                   right: 10,
                   bottom: 13,
                   child: Image.asset(
-                    'assets/images/checkin_door.png',
+                    'assets/images/checkin_door.webp',
                     width: 112,
                     fit: BoxFit.contain,
                   ),
@@ -1031,7 +1035,7 @@ class _FaceEnrollBanner extends StatelessWidget {
             height: 80,
             margin: const EdgeInsets.all(AppSpacing.md),
             child: Image.asset(
-              'assets/images/alarm_clock.png',
+              'assets/images/alarm_clock.webp',
               fit: BoxFit.contain,
             ),
           ),
