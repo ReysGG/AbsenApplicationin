@@ -179,13 +179,13 @@ enum LeaveSource {
 // ---------------------------------------------------------------------------
 
 model AuthUser {
-  id            String    @id
+  id            String        @id
   name          String
-  email         String    @unique
-  emailVerified Boolean   @default(false)
+  email         String        @unique
+  emailVerified Boolean       @default(false)
   image         String?
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
   sessions      AuthSession[]
   accounts      AuthAccount[]
 
@@ -241,13 +241,13 @@ model AuthVerification {
 // ---------------------------------------------------------------------------
 
 model Tenant {
-  id         String       @id @default(cuid())
-  name       String
-  slug       String       @unique
-  status     TenantStatus @default(Active)
-  plan       String?
-  createdAt  DateTime     @default(now()) @map("created_at")
-  updatedAt  DateTime     @updatedAt @map("updated_at")
+  id        String       @id @default(cuid())
+  name      String
+  slug      String       @unique
+  status    TenantStatus @default(Active)
+  plan      String?
+  createdAt DateTime     @default(now()) @map("created_at")
+  updatedAt DateTime     @updatedAt @map("updated_at")
 
   workspaces Workspace[]
   invoices   Invoice[]
@@ -257,53 +257,54 @@ model Tenant {
 }
 
 model Workspace {
-  id                     String          @id @default(cuid())
-  tenantId               String          @map("tenant_id")
-  name                   String
-  timezone               String          @default("Asia/Jakarta")
-  defaultGeofenceRadius  Int             @default(100) @map("default_geofence_radius")
-  defaultGracePeriod     Int             @default(10) @map("default_grace_period")
-  absenceCutoffMinutes   Int             @default(120) @map("absence_cutoff_minutes")
-  wfhEnabled             Boolean         @default(false) @map("wfh_enabled")
-  hybridEnabled          Boolean         @default(false) @map("hybrid_enabled")
-  latePolicy             Json?           @map("late_policy")
-  missingCheckoutPolicy  Json?           @map("missing_checkout_policy")
-  exportPermissions      Json?           @map("export_permissions")
-  status                 WorkspaceStatus @default(Active)
-  createdAt              DateTime        @default(now()) @map("created_at")
-  updatedAt              DateTime        @updatedAt @map("updated_at")
+  id                    String          @id @default(cuid())
+  tenantId              String          @map("tenant_id")
+  name                  String
+  timezone              String          @default("Asia/Jakarta")
+  defaultGeofenceRadius Int             @default(100) @map("default_geofence_radius")
+  defaultGracePeriod    Int             @default(10) @map("default_grace_period")
+  absenceCutoffMinutes  Int             @default(120) @map("absence_cutoff_minutes")
+  wfhEnabled            Boolean         @default(false) @map("wfh_enabled")
+  hybridEnabled         Boolean         @default(false) @map("hybrid_enabled")
+  latePolicy            Json?           @map("late_policy")
+  missingCheckoutPolicy Json?           @map("missing_checkout_policy")
+  exportPermissions     Json?           @map("export_permissions")
+  status                WorkspaceStatus @default(Active)
+  createdAt             DateTime        @default(now()) @map("created_at")
+  updatedAt             DateTime        @updatedAt @map("updated_at")
 
-  tenant           Tenant             @relation(fields: [tenantId], references: [id])
-  employees        Employee[]
-  departments      Department[]
-  locations        Location[]
-  shifts           Shift[]
-  attendanceLogs   AttendanceLog[]
+  tenant            Tenant                @relation(fields: [tenantId], references: [id])
+  employees         Employee[]
+  departments       Department[]
+  locations         Location[]
+  shifts            Shift[]
+  attendanceLogs    AttendanceLog[]
   attendanceRawLogs AttendanceRawLog[]
-  leaveRequests    LeaveRequest[]
-  leaveTypes       LeaveType[]
-  roleAssignments  RoleAssignment[]
-  auditLogs        AuditLog[]
-  exportJobs       ExportJob[]
-  holidayCalendars HolidayCalendar[]
-  notifications    Notification[]
-  setting          WorkspaceSetting?
+  leaveRequests     LeaveRequest[]
+  leaveTypes        LeaveType[]
+  roleAssignments   RoleAssignment[]
+  auditLogs         AuditLog[]
+  exportJobs        ExportJob[]
+  holidayCalendars  HolidayCalendar[]
+  notifications     Notification[]
+  setting           WorkspaceSetting?
+  faceProfiles      EmployeeFaceProfile[]
 
   @@index([tenantId])
   @@map("workspaces")
 }
 
 model User {
-  id            String        @id @default(cuid())
-  authUserId    String        @unique @map("auth_user_id")
-  email         String        @unique
-  phone         String?
-  fullName      String        @map("full_name")
-  globalRole    GlobalRole    @default(user) @map("global_role")
-  status        AccountStatus @default(Active)
-  lastLoginAt   DateTime?     @map("last_login_at")
-  createdAt     DateTime      @default(now()) @map("created_at")
-  updatedAt     DateTime      @updatedAt @map("updated_at")
+  id          String        @id @default(cuid())
+  authUserId  String        @unique @map("auth_user_id")
+  email       String        @unique
+  phone       String?
+  fullName    String        @map("full_name")
+  globalRole  GlobalRole    @default(user) @map("global_role")
+  status      AccountStatus @default(Active)
+  lastLoginAt DateTime?     @map("last_login_at")
+  createdAt   DateTime      @default(now()) @map("created_at")
+  updatedAt   DateTime      @updatedAt @map("updated_at")
 
   roleAssignments  RoleAssignment[]
   employees        Employee[]
@@ -400,10 +401,10 @@ model Location {
   createdAt    DateTime       @default(now()) @map("created_at")
   updatedAt    DateTime       @updatedAt @map("updated_at")
 
-  workspace        Workspace            @relation(fields: [workspaceId], references: [id])
-  assignedEmployees Employee[]          @relation("EmployeePrimaryLocation")
-  wfhEmployees     EmployeeWfhLocation[]
-  attendanceLogs   AttendanceLog[]
+  workspace         Workspace             @relation(fields: [workspaceId], references: [id])
+  assignedEmployees Employee[]            @relation("EmployeePrimaryLocation")
+  wfhEmployees      EmployeeWfhLocation[]
+  attendanceLogs    AttendanceLog[]
 
   @@index([workspaceId])
   @@map("locations")
@@ -430,15 +431,16 @@ model Employee {
   createdAt          DateTime          @default(now()) @map("created_at")
   updatedAt          DateTime          @updatedAt @map("updated_at")
 
-  workspace           Workspace             @relation(fields: [workspaceId], references: [id])
-  user                User?                 @relation(fields: [userId], references: [id])
-  department          Department            @relation(fields: [departmentId], references: [id])
-  assignedLocation    Location?             @relation("EmployeePrimaryLocation", fields: [assignedLocationId], references: [id])
-  assignedShift       Shift?                @relation("EmployeeAssignedShift", fields: [assignedShiftId], references: [id])
-  attendanceLogs      AttendanceLog[]
-  attendanceRawLogs   AttendanceRawLog[]
-  leaveRequests       LeaveRequest[]
-  wfhLocations        EmployeeWfhLocation[]
+  workspace         Workspace             @relation(fields: [workspaceId], references: [id])
+  user              User?                 @relation(fields: [userId], references: [id])
+  department        Department            @relation(fields: [departmentId], references: [id])
+  assignedLocation  Location?             @relation("EmployeePrimaryLocation", fields: [assignedLocationId], references: [id])
+  assignedShift     Shift?                @relation("EmployeeAssignedShift", fields: [assignedShiftId], references: [id])
+  attendanceLogs    AttendanceLog[]
+  attendanceRawLogs AttendanceRawLog[]
+  leaveRequests     LeaveRequest[]
+  wfhLocations      EmployeeWfhLocation[]
+  faceProfiles      EmployeeFaceProfile[]
 
   @@unique([workspaceId, employeeCode])
   @@unique([workspaceId, email])
@@ -447,6 +449,29 @@ model Employee {
   @@index([workspaceId, employmentStatus])
   @@index([workspaceId, departmentId, employmentStatus])
   @@map("employees")
+}
+
+model EmployeeFaceProfile {
+  id                String   @id @default(cuid())
+  employeeId        String   @map("employee_id")
+  workspaceId       String   @map("workspace_id")
+  embedding         Json
+  embeddingModel    String   @map("embedding_model")
+  embeddingDim      Int      @map("embedding_dim")
+  matchThreshold    Float    @map("match_threshold")
+  qualityScore      Float?   @map("quality_score")
+  referenceImageKey String?  @map("reference_image_key")
+  isActive          Boolean  @default(true) @map("is_active")
+  enrolledAt        DateTime @default(now()) @map("enrolled_at")
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @updatedAt @map("updated_at")
+
+  employee  Employee  @relation(fields: [employeeId], references: [id])
+  workspace Workspace @relation(fields: [workspaceId], references: [id])
+
+  @@index([workspaceId])
+  @@index([employeeId, isActive])
+  @@map("employee_face_profiles")
 }
 
 model EmployeeWfhLocation {
@@ -487,37 +512,37 @@ model Shift {
 }
 
 model AttendanceLog {
-  id               String           @id @default(cuid())
-  workspaceId      String           @map("workspace_id")
-  employeeId       String           @map("employee_id")
-  attendanceDate   DateTime         @map("attendance_date")
-  shiftId          String?          @map("shift_id")
-  checkInAt        DateTime?        @map("check_in_at")
-  checkOutAt       DateTime?        @map("check_out_at")
-  checkInLatitude  Float?           @map("check_in_latitude")
-  checkInLongitude Float?           @map("check_in_longitude")
-  checkOutLatitude  Float?          @map("check_out_latitude")
-  checkOutLongitude Float?          @map("check_out_longitude")
-  locationId       String?          @map("location_id")
-  workMode         WorkMode?        @map("work_mode")
-  faceCheckStatus  FaceCheckStatus? @map("face_check_status")
-  geofenceStatus   GeofenceStatus?  @map("geofence_status")
-  spoofingStatus   SpoofingStatus?  @map("spoofing_status")
-  checkInFaceKey   String?          @map("check_in_face_key")
-  checkOutFaceKey  String?          @map("check_out_face_key")
-  syncStatus       SyncStatus       @default(Pending) @map("sync_status")
-  originalCheckInAt DateTime?       @map("original_check_in_at")
-  syncedAt         DateTime?        @map("synced_at")
-  status           AttendanceStatus @default(PendingCheckout)
-  isDuplicate      Boolean          @default(false) @map("is_duplicate")
-  notes            String?
-  createdAt        DateTime         @default(now()) @map("created_at")
-  updatedAt        DateTime         @updatedAt @map("updated_at")
+  id                String           @id @default(cuid())
+  workspaceId       String           @map("workspace_id")
+  employeeId        String           @map("employee_id")
+  attendanceDate    DateTime         @map("attendance_date")
+  shiftId           String?          @map("shift_id")
+  checkInAt         DateTime?        @map("check_in_at")
+  checkOutAt        DateTime?        @map("check_out_at")
+  checkInLatitude   Float?           @map("check_in_latitude")
+  checkInLongitude  Float?           @map("check_in_longitude")
+  checkOutLatitude  Float?           @map("check_out_latitude")
+  checkOutLongitude Float?           @map("check_out_longitude")
+  locationId        String?          @map("location_id")
+  workMode          WorkMode?        @map("work_mode")
+  faceCheckStatus   FaceCheckStatus? @map("face_check_status")
+  geofenceStatus    GeofenceStatus?  @map("geofence_status")
+  spoofingStatus    SpoofingStatus?  @map("spoofing_status")
+  checkInFaceKey    String?          @map("check_in_face_key")
+  checkOutFaceKey   String?          @map("check_out_face_key")
+  syncStatus        SyncStatus       @default(Pending) @map("sync_status")
+  originalCheckInAt DateTime?        @map("original_check_in_at")
+  syncedAt          DateTime?        @map("synced_at")
+  status            AttendanceStatus @default(PendingCheckout)
+  isDuplicate       Boolean          @default(false) @map("is_duplicate")
+  notes             String?
+  createdAt         DateTime         @default(now()) @map("created_at")
+  updatedAt         DateTime         @updatedAt @map("updated_at")
 
-  workspace  Workspace @relation(fields: [workspaceId], references: [id])
-  employee   Employee  @relation(fields: [employeeId], references: [id])
-  shift      Shift?    @relation(fields: [shiftId], references: [id])
-  location   Location? @relation(fields: [locationId], references: [id])
+  workspace Workspace @relation(fields: [workspaceId], references: [id])
+  employee  Employee  @relation(fields: [employeeId], references: [id])
+  shift     Shift?    @relation(fields: [shiftId], references: [id])
+  location  Location? @relation(fields: [locationId], references: [id])
 
   @@index([workspaceId])
   @@index([employeeId])
@@ -531,22 +556,22 @@ model AttendanceLog {
 }
 
 model LeaveRequest {
-  id              String      @id @default(cuid())
-  workspaceId     String      @map("workspace_id")
-  employeeId      String      @map("employee_id")
-  type            String
-  startDate       DateTime    @map("start_date")
-  endDate         DateTime    @map("end_date")
-  reason          String?
-  attachmentUrl   String?     @map("attachment_url")
-  status          LeaveStatus @default(Pending)
-  approverId      String?     @map("approver_id")
-  approvedAt      DateTime?   @map("approved_at")
-  rejectedAt      DateTime?   @map("rejected_at")
-  conflictNote    String?     @map("conflict_note")
-  notes           String?
-  createdAt       DateTime    @default(now()) @map("created_at")
-  updatedAt       DateTime    @updatedAt @map("updated_at")
+  id            String      @id @default(cuid())
+  workspaceId   String      @map("workspace_id")
+  employeeId    String      @map("employee_id")
+  type          String
+  startDate     DateTime    @map("start_date")
+  endDate       DateTime    @map("end_date")
+  reason        String?
+  attachmentUrl String?     @map("attachment_url")
+  status        LeaveStatus @default(Pending)
+  approverId    String?     @map("approver_id")
+  approvedAt    DateTime?   @map("approved_at")
+  rejectedAt    DateTime?   @map("rejected_at")
+  conflictNote  String?     @map("conflict_note")
+  notes         String?
+  createdAt     DateTime    @default(now()) @map("created_at")
+  updatedAt     DateTime    @updatedAt @map("updated_at")
 
   workspace Workspace @relation(fields: [workspaceId], references: [id])
   employee  Employee  @relation(fields: [employeeId], references: [id])
@@ -561,24 +586,24 @@ model LeaveRequest {
 }
 
 model ExportJob {
-  id                  String       @id @default(cuid())
-  workspaceId         String       @map("workspace_id")
-  requestedBy         String       @map("requested_by")
-  reportType          ReportType   @map("report_type")
-  filtersJson         Json         @map("filters_json")
-  format              ExportFormat
-  rowCount            Int?         @map("row_count")
-  status              ExportStatus @default(Queued)
-  filePath            String?      @map("file_path")
-  signedUrlExpiresAt  DateTime?    @map("signed_url_expires_at")
-  requestedAt         DateTime     @default(now()) @map("requested_at")
-  completedAt         DateTime?    @map("completed_at")
-  errorMessage        String?      @map("error_message")
-  createdAt           DateTime     @default(now()) @map("created_at")
-  updatedAt           DateTime     @updatedAt @map("updated_at")
+  id                 String       @id @default(cuid())
+  workspaceId        String       @map("workspace_id")
+  requestedBy        String       @map("requested_by")
+  reportType         ReportType   @map("report_type")
+  filtersJson        Json         @map("filters_json")
+  format             ExportFormat
+  rowCount           Int?         @map("row_count")
+  status             ExportStatus @default(Queued)
+  filePath           String?      @map("file_path")
+  signedUrlExpiresAt DateTime?    @map("signed_url_expires_at")
+  requestedAt        DateTime     @default(now()) @map("requested_at")
+  completedAt        DateTime?    @map("completed_at")
+  errorMessage       String?      @map("error_message")
+  createdAt          DateTime     @default(now()) @map("created_at")
+  updatedAt          DateTime     @updatedAt @map("updated_at")
 
-  workspace   Workspace @relation(fields: [workspaceId], references: [id])
-  requester   User      @relation("ExportRequester", fields: [requestedBy], references: [id])
+  workspace Workspace @relation(fields: [workspaceId], references: [id])
+  requester User      @relation("ExportRequester", fields: [requestedBy], references: [id])
 
   @@index([workspaceId])
   @@index([status])
@@ -586,14 +611,14 @@ model ExportJob {
 }
 
 model HolidayCalendar {
-  id               String        @id @default(cuid())
-  workspaceId      String        @map("workspace_id")
-  date             DateTime
-  name             String
-  recurringYearly  Boolean       @default(false) @map("recurring_yearly")
-  status           HolidayStatus @default(Active)
-  createdAt        DateTime      @default(now()) @map("created_at")
-  updatedAt        DateTime      @updatedAt @map("updated_at")
+  id              String        @id @default(cuid())
+  workspaceId     String        @map("workspace_id")
+  date            DateTime
+  name            String
+  recurringYearly Boolean       @default(false) @map("recurring_yearly")
+  status          HolidayStatus @default(Active)
+  createdAt       DateTime      @default(now()) @map("created_at")
+  updatedAt       DateTime      @updatedAt @map("updated_at")
 
   workspace Workspace @relation(fields: [workspaceId], references: [id])
 
@@ -630,23 +655,23 @@ model AuditLog {
 // ---------------------------------------------------------------------------
 
 model AttendanceRawLog {
-  id                      String   @id @default(cuid())
-  workspaceId             String   @map("workspace_id")
-  employeeId              String   @map("employee_id")
-  eventType               String   @map("event_type") // check_in | check_out
-  rawPayloadJson          Json     @map("raw_payload_json")
-  deviceTime              DateTime @map("device_time")
-  serverReceivedAt        DateTime @default(now()) @map("server_received_at")
-  faceResult              String?  @map("face_result")
-  geofenceResult          String?  @map("geofence_result")
-  spoofingResult          String?  @map("spoofing_result")
-  isDuplicate             Boolean  @default(false) @map("is_duplicate")
-  isInvalidSequence       Boolean  @default(false) @map("is_invalid_sequence")
-  resultingAttendanceLogId String? @map("resulting_attendance_log_id")
-  createdAt               DateTime @default(now()) @map("created_at")
+  id                       String   @id @default(cuid())
+  workspaceId              String   @map("workspace_id")
+  employeeId               String   @map("employee_id")
+  eventType                String   @map("event_type") // check_in | check_out
+  rawPayloadJson           Json     @map("raw_payload_json")
+  deviceTime               DateTime @map("device_time")
+  serverReceivedAt         DateTime @default(now()) @map("server_received_at")
+  faceResult               String?  @map("face_result")
+  geofenceResult           String?  @map("geofence_result")
+  spoofingResult           String?  @map("spoofing_result")
+  isDuplicate              Boolean  @default(false) @map("is_duplicate")
+  isInvalidSequence        Boolean  @default(false) @map("is_invalid_sequence")
+  resultingAttendanceLogId String?  @map("resulting_attendance_log_id")
+  createdAt                DateTime @default(now()) @map("created_at")
 
-  workspace      Workspace      @relation(fields: [workspaceId], references: [id])
-  employee       Employee       @relation(fields: [employeeId], references: [id])
+  workspace Workspace @relation(fields: [workspaceId], references: [id])
+  employee  Employee  @relation(fields: [employeeId], references: [id])
 
   @@index([workspaceId])
   @@index([employeeId])
@@ -678,14 +703,14 @@ model LeaveType {
 // ---------------------------------------------------------------------------
 
 model WorkspaceSetting {
-  id                      String   @id @default(cuid())
-  workspaceId             String   @unique @map("workspace_id")
-  lateCalculationPolicy   Json?    @map("late_calculation_policy")
-  missingCheckoutPolicy   Json?    @map("missing_checkout_policy")
-  exportPermissionsJson   Json?    @map("export_permissions_json")
-  displaySettingsJson     Json?    @map("display_settings_json")
-  createdAt               DateTime @default(now()) @map("created_at")
-  updatedAt               DateTime @updatedAt @map("updated_at")
+  id                    String   @id @default(cuid())
+  workspaceId           String   @unique @map("workspace_id")
+  lateCalculationPolicy Json?    @map("late_calculation_policy")
+  missingCheckoutPolicy Json?    @map("missing_checkout_policy")
+  exportPermissionsJson Json?    @map("export_permissions_json")
+  displaySettingsJson   Json?    @map("display_settings_json")
+  createdAt             DateTime @default(now()) @map("created_at")
+  updatedAt             DateTime @updatedAt @map("updated_at")
 
   workspace Workspace @relation(fields: [workspaceId], references: [id])
 

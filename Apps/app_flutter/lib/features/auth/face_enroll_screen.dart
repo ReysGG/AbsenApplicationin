@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:camera/camera.dart';
 import 'package:flutter/foundation.dart';
@@ -42,6 +43,11 @@ class _FaceEnrollScreenState extends ConsumerState<FaceEnrollScreen> {
   int _goodFrames = 0;
   static const _requiredGoodFrames = 8; // ~0.8s at ~10fps
   String _hint = 'Posisikan wajah di dalam bingkai';
+  String? _pendingHint;
+  int _pendingHintFrames = 0;
+  DateTime _lastHintChange = DateTime.now();
+  static const _hintStabilityFrames = 3;
+  static const _hintMinVisibleDuration = Duration(milliseconds: 650);
 
   /// After a few seconds without an automatic capture (e.g. glasses confuse the
   /// eye-open detector), offer a manual capture escape so the user is never
@@ -102,7 +108,8 @@ class _FaceEnrollScreenState extends ConsumerState<FaceEnrollScreen> {
       if (!mounted) return;
       setState(() {
         _initializing = false;
-        _error = 'Kamera tidak tersedia. Gunakan perangkat dengan kamera depan.';
+        _error =
+            'Kamera tidak tersedia. Gunakan perangkat dengan kamera depan.';
       });
     }
   }
@@ -150,7 +157,7 @@ class _FaceEnrollScreenState extends ConsumerState<FaceEnrollScreen> {
         // blocking — this was the main cause of enrollment getting stuck.
         hint = 'Buka mata dan tatap kamera';
       } else {
-        hint = 'Tahan… sedang merekam wajahmu';
+        hint = 'Tahan... sedang merekam wajahmu';
         good = true;
       }
     }
@@ -167,7 +174,42 @@ class _FaceEnrollScreenState extends ConsumerState<FaceEnrollScreen> {
       _goodFrames = _goodFrames > 2 ? _goodFrames - 2 : 0;
     }
 
-    if (mounted && hint != _hint) setState(() => _hint = hint!);
+    _setStableHint(hint, immediate: good);
+  }
+
+  void _setStableHint(String next, {bool immediate = false}) {
+    if (!mounted || next == _hint) {
+      _pendingHint = null;
+      _pendingHintFrames = 0;
+      return;
+    }
+
+    final now = DateTime.now();
+    if (immediate) {
+      setState(() => _hint = next);
+      _pendingHint = null;
+      _pendingHintFrames = 0;
+      _lastHintChange = now;
+      return;
+    }
+
+    if (_pendingHint == next) {
+      _pendingHintFrames++;
+    } else {
+      _pendingHint = next;
+      _pendingHintFrames = 1;
+    }
+
+    final hasStableSignal = _pendingHintFrames >= _hintStabilityFrames;
+    final hasBeenVisibleLongEnough =
+        now.difference(_lastHintChange) >= _hintMinVisibleDuration;
+
+    if (hasStableSignal && hasBeenVisibleLongEnough) {
+      setState(() => _hint = next);
+      _pendingHint = null;
+      _pendingHintFrames = 0;
+      _lastHintChange = now;
+    }
   }
 
   Future<void> _enroll() async {
@@ -178,17 +220,24 @@ class _FaceEnrollScreenState extends ConsumerState<FaceEnrollScreen> {
       await _controller?.stopImageStream();
     } catch (_) {}
     try {
-      await ref.read(authControllerProvider.notifier).enrollFace();
+      final faceImageBase64 = await _captureFaceImageBase64();
+      await ref
+          .read(authControllerProvider.notifier)
+          .enrollFace(faceImageBase64: faceImageBase64);
       if (!mounted) return;
       await showDialog<void>(
         context: context,
         barrierDismissible: false,
         builder: (ctx) => AlertDialog(
-          icon: Icon(Icons.verified_rounded,
-              color: AppColors.success, size: 48),
+          icon: Icon(
+            Icons.verified_rounded,
+            color: AppColors.success,
+            size: 48,
+          ),
           title: const Text('Wajah Terdaftar'),
           content: const Text(
-              'Wajahmu berhasil didaftarkan. Sekarang kamu bisa melakukan absensi.'),
+            'Wajahmu berhasil didaftarkan. Sekarang kamu bisa melakukan absensi.',
+          ),
           actions: [
             FilledButton(
               onPressed: () => Navigator.of(ctx).pop(),
@@ -205,6 +254,19 @@ class _FaceEnrollScreenState extends ConsumerState<FaceEnrollScreen> {
         _error = 'Gagal mendaftarkan wajah: ${e.toString()}';
       });
     }
+  }
+
+  Future<String> _captureFaceImageBase64() async {
+    final controller = _controller;
+    if (controller == null || !controller.value.isInitialized) {
+      throw Exception('Kamera belum siap. Coba lagi.');
+    }
+    final shot = await controller.takePicture();
+    final bytes = await shot.readAsBytes();
+    if (bytes.isEmpty) {
+      throw Exception('Foto wajah tidak berhasil diambil. Coba lagi.');
+    }
+    return base64Encode(bytes);
   }
 
   @override
@@ -228,7 +290,9 @@ class _FaceEnrollScreenState extends ConsumerState<FaceEnrollScreen> {
 
   @override
   Widget build(BuildContext context) {
-    if (kIsWeb) return _WebBypassView(onContinue: () => context.go(AppRoutes.home));
+    if (kIsWeb) {
+      return _WebBypassView(onContinue: () => context.go(AppRoutes.home));
+    }
     return Scaffold(
       backgroundColor: AppColors.surface,
       appBar: AppBar(
@@ -243,12 +307,15 @@ class _FaceEnrollScreenState extends ConsumerState<FaceEnrollScreen> {
               children: [
                 const SizedBox(height: AppSpacing.lg),
                 Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AppSpacing.lg,
+                  ),
                   child: Text(
                     'Pastikan wajahmu jelas, menghadap lurus, dan pencahayaan cukup.',
                     textAlign: TextAlign.center,
-                    style: AppTypography.bodyMd
-                        .copyWith(color: AppColors.onSurfaceVariant),
+                    style: AppTypography.bodyMd.copyWith(
+                      color: AppColors.onSurfaceVariant,
+                    ),
                   ),
                 ),
                 const Spacer(),
@@ -264,26 +331,31 @@ class _FaceEnrollScreenState extends ConsumerState<FaceEnrollScreen> {
                 ),
                 const SizedBox(height: AppSpacing.xl),
                 Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AppSpacing.lg,
+                  ),
                   child: Text(
-                    _submitting ? 'Mendaftarkan wajah…' : _hint,
+                    _submitting ? 'Mendaftarkan wajah...' : _hint,
                     textAlign: TextAlign.center,
-                    style: AppTypography.headlineMd
-                        .copyWith(color: AppColors.onSurface),
+                    style: AppTypography.headlineMd.copyWith(
+                      color: AppColors.onSurface,
+                    ),
                   ),
                 ),
                 if (_showManualCapture && !_submitting) ...[
                   const SizedBox(height: AppSpacing.md),
                   Padding(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: AppSpacing.lg,
+                    ),
                     child: Column(
                       children: [
                         Text(
                           'Kesulitan terdeteksi otomatis? Ambil foto manual.',
                           textAlign: TextAlign.center,
-                          style: AppTypography.bodyMd
-                              .copyWith(color: AppColors.onSurfaceVariant),
+                          style: AppTypography.bodyMd.copyWith(
+                            color: AppColors.onSurfaceVariant,
+                          ),
                         ),
                         const SizedBox(height: AppSpacing.md),
                         FilledButton.icon(
@@ -327,6 +399,10 @@ class _FaceEnrollScreenState extends ConsumerState<FaceEnrollScreen> {
       _error = null;
       _initializing = true;
       _goodFrames = 0;
+      _pendingHint = null;
+      _pendingHintFrames = 0;
+      _lastHintChange = DateTime.now();
+      _showManualCapture = false;
     });
     await _initCamera();
   }
@@ -345,7 +421,11 @@ class _ErrorView extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.videocam_off_outlined, size: 56, color: AppColors.primary),
+            Icon(
+              Icons.videocam_off_outlined,
+              size: 56,
+              color: AppColors.primary,
+            ),
             const SizedBox(height: AppSpacing.md),
             Text(
               message,
@@ -391,18 +471,26 @@ class _WebBypassView extends StatelessWidget {
                     ),
                     borderRadius: BorderRadius.circular(24),
                   ),
-                  child: const Icon(Icons.web_rounded, size: 40, color: Colors.white),
+                  child: const Icon(
+                    Icons.web_rounded,
+                    size: 40,
+                    color: Colors.white,
+                  ),
                 ),
                 const SizedBox(height: AppSpacing.xl),
                 Text(
                   'Mode Web',
-                  style: AppTypography.headlineMd.copyWith(color: AppColors.onSurface),
+                  style: AppTypography.headlineMd.copyWith(
+                    color: AppColors.onSurface,
+                  ),
                   textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: AppSpacing.sm),
                 Text(
                   'Pendaftaran wajah tidak tersedia di browser.\nFitur ini hanya tersedia di aplikasi mobile.',
-                  style: AppTypography.bodyMd.copyWith(color: AppColors.onSurfaceVariant),
+                  style: AppTypography.bodyMd.copyWith(
+                    color: AppColors.onSurfaceVariant,
+                  ),
                   textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: AppSpacing.xl),
@@ -413,7 +501,9 @@ class _WebBypassView extends StatelessWidget {
                     icon: const Icon(Icons.arrow_forward_rounded),
                     label: const Text('Lanjut ke Dashboard'),
                     style: FilledButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
+                      padding: const EdgeInsets.symmetric(
+                        vertical: AppSpacing.md,
+                      ),
                     ),
                   ),
                 ),

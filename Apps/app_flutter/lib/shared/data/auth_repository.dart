@@ -11,7 +11,7 @@ abstract interface class AuthRepository {
 
   /// Registers the employee's face (first-time enrollment). Returns the
   /// updated profile (faceEnrolled = true).
-  Future<UserProfile> enrollFace();
+  Future<UserProfile> enrollFace({required String faceImageBase64});
 
   Future<void> logout();
 }
@@ -51,7 +51,7 @@ class MockAuthRepository implements AuthRepository {
   }
 
   @override
-  Future<UserProfile> enrollFace() async {
+  Future<UserProfile> enrollFace({required String faceImageBase64}) async {
     await Future<void>.delayed(const Duration(milliseconds: 700));
     final updated = (_current ?? _demoProfile).copyWith(faceEnrolled: true);
     _current = updated;

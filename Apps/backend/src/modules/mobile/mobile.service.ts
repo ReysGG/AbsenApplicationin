@@ -8,13 +8,16 @@
  * Requirements: 1.1, 5.x, 6.x, 7.x, 11.x, 21.x
  */
 
+import { randomUUID } from 'crypto'
 import { prisma } from '../../config/prisma'
+import { env } from '../../config/env'
 import { ConflictError, NotFoundError, ValidationError } from '../../lib/errors'
 import type { MobileEmployee } from '../../types/auth'
 import type { CheckSubmissionInput, LeaveCreateInput } from './mobile.schema'
 import { evaluateCheckInIntegrity, evaluateCapturedAt, isValidCoordinate } from './mobile.integrity'
 import { createNotification } from '../notifications/notifications.service'
 import { uploadFaceImage } from '../../config/faceStorage'
+import { analyzeFaceImage } from './face.service-client'
 
 // ---------------------------------------------------------------------------
 // Time / geo helpers
@@ -494,12 +497,117 @@ async function maybeUploadFace(
   }
 }
 
+interface ActiveFaceProfileRow {
+  embedding: unknown
+  matchThreshold: number
+  embeddingModel: string
+}
+
+interface FaceVerificationResult {
+  score: number
+  threshold: number
+  model: string
+  qualityScore: number
+}
+
+function parseEmbedding(value: unknown): number[] {
+  const raw = typeof value === 'string' ? JSON.parse(value) : value
+  if (!Array.isArray(raw)) {
+    throw new ValidationError('Template wajah terdaftar tidak valid.')
+  }
+  const vector = raw.map((v) => Number(v))
+  if (vector.length === 0 || vector.some((v) => !Number.isFinite(v))) {
+    throw new ValidationError('Template wajah terdaftar tidak valid.')
+  }
+  return vector
+}
+
+function cosineSimilarity(a: number[], b: number[]): number {
+  if (a.length !== b.length || a.length === 0) {
+    throw new ValidationError('Dimensi template wajah tidak cocok.')
+  }
+  let dot = 0
+  let normA = 0
+  let normB = 0
+  for (let i = 0; i < a.length; i++) {
+    dot += a[i] * b[i]
+    normA += a[i] * a[i]
+    normB += b[i] * b[i]
+  }
+  if (normA <= 0 || normB <= 0) {
+    throw new ValidationError('Template wajah tidak valid.')
+  }
+  return dot / (Math.sqrt(normA) * Math.sqrt(normB))
+}
+
+async function verifyEmployeeFace(
+  emp: MobileEmployee,
+  faceImageBase64: string | undefined,
+): Promise<FaceVerificationResult> {
+  if (!faceImageBase64) {
+    throw new ValidationError('Foto wajah wajib dikirim untuk absensi.')
+  }
+
+  const profiles = await prisma.$queryRaw<ActiveFaceProfileRow[]>`
+    SELECT
+      embedding,
+      match_threshold AS "matchThreshold",
+      embedding_model AS "embeddingModel"
+    FROM employee_face_profiles
+    WHERE employee_id = ${emp.id}
+      AND workspace_id = ${emp.workspaceId}
+      AND is_active = true
+    ORDER BY enrolled_at DESC
+    LIMIT 1
+  `
+  const profile = profiles[0]
+  if (!profile) {
+    throw new ValidationError('Wajah belum terdaftar. Daftarkan wajah terlebih dahulu.')
+  }
+
+  const live = await analyzeFaceImage(faceImageBase64, 'verify')
+  const storedEmbedding = parseEmbedding(profile.embedding)
+  const score = cosineSimilarity(storedEmbedding, live.embedding)
+  const threshold = Number(profile.matchThreshold || env.FACE_MATCH_THRESHOLD)
+
+  if (score < threshold) {
+    throw new ValidationError('Wajah tidak cocok dengan data terdaftar.', {
+      faceMatchScore: Number(score.toFixed(4)),
+      threshold,
+    })
+  }
+
+  return {
+    score,
+    threshold,
+    model: live.model || profile.embeddingModel,
+    qualityScore: live.quality.score,
+  }
+}
+
 export async function checkIn(
   emp: MobileEmployee,
   body: CheckSubmissionInput,
 ): Promise<Record<string, unknown>> {
   const serverNow = new Date()
   const workMode: 'WFO' | 'WFH' = body.workMode === 'wfh' ? 'WFH' : 'WFO'
+  let faceVerification: FaceVerificationResult
+  try {
+    faceVerification = await verifyEmployeeFace(emp, body.faceImageBase64)
+  } catch (err) {
+    const cap = evaluateCapturedAt(body.capturedAt, serverNow)
+    await writeRawLog(emp, 'check_in', body, cap.capturedAt, {
+      faceResult: 'Failed',
+      spoofingResult: cap.suspicious ? 'Suspected' : 'Clean',
+      evaluation: {
+        clockSkewMs: cap.skewMs,
+        anomalies: ['face_match_failed'],
+        rejected: true,
+        reason: err instanceof Error ? err.message : 'Verifikasi wajah gagal.',
+      },
+    })
+    throw err
+  }
 
   // 1. Server-side integrity gate (audit §14): the server — not the client —
   //    decides face/liveness/spoof from the provided signals, validates the
@@ -511,11 +619,11 @@ export async function checkIn(
       latitude: body.latitude,
       longitude: body.longitude,
       isMocked: body.isMocked,
-      faceVerified: body.faceVerified,
+      faceVerified: true,
       livenessPassed: body.livenessPassed,
       livenessChecksPassed: body.livenessChecksPassed,
       livenessChecksTotal: body.livenessChecksTotal,
-      faceMatchScore: body.faceMatchScore,
+      faceMatchScore: faceVerification.score,
       capturedAtIso: body.capturedAt,
     },
     serverNow,
@@ -530,6 +638,8 @@ export async function checkIn(
       evaluation: {
         clockSkewMs: integrity.clockSkewMs,
         anomalies: integrity.anomalies,
+        faceMatchScore: Number(faceVerification.score.toFixed(4)),
+        faceMatchThreshold: faceVerification.threshold,
         rejected: true,
         reason: integrity.reason,
       },
@@ -551,6 +661,8 @@ export async function checkIn(
       evaluation: {
         clockSkewMs: integrity.clockSkewMs,
         anomalies: [...integrity.anomalies, 'duplicate_check_in'],
+        faceMatchScore: Number(faceVerification.score.toFixed(4)),
+        faceMatchThreshold: faceVerification.threshold,
         rejected: true,
         reason: 'Sudah check-in hari ini.',
       },
@@ -592,6 +704,8 @@ export async function checkIn(
           evaluation: {
             clockSkewMs: integrity.clockSkewMs,
             anomalies: [...integrity.anomalies, 'geofence_outside'],
+            faceMatchScore: Number(faceVerification.score.toFixed(4)),
+            faceMatchThreshold: faceVerification.threshold,
             rejected: true,
             distanceMeters: Math.round(nearestDist),
             radiusMeters: nearest.radiusMeters,
@@ -665,6 +779,10 @@ export async function checkIn(
     evaluation: {
       clockSkewMs: integrity.clockSkewMs,
       anomalies: integrity.anomalies,
+      faceMatchScore: Number(faceVerification.score.toFixed(4)),
+      faceMatchThreshold: faceVerification.threshold,
+      faceQualityScore: faceVerification.qualityScore,
+      faceModel: faceVerification.model,
       rejected: false,
     },
   })
@@ -710,6 +828,23 @@ export async function checkOut(
     throw new ValidationError('Koordinat lokasi tidak valid.')
   }
 
+  let faceVerification: FaceVerificationResult
+  try {
+    faceVerification = await verifyEmployeeFace(emp, body.faceImageBase64)
+  } catch (err) {
+    await writeRawLog(emp, 'check_out', body, now, {
+      faceResult: 'Failed',
+      spoofingResult: cap.suspicious ? 'Suspected' : 'Clean',
+      evaluation: {
+        clockSkewMs: cap.skewMs,
+        anomalies: [...skewAnomalies, 'face_match_failed'],
+        rejected: true,
+        reason: err instanceof Error ? err.message : 'Verifikasi wajah gagal.',
+      },
+    })
+    throw err
+  }
+
   const log = await prisma.attendanceLog.findFirst({
     where: { employeeId: emp.id, attendanceDate },
   })
@@ -751,10 +886,18 @@ export async function checkOut(
   })
 
   await writeRawLog(emp, 'check_out', body, now, {
-    faceResult: body.faceVerified ? 'Passed' : 'Skipped',
+    faceResult: 'Passed',
     spoofingResult: cap.suspicious ? 'Suspected' : 'Clean',
     resultingAttendanceLogId: updated.id,
-    evaluation: { clockSkewMs: cap.skewMs, anomalies: skewAnomalies, rejected: false },
+    evaluation: {
+      clockSkewMs: cap.skewMs,
+      anomalies: skewAnomalies,
+      faceMatchScore: Number(faceVerification.score.toFixed(4)),
+      faceMatchThreshold: faceVerification.threshold,
+      faceQualityScore: faceVerification.qualityScore,
+      faceModel: faceVerification.model,
+      rejected: false,
+    },
   })
 
   return attendanceDto(updated)
@@ -941,17 +1084,57 @@ export async function deleteDeviceToken(token: string): Promise<void> {
  * enrollment step was completed and flips the status to `Registered` so the
  * dashboard reflects it and check-in can require an enrolled profile.
  *
- * NOTE: true 1:1 face-embedding matching (comparing a check-in frame against a
- * stored template) is a documented future step — it needs an on-device or
- * server embedding model. The check-in integrity layer already supports an
- * optional `faceMatchScore` for when that lands.
+ * Enrollment stores a server-generated embedding from the Python face service.
+ * Check-in/check-out compare live captures against this active employee
+ * template before the attendance mutation is allowed.
  */
 export async function enrollFace(
   emp: MobileEmployee,
+  faceImageBase64: string,
 ): Promise<Record<string, unknown>> {
-  await prisma.employee.update({
-    where: { id: emp.id },
-    data: { faceProfileStatus: 'Registered' },
+  const analysis = await analyzeFaceImage(faceImageBase64, 'enroll')
+  const embeddingJson = JSON.stringify(analysis.embedding)
+  await prisma.$transaction(async (tx) => {
+    await tx.$executeRaw`
+      UPDATE employee_face_profiles
+      SET is_active = false, updated_at = now()
+      WHERE employee_id = ${emp.id} AND is_active = true
+    `
+    await tx.$executeRaw`
+      INSERT INTO employee_face_profiles (
+        id,
+        employee_id,
+        workspace_id,
+        embedding,
+        embedding_model,
+        embedding_dim,
+        match_threshold,
+        quality_score,
+        reference_image_key,
+        is_active,
+        enrolled_at,
+        created_at,
+        updated_at
+      ) VALUES (
+        ${randomUUID()},
+        ${emp.id},
+        ${emp.workspaceId},
+        CAST(${embeddingJson} AS jsonb),
+        ${analysis.model},
+        ${analysis.embeddingDim},
+        ${env.FACE_MATCH_THRESHOLD},
+        ${analysis.quality.score},
+        ${null},
+        true,
+        now(),
+        now(),
+        now()
+      )
+    `
+    await tx.employee.update({
+      where: { id: emp.id },
+      data: { faceProfileStatus: 'Registered' },
+    })
   })
   return buildProfile({ ...emp, faceProfileStatus: 'Registered' })
 }

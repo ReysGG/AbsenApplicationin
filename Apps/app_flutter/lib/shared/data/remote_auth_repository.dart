@@ -68,10 +68,12 @@ class RemoteAuthRepository implements AuthRepository {
   }
 
   @override
-  Future<UserProfile> enrollFace() async {
+  Future<UserProfile> enrollFace({required String faceImageBase64}) async {
     try {
-      final res =
-          await _dio.post<Map<String, dynamic>>('/mobile/me/face/enroll');
+      final res = await _dio.post<Map<String, dynamic>>(
+        '/mobile/me/face/enroll',
+        data: {'faceImageBase64': faceImageBase64},
+      );
       final data = res.data?['data'] as Map<String, dynamic>?;
       if (data == null) {
         throw const AuthException('Respons pendaftaran wajah tidak valid.');

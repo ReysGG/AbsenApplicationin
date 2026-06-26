@@ -24,6 +24,10 @@ const envSchema = z.object({
   S3_ACCESS_KEY_ID: z.string().optional(),
   S3_SECRET_ACCESS_KEY: z.string().optional(),
   S3_FACE_BUCKET: z.string().optional().default('face-captures'),
+  FACE_SERVICE_URL: z.string().url().optional().or(z.literal('')),
+  FACE_SERVICE_TIMEOUT_MS: z.coerce.number().int().positive().default(8000),
+  FACE_MATCH_THRESHOLD: z.coerce.number().min(0).max(1).default(0.6),
+  FACE_QUALITY_MIN_SCORE: z.coerce.number().min(0).max(1).default(0.65),
   CORS_ORIGIN: z.string().default('http://localhost:3000'),
 })
 

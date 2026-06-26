@@ -24,14 +24,16 @@ export const checkSubmissionSchema = z.object({
   // Number of distinct liveness challenges passed / presented on-device.
   livenessChecksPassed: z.number().int().min(0).max(10).optional(),
   livenessChecksTotal: z.number().int().min(0).max(10).optional(),
-  // Optional face-match score (0..1) once face enrollment exists.
+  // Legacy/diagnostic only. The backend computes the authoritative score from
+  // the submitted face image and stored employee embedding.
   faceMatchScore: z.number().min(0).max(1).optional(),
   // Optional Play Integrity / DeviceCheck attestation token (verified upstream).
   appIntegrityToken: z.string().max(4096).optional(),
   // Optional device model string for anomaly review.
   deviceModel: z.string().max(160).optional(),
-  // Optional base64-encoded JPEG of the verified face (data-URI or raw),
-  // stored to S3 for HR review. ~8M chars cap (well under the 10mb body limit).
+  // Base64-encoded JPEG of the verified face (data-URI or raw). Kept optional
+  // at schema level for older clients, but attendance services now reject
+  // missing images for face matching.
   faceImageBase64: z.string().max(8_000_000).optional(),
 })
 
@@ -52,7 +54,17 @@ export const deviceTokenDeleteSchema = z.object({
   token: z.string().min(1, 'Token wajib diisi'),
 })
 
+export const enrollFaceSchema = z.object({
+  // Base64-encoded JPEG face capture used to generate the enrolled template.
+  // Keep this aligned with express.json({ limit: '10mb' }).
+  faceImageBase64: z
+    .string()
+    .min(1, 'Foto wajah wajib dikirim')
+    .max(8_000_000, 'Foto wajah terlalu besar'),
+})
+
 export type LoginInput = z.infer<typeof loginSchema>
 export type CheckSubmissionInput = z.infer<typeof checkSubmissionSchema>
 export type LeaveCreateInput = z.infer<typeof leaveCreateSchema>
 export type DeviceTokenInput = z.infer<typeof deviceTokenSchema>
+export type EnrollFaceInput = z.infer<typeof enrollFaceSchema>

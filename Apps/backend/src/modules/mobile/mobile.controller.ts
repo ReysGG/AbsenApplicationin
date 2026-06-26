@@ -21,6 +21,7 @@ import {
   checkSubmissionSchema,
   deviceTokenDeleteSchema,
   deviceTokenSchema,
+  enrollFaceSchema,
   leaveCreateSchema,
   loginSchema,
 } from './mobile.schema'
@@ -416,9 +417,15 @@ export async function enrollFaceHandler(
 ): Promise<void> {
   try {
     const emp = requireEmployee(req)
+    const parsed = enrollFaceSchema.safeParse(req.body)
+    if (!parsed.success) {
+      return next(
+        new ValidationError('Input pendaftaran wajah tidak valid', parsed.error.flatten()),
+      )
+    }
     sendSuccess(
       res,
-      await service.enrollFace(emp),
+      await service.enrollFace(emp, parsed.data.faceImageBase64),
       'Wajah berhasil didaftarkan',
     )
   } catch (err) {

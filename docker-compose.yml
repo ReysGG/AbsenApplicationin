@@ -41,6 +41,8 @@ services:
     depends_on:
       db:
         condition: service_healthy
+      face-service:
+        condition: service_started
     environment:
       NODE_ENV: production
       PORT: 4000
@@ -63,12 +65,38 @@ services:
       # Vercel Blob private storage for attendance face captures.
       BLOB_READ_WRITE_TOKEN: ${BLOB_READ_WRITE_TOKEN:-}
       BLOB_FACE_PREFIX: ${BLOB_FACE_PREFIX:-face-captures}
+      # Backend-side face recognition service. This is fail-closed: enroll and
+      # attendance face checks should not silently pass when the service/model is
+      # unavailable.
+      FACE_SERVICE_URL: ${FACE_SERVICE_URL:-http://face-service:4100}
+      FACE_SERVICE_TIMEOUT_MS: ${FACE_SERVICE_TIMEOUT_MS:-8000}
+      FACE_MATCH_THRESHOLD: ${FACE_MATCH_THRESHOLD:-0.6}
+      FACE_QUALITY_MIN_SCORE: ${FACE_QUALITY_MIN_SCORE:-0.65}
     ports:
       - "10001:4000"
     healthcheck:
       # Node one-liner — works without curl/wget being present in alpine.
       test: ["CMD", "node", "-e", "require('http').get('http://127.0.0.1:4000/api/v1/health',r=>process.exit(r.statusCode===200?0:1)).on('error',()=>process.exit(1))"]
       interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  face-service:
+    build:
+      context: ./Apps/face-service
+    restart: unless-stopped
+    environment:
+      FACE_MODEL_NAME: ${FACE_MODEL_NAME:-buffalo_l}
+      FACE_MODEL_ROOT: ${FACE_MODEL_ROOT:-/models}
+      FACE_DET_SIZE: ${FACE_DET_SIZE:-640x640}
+    volumes:
+      - ${FACE_MODEL_HOST_DIR:-./models/face}:/models:ro
+    ports:
+      - "10003:4100"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:4100/health', timeout=3).read()"]
+      interval: 15s
       timeout: 5s
       retries: 5
       start_period: 30s

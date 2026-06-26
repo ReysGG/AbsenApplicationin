@@ -25,11 +25,11 @@ class AuthState {
     bool? isAppLockEnabled,
     bool? isLocked,
   }) => AuthState(
-        status: status ?? this.status,
-        profile: profile ?? this.profile,
-        isAppLockEnabled: isAppLockEnabled ?? this.isAppLockEnabled,
-        isLocked: isLocked ?? this.isLocked,
-      );
+    status: status ?? this.status,
+    profile: profile ?? this.profile,
+    isAppLockEnabled: isAppLockEnabled ?? this.isAppLockEnabled,
+    isLocked: isLocked ?? this.isLocked,
+  );
 }
 
 /// Owns the session lifecycle. The router listens to this for redirects.
@@ -76,8 +76,9 @@ class AuthController extends StateNotifier<AuthState> {
     );
     // Best-effort: register this device for push. Never block login.
     try {
-      await FcmService.instance
-          .registerDeviceToken(_ref.read(dioClientProvider).raw);
+      await FcmService.instance.registerDeviceToken(
+        _ref.read(dioClientProvider).raw,
+      );
     } catch (_) {
       // Ignore — push is non-critical.
     }
@@ -94,9 +95,9 @@ class AuthController extends StateNotifier<AuthState> {
   }
 
   /// Registers the employee's face and updates the cached profile.
-  Future<void> enrollFace() async {
+  Future<void> enrollFace({required String faceImageBase64}) async {
     final repo = _ref.read(authRepositoryProvider);
-    final updated = await repo.enrollFace();
+    final updated = await repo.enrollFace(faceImageBase64: faceImageBase64);
     state = state.copyWith(profile: updated);
   }
 
@@ -104,8 +105,9 @@ class AuthController extends StateNotifier<AuthState> {
     // Best-effort: drop this device's push token before clearing the session,
     // while the bearer token is still available for the authed delete call.
     try {
-      await FcmService.instance
-          .unregisterDeviceToken(_ref.read(dioClientProvider).raw);
+      await FcmService.instance.unregisterDeviceToken(
+        _ref.read(dioClientProvider).raw,
+      );
     } catch (_) {
       // Ignore — proceed with logout regardless.
     }
@@ -129,13 +131,18 @@ final authProfileProvider = Provider<UserProfile?>((ref) {
 });
 
 /// Selects the app-lock state. Rebuilds only when lock state changes.
-final authLockProvider = Provider<({bool isAppLockEnabled, bool isLocked})>((ref) {
-  return ref.watch(authControllerProvider.select(
-    (s) => (isAppLockEnabled: s.isAppLockEnabled, isLocked: s.isLocked),
-  ));
+final authLockProvider = Provider<({bool isAppLockEnabled, bool isLocked})>((
+  ref,
+) {
+  return ref.watch(
+    authControllerProvider.select(
+      (s) => (isAppLockEnabled: s.isAppLockEnabled, isLocked: s.isLocked),
+    ),
+  );
 });
 
-final authControllerProvider =
-    StateNotifierProvider<AuthController, AuthState>((ref) {
-  return AuthController(ref);
-});
+final authControllerProvider = StateNotifierProvider<AuthController, AuthState>(
+  (ref) {
+    return AuthController(ref);
+  },
+);
