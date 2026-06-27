@@ -72,6 +72,16 @@ services:
       FACE_SERVICE_TIMEOUT_MS: ${FACE_SERVICE_TIMEOUT_MS:-8000}
       FACE_MATCH_THRESHOLD: ${FACE_MATCH_THRESHOLD:-0.6}
       FACE_QUALITY_MIN_SCORE: ${FACE_QUALITY_MIN_SCORE:-0.65}
+      # SMTP (Gmail) for transactional email: new-account credentials (#10),
+      # activation links, and website trial requests (#15). Set SMTP_USER/
+      # SMTP_PASS (Gmail App Password) in the host .env; when empty the mailer
+      # falls back to dev-logging instead of sending.
+      SMTP_HOST: ${SMTP_HOST:-smtp.gmail.com}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASS: ${SMTP_PASS:-}
+      MAIL_FROM: ${MAIL_FROM:-}
+      TRIAL_INBOX: ${TRIAL_INBOX:-}
     ports:
       - "10001:4000"
     healthcheck:
