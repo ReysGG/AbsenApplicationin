@@ -7,6 +7,29 @@ import 'app_typography.dart';
 /// Builds the AttendX [ThemeData]. Modern Playful: soft surfaces, cheerful
 /// accents, rounded shapes, gentle gradients (applied in the widget layer).
 abstract final class AppTheme {
+  /// Re-attaches the per-mode `onSurface` color to every text style. The
+  /// `AppTypography` styles intentionally carry no color (so they can serve
+  /// both modes); without this, copying them onto the Material text theme nulls
+  /// out the default text color and text becomes invisible in light mode. This
+  /// is the single place that binds typography → palette, so changing
+  /// `AppColors.onSurface*` re-colours all theme-driven text everywhere.
+  static TextTheme _textTheme(TextTheme base, Color onSurface) {
+    TextStyle c(TextStyle s) => s.copyWith(color: onSurface);
+    return base.copyWith(
+      displayLarge: c(AppTypography.display),
+      headlineLarge: c(AppTypography.headlineLg),
+      headlineMedium: c(AppTypography.headlineMd),
+      titleLarge: c(AppTypography.titleLg),
+      titleMedium: c(AppTypography.titleLg),
+      bodyLarge: c(AppTypography.bodyLg),
+      bodyMedium: c(AppTypography.bodyMd),
+      bodySmall: c(AppTypography.bodySm),
+      labelLarge: c(AppTypography.labelMd),
+      labelMedium: c(AppTypography.labelMd),
+      labelSmall: c(AppTypography.labelSm),
+    );
+  }
+
   static ThemeData light() {
     const colorScheme = ColorScheme(
       brightness: Brightness.light,
@@ -52,16 +75,7 @@ abstract final class AppTheme {
     );
 
     return base.copyWith(
-      textTheme: base.textTheme.copyWith(
-        displayLarge: AppTypography.display,
-        headlineLarge: AppTypography.headlineLg,
-        headlineMedium: AppTypography.headlineMd,
-        titleLarge: AppTypography.titleLg,
-        bodyLarge: AppTypography.bodyLg,
-        bodyMedium: AppTypography.bodyMd,
-        labelLarge: AppTypography.labelMd,
-        labelSmall: AppTypography.labelSm,
-      ),
+      textTheme: _textTheme(base.textTheme, AppColors.onSurfaceLight),
       appBarTheme: const AppBarTheme(
         backgroundColor: Colors.transparent,
         foregroundColor: AppColors.onSurfaceLight,
@@ -195,16 +209,7 @@ abstract final class AppTheme {
     );
 
     return base.copyWith(
-      textTheme: base.textTheme.copyWith(
-        displayLarge: AppTypography.display,
-        headlineLarge: AppTypography.headlineLg,
-        headlineMedium: AppTypography.headlineMd,
-        titleLarge: AppTypography.titleLg,
-        bodyLarge: AppTypography.bodyLg,
-        bodyMedium: AppTypography.bodyMd,
-        labelLarge: AppTypography.labelMd,
-        labelSmall: AppTypography.labelSm,
-      ),
+      textTheme: _textTheme(base.textTheme, AppColors.onSurfaceDark),
       appBarTheme: const AppBarTheme(
         backgroundColor: Colors.transparent,
         foregroundColor: AppColors.onSurfaceDark,

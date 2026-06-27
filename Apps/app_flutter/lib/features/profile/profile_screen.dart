@@ -365,7 +365,24 @@ class ProfileScreen extends ConsumerWidget {
                                   Icons.chevron_right_rounded,
                                   color: AppColors.outline,
                                 ),
-                                onTap: () {},
+                                onTap: () => showDialog<void>(
+                                  context: context,
+                                  builder: (ctx) => AlertDialog(
+                                    title: const Text('Bantuan'),
+                                    content: const Text(
+                                      'Butuh bantuan terkait absensi, cuti, atau '
+                                      'akun Anda? Hubungi admin/HR perusahaan Anda, '
+                                      'atau email tim AttendX di '
+                                      'support@attendx.app.',
+                                    ),
+                                    actions: [
+                                      TextButton(
+                                        onPressed: () => Navigator.pop(ctx),
+                                        child: const Text('Tutup'),
+                                      ),
+                                    ],
+                                  ),
+                                ),
                                 splashColor: AppColors.surfaceContainerLow,
                               ),
                             ],
