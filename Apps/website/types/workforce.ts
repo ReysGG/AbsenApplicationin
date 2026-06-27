@@ -60,6 +60,7 @@ export interface AddEmployeeFormValues {
   assignedShiftId?: string;
   assignedLocationId: string;
   joinedAt: string;
+  accountSetup: "password" | "activation";
 }
 
 export interface EditEmployeeFormValues {
