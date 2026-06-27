@@ -29,6 +29,39 @@ uvicorn app.main:app --host 0.0.0.0 --port 4100
 - `FACE_MODEL_ROOT`: Directory containing InsightFace models. Default: `/models`.
 - `FACE_DET_SIZE`: Detector size in `WIDTHxHEIGHT` format. Default: `640x640`.
 
-The model files must be available in `FACE_MODEL_ROOT`. Do not rely on runtime
-network downloads in production.
+## Model setup
+
+InsightFace expects the model pack at `FACE_MODEL_ROOT/models/<FACE_MODEL_NAME>/`
+(e.g. `/models/models/buffalo_l/*.onnx`). With the Docker stack, `/models` is a
+writable volume mapped to the host `./models/face`.
+
+Two ways to provide the model:
+
+1. **Auto-download (default).** On first start, if the folder is empty and the
+   container has internet access, InsightFace downloads the pack automatically.
+   The first `/v1/face/analyze` call may be slow while it downloads (~280MB).
+   `GET /health` reports `ready:false` until the model is loaded.
+
+2. **Pre-seed manually (no runtime network needed).** Recommended for
+   production / air-gapped servers. Place the `.onnx` files yourself, then
+   restart the service:
+
+   ```bash
+   # On the host, relative to docker-compose.yml:
+   TARGET=./models/face/models/buffalo_l
+   mkdir -p "$TARGET"
+   curl -fL -o /tmp/buffalo_l.zip \
+     https://github.com/deepinsight/insightface/releases/download/v0.7/buffalo_l.zip
+   # no unzip? use python:
+   python3 -c "import zipfile;zipfile.ZipFile('/tmp/buffalo_l.zip').extractall('/tmp/blz')"
+   find /tmp/blz -name '*.onnx' -exec cp -f {} "$TARGET"/ \;
+   docker compose restart face-service
+   # verify:
+   curl -s http://localhost:10003/health   # expect {"ready":true,...}
+   ```
+
+   Expected files in `buffalo_l/`: `det_10g.onnx`, `w600k_r50.onnx`,
+   `genderage.onnx`, `2d106det.onnx`, `1k3d68.onnx`.
+
+Check readiness any time with `GET /health` → `{"ready":true,"error":null}`.
 

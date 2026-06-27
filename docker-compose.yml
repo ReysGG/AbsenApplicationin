@@ -101,7 +101,12 @@ services:
       FACE_MODEL_ROOT: ${FACE_MODEL_ROOT:-/models}
       FACE_DET_SIZE: ${FACE_DET_SIZE:-640x640}
     volumes:
-      - ${FACE_MODEL_HOST_DIR:-./models/face}:/models:ro
+      # InsightFace model dir. Writable so the service can AUTO-DOWNLOAD the
+      # model pack (e.g. buffalo_l, ~280MB) on first start when the folder is
+      # empty — needs internet at runtime; the first request waits for the
+      # download. To avoid the runtime download, pre-seed the files (see
+      # Apps/face-service/README.md → "Model setup").
+      - ${FACE_MODEL_HOST_DIR:-./models/face}:/models
     ports:
       - "10003:4100"
     healthcheck:
