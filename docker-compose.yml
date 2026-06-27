@@ -71,7 +71,7 @@ services:
       FACE_SERVICE_URL: ${FACE_SERVICE_URL:-http://face-service:4100}
       FACE_SERVICE_TIMEOUT_MS: ${FACE_SERVICE_TIMEOUT_MS:-8000}
       FACE_MATCH_THRESHOLD: ${FACE_MATCH_THRESHOLD:-0.6}
-      FACE_QUALITY_MIN_SCORE: ${FACE_QUALITY_MIN_SCORE:-0.65}
+      FACE_QUALITY_MIN_SCORE: ${FACE_QUALITY_MIN_SCORE:-0.45}
       # SMTP (Gmail) for transactional email: new-account credentials (#10),
       # activation links, and website trial requests (#15). Set SMTP_USER/
       # SMTP_PASS (Gmail App Password) in the host .env; when empty the mailer
@@ -100,6 +100,9 @@ services:
       FACE_MODEL_NAME: ${FACE_MODEL_NAME:-buffalo_l}
       FACE_MODEL_ROOT: ${FACE_MODEL_ROOT:-/models}
       FACE_DET_SIZE: ${FACE_DET_SIZE:-640x640}
+      # Minimum face-quality score for enroll/verify (0..1). Lower = more
+      # lenient (better for real phone cameras / glasses). Default 0.45.
+      FACE_QUALITY_MIN_SCORE: ${FACE_QUALITY_MIN_SCORE:-0.45}
     volumes:
       # InsightFace model dir. Writable so the service can AUTO-DOWNLOAD the
       # model pack (e.g. buffalo_l, ~280MB) on first start when the folder is

@@ -55,6 +55,11 @@ class HealthResponse(BaseModel):
 _face_app = None
 _model_error: str | None = None
 
+# Minimum acceptable face-quality score (0..1). Configurable via env so a
+# deployment can tune strictness for real phone front-cameras. Used both for the
+# obstruction hint and the hard reject in /v1/face/analyze.
+QUALITY_MIN_SCORE = float(os.getenv("FACE_QUALITY_MIN_SCORE", "0.45"))
+
 
 def _parse_det_size(value: str) -> tuple[int, int]:
     try:
@@ -111,7 +116,10 @@ def _quality_metrics(image: np.ndarray) -> tuple[float, float]:
     gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
     brightness = float(np.mean(gray) / 255.0)
     laplacian_var = float(cv2.Laplacian(gray, cv2.CV_64F).var())
-    blur_score = min(1.0, laplacian_var / 500.0)
+    # Phone front-cameras + JPEG compression lower the Laplacian variance, so a
+    # divisor of 500 was too strict (real selfies scored ~0.3). 150 is a more
+    # realistic "in focus" bar while still flagging genuinely blurry shots.
+    blur_score = min(1.0, laplacian_var / 150.0)
     return brightness, blur_score
 
 
@@ -128,8 +136,10 @@ def _quality_score(
     else:
         brightness_score = 1.0
 
-    size_score = 1.0 if face_size_ok else 0.35
-    pose_score = 1.0 if pose_ok else 0.45
+    # Soft penalties (not hard zeros) so a slightly small or slightly angled
+    # face — or a face with glasses — still clears a reasonable threshold.
+    size_score = 1.0 if face_size_ok else 0.55
+    pose_score = 1.0 if pose_ok else 0.6
     return float(max(0.0, min(1.0, min(brightness_score, blur_score, size_score, pose_score))))
 
 
@@ -151,7 +161,7 @@ def _face_quality(image: np.ndarray, face) -> QualityResult:
 
     score = _quality_score(brightness, blur_score, face_size_ok, pose_ok)
     obstruction = ObstructionResult(status="clear")
-    if score < 0.65:
+    if score < QUALITY_MIN_SCORE:
         obstruction = ObstructionResult(
             status="suspected",
             reason="Wajah kurang jelas atau sebagian tertutup.",
@@ -199,7 +209,14 @@ def analyze_face(payload: AnalyzeRequest) -> AnalyzeSuccess | AnalyzeReject:
 
     face = faces[0]
     quality = _face_quality(image, face)
-    if quality.score < 0.65:
+    if quality.score < QUALITY_MIN_SCORE:
+        # Diagnostic: show which metric pulled the score down (stdout → docker logs).
+        print(
+            f"[face] reject quality.score={quality.score} < {QUALITY_MIN_SCORE} "
+            f"brightness={quality.brightness} blur={quality.blurScore} "
+            f"faceSizeOk={quality.faceSizeOk} poseOk={quality.poseOk} mode={payload.mode}",
+            flush=True,
+        )
         return AnalyzeReject(
             reason=quality.obstruction.reason or "Kualitas foto wajah kurang jelas.",
             code="face_quality_low",
