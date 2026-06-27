@@ -83,6 +83,24 @@ class RemoteAuthRepository implements AuthRepository {
       throw DioClient.mapError(e);
     }
   }
+
+  @override
+  Future<void> changePassword({
+    required String currentPassword,
+    required String newPassword,
+  }) async {
+    try {
+      await _dio.post<Map<String, dynamic>>(
+        '/mobile/me/change-password',
+        data: {
+          'currentPassword': currentPassword,
+          'newPassword': newPassword,
+        },
+      );
+    } on DioException catch (e) {
+      throw DioClient.mapError(e);
+    }
+  }
 }
 
 class AuthException implements Exception {

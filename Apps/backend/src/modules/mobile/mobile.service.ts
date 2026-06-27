@@ -181,7 +181,10 @@ function leaveDto(lr: AnyLog): Record<string, unknown> {
     status: mapLeaveStatus(lr.status),
     attachmentName,
     submittedAt: (lr.createdAt as Date).toISOString(),
-    reviewerNote: lr.notes ?? lr.conflictNote ?? null,
+    // Only surface the approver's explicit note (e.g. rejection reason). The
+    // internal `conflictNote` is an HR/approver-only attendance-overlap warning
+    // and must NOT leak to the employee as a confusing "Catatan HR" (#13).
+    reviewerNote: lr.notes ?? null,
   }
 }
 
@@ -931,32 +934,54 @@ export async function createMyLeaveRequest(
     throw new ValidationError('Tanggal selesai tidak boleh sebelum tanggal mulai.')
   }
 
-  // Reject overlap with an existing Pending/Approved request (R11).
-  const overlap = await prisma.leaveRequest.findFirst({
-    where: {
-      employeeId: emp.id,
-      status: { in: ['Pending', 'Approved'] },
-      startDate: { lte: end },
-      endDate: { gte: start },
-    },
-  })
-  if (overlap) {
-    throw new ConflictError(
-      'Sudah ada pengajuan pada rentang tanggal tersebut.',
-    )
-  }
+  // Reject overlap with an existing Pending/Approved request (R11), and create
+  // atomically under SERIALIZABLE isolation so two near-simultaneous submits
+  // (double-tap / network retry on Android — #1) can't both pass the overlap
+  // check and create duplicate rows. Postgres SSI aborts one of the racing
+  // transactions, which Prisma surfaces as P2034.
+  let created: { id: string }
+  try {
+    created = await prisma.$transaction(
+      async (tx) => {
+        const overlap = await tx.leaveRequest.findFirst({
+          where: {
+            employeeId: emp.id,
+            status: { in: ['Pending', 'Approved'] },
+            startDate: { lte: end },
+            endDate: { gte: start },
+          },
+        })
+        if (overlap) {
+          throw new ConflictError(
+            'Sudah ada pengajuan pada rentang tanggal tersebut.',
+          )
+        }
 
-  const created = await prisma.leaveRequest.create({
-    data: {
-      workspaceId: emp.workspaceId,
-      employeeId: emp.id,
-      type: input.type,
-      startDate: start,
-      endDate: end,
-      reason: input.reason,
-      status: 'Pending',
-    },
-  })
+        return tx.leaveRequest.create({
+          data: {
+            workspaceId: emp.workspaceId,
+            employeeId: emp.id,
+            type: input.type,
+            startDate: start,
+            endDate: end,
+            reason: input.reason,
+            status: 'Pending',
+          },
+        })
+      },
+      { isolationLevel: 'Serializable' },
+    )
+  } catch (err) {
+    if (err instanceof ConflictError) throw err
+    // Serialization failure from a concurrent duplicate submit → treat as a
+    // duplicate rather than a server error.
+    if ((err as { code?: string })?.code === 'P2034') {
+      throw new ConflictError(
+        'Sudah ada pengajuan pada rentang tanggal tersebut.',
+      )
+    }
+    throw err
+  }
 
   // Best-effort: notify workspace HR (stakeholder / support_admin) of the new
   // request so the dashboard updates in real time (via the notification bus).

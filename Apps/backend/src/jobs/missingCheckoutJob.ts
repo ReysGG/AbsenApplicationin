@@ -93,10 +93,14 @@ async function runMissingCheckoutJob(): Promise<void> {
   const now = new Date()
 
   try {
-    // Find all PendingCheckout logs that have a shift
+    // Find all open logs (checked in, not checked out) that have a shift.
+    // The mobile check-in flow records status Present/Late immediately (not
+    // PendingCheckout), so a forgotten check-out would otherwise never be
+    // flagged. Include those statuses so genuine missing check-outs are caught
+    // once the shift end + tolerance has passed (#4 / R15.7).
     const pendingLogs = await (prisma as any).attendanceLog.findMany({
       where: {
-        status: 'PendingCheckout',
+        status: { in: ['PendingCheckout', 'Present', 'Late'] },
         checkInAt: { not: null },
         checkOutAt: null,
         shiftId: { not: null },

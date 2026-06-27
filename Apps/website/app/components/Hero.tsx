@@ -64,7 +64,7 @@ export default function Hero() {
           transition={{ duration: 0.6, delay: 0.45 }}
           className="z-10 flex flex-col sm:flex-row gap-4 mb-16 items-center justify-center"
         >
-          <Link href="/sign-up" aria-label="Coba gratis 14 hari">
+          <Link href="/uji-coba" aria-label="Coba gratis 14 hari">
             <ShinyButton className="px-8 py-4 bg-navy text-white border-navy rounded-md text-sm font-semibold hover:bg-mint hover:text-navy transition-all duration-300 shadow-level-2">
               Coba Gratis 14 Hari
             </ShinyButton>

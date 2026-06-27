@@ -52,6 +52,10 @@ export const createEmployeeSchema = z.object({
     .string()
     .regex(/^\d{4}-\d{2}-\d{2}$/, 'Format tanggal harus YYYY-MM-DD')
     .default(() => new Date().toISOString().slice(0, 10)),
+  // How the employee's login is provisioned (#10):
+  //  - 'activation' : email an activation link; employee sets their own password (default when omitted)
+  //  - 'password'   : system generates a random temporary password and emails it
+  accountSetup: z.enum(['activation', 'password']).optional(),
 })
 
 // ---------------------------------------------------------------------------

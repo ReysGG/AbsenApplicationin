@@ -63,8 +63,17 @@ export const enrollFaceSchema = z.object({
     .max(8_000_000, 'Foto wajah terlalu besar'),
 })
 
+export const changePasswordSchema = z.object({
+  currentPassword: z.string().min(1, 'Kata sandi saat ini wajib diisi'),
+  newPassword: z
+    .string()
+    .min(8, 'Kata sandi baru minimal 8 karakter')
+    .max(128, 'Kata sandi baru terlalu panjang'),
+})
+
 export type LoginInput = z.infer<typeof loginSchema>
 export type CheckSubmissionInput = z.infer<typeof checkSubmissionSchema>
 export type LeaveCreateInput = z.infer<typeof leaveCreateSchema>
 export type DeviceTokenInput = z.infer<typeof deviceTokenSchema>
 export type EnrollFaceInput = z.infer<typeof enrollFaceSchema>
+export type ChangePasswordInput = z.infer<typeof changePasswordSchema>

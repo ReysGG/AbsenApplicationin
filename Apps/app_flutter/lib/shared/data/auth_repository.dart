@@ -13,6 +13,13 @@ abstract interface class AuthRepository {
   /// updated profile (faceEnrolled = true).
   Future<UserProfile> enrollFace({required String faceImageBase64});
 
+  /// Changes the signed-in user's password. Throws if the current password is
+  /// wrong or the new password is rejected by the server policy.
+  Future<void> changePassword({
+    required String currentPassword,
+    required String newPassword,
+  });
+
   Future<void> logout();
 }
 
@@ -62,6 +69,20 @@ class MockAuthRepository implements AuthRepository {
   Future<void> logout() async {
     await Future<void>.delayed(const Duration(milliseconds: 300));
     _current = null;
+  }
+
+  @override
+  Future<void> changePassword({
+    required String currentPassword,
+    required String newPassword,
+  }) async {
+    await Future<void>.delayed(const Duration(milliseconds: 600));
+    if (currentPassword.length < 4) {
+      throw const _AuthError('Kata sandi saat ini salah.');
+    }
+    if (newPassword.length < 8) {
+      throw const _AuthError('Kata sandi baru minimal 8 karakter.');
+    }
   }
 }
 

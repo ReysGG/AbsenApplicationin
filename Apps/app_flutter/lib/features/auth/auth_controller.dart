@@ -101,6 +101,18 @@ class AuthController extends StateNotifier<AuthState> {
     state = state.copyWith(profile: updated);
   }
 
+  /// Changes the signed-in user's password. Rethrows on failure so the UI can
+  /// surface the server's message (wrong current password / weak new password).
+  Future<void> changePassword({
+    required String currentPassword,
+    required String newPassword,
+  }) async {
+    await _ref.read(authRepositoryProvider).changePassword(
+          currentPassword: currentPassword,
+          newPassword: newPassword,
+        );
+  }
+
   Future<void> logout() async {
     // Best-effort: drop this device's push token before clearing the session,
     // while the bearer token is still available for the authed delete call.

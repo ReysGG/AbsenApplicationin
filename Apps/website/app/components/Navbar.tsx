@@ -42,7 +42,7 @@ export default function Navbar() {
           </div>
           <div className="hidden md:flex items-center gap-4">
             <Link href="/sign-in" className="text-neutral-600 hover:text-brand-teal font-sans text-sm font-medium transition-colors">Masuk</Link>
-            <Link href="/sign-up" aria-label="Daftar akun gratis">
+            <Link href="/uji-coba" aria-label="Daftar akun gratis">
               <ShinyButton className="px-5 py-2.5 bg-navy text-white border-navy rounded-md text-sm font-semibold hover:bg-mint hover:text-navy transition-all duration-300">
                 Coba Gratis
               </ShinyButton>

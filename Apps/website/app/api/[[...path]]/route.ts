@@ -61,6 +61,7 @@ const PUBLIC_BACKEND_PATHS = [
   "/employees/activate",
   "/auth/login-check",
   "/auth/login-failed",
+  "/public/trial-request",
 ];
 
 function isPublicBackendPath(path: string): boolean {

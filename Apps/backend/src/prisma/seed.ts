@@ -635,6 +635,27 @@ async function main(): Promise<void> {
       status: 'Active',
     },
   })
+
+  // ── Real product owner account ─────────────────────────────────────────────
+  // The actual app owner (David). Full platform access (super_admin) so they
+  // can manage tenants, billing, tickets, and system health from /admin.
+  const ownerAuthId = await ensureBetterAuthUser(
+    'davidreysgg@gmail.com',
+    'David (Owner)',
+    'Attendx2024!',
+  )
+  await (prisma as any).user.upsert({
+    where: { email: 'davidreysgg@gmail.com' },
+    update: { authUserId: ownerAuthId, globalRole: 'super_admin' },
+    create: {
+      authUserId: ownerAuthId,
+      email: 'davidreysgg@gmail.com',
+      fullName: 'David (Owner)',
+      globalRole: 'super_admin',
+      status: 'Active',
+    },
+  })
+  console.log('✅ Owner account: davidreysgg@gmail.com (super_admin)')
   // Keep the stakeholder WORKSPACE-only — self-correct older seeds that promoted
   // it to super_admin (proposal §5.3: Stakeholder has NO platform-console access).
   await (prisma as any).user.update({

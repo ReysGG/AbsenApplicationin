@@ -29,6 +29,16 @@ const envSchema = z.object({
   FACE_MATCH_THRESHOLD: z.coerce.number().min(0).max(1).default(0.6),
   FACE_QUALITY_MIN_SCORE: z.coerce.number().min(0).max(1).default(0.65),
   CORS_ORIGIN: z.string().default('http://localhost:3000'),
+  // SMTP (e.g. Gmail) for transactional email: new-account credentials,
+  // activation links, trial requests. When SMTP_USER/SMTP_PASS are unset the
+  // mailer falls back to logging the message (dev mode).
+  SMTP_HOST: z.string().optional().default('smtp.gmail.com'),
+  SMTP_PORT: z.coerce.number().int().positive().default(587),
+  SMTP_USER: z.string().optional().or(z.literal('')),
+  SMTP_PASS: z.string().optional().or(z.literal('')),
+  MAIL_FROM: z.string().optional().or(z.literal('')),
+  // Inbox that receives website trial / "uji coba" requests (#15).
+  TRIAL_INBOX: z.string().optional().or(z.literal('')),
 })
 
 const parsed = envSchema.safeParse(process.env)

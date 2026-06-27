@@ -20,7 +20,8 @@
 import { prisma } from '../../config/prisma'
 import { writeAudit } from '../../lib/audit'
 import { ConflictError, ForbiddenError, NotFoundError } from '../../lib/errors'
-import { sendActivationEmail } from '../../lib/mailer'
+import { sendActivationEmail, sendNewAccountCredentialsEmail } from '../../lib/mailer'
+import crypto from 'crypto'
 import type { ScopeFilter } from '../../types/auth'
 import {
   generateActivationToken,
@@ -68,6 +69,8 @@ export interface EmployeeListItem {
 export interface EmployeeDetail extends EmployeeListItem {
   updatedAt: string
   userId: string | null
+  /** Present only right after creation with accountSetup='password' (#10). */
+  tempPassword?: string
 }
 
 export interface EmployeeListResult {
@@ -211,6 +214,68 @@ async function generateEmployeeCode(workspaceId: string): Promise<string> {
 
   const nextSeq = String(maxSeq + 1).padStart(4, '0')
   return `${prefix}${nextSeq}`
+}
+
+/**
+ * Generate a strong, human-friendly temporary password (#10). Avoids ambiguous
+ * characters (0/O, 1/l/I) and guarantees at least one upper, one lower, and one
+ * digit so it satisfies common password policies.
+ */
+function generateRandomPassword(length = 12): string {
+  const upper = 'ABCDEFGHJKLMNPQRSTUVWXYZ'
+  const lower = 'abcdefghijkmnpqrstuvwxyz'
+  const digits = '23456789'
+  const all = upper + lower + digits
+  const pick = (set: string) => set[crypto.randomInt(0, set.length)]
+
+  const required = [pick(upper), pick(lower), pick(digits)]
+  const rest = Array.from({ length: Math.max(length, 8) - required.length }, () =>
+    pick(all),
+  )
+  const chars = [...required, ...rest]
+  // Fisher–Yates shuffle using crypto randomness.
+  for (let i = chars.length - 1; i > 0; i--) {
+    const j = crypto.randomInt(0, i + 1)
+    ;[chars[i], chars[j]] = [chars[j]!, chars[i]!]
+  }
+  return chars.join('')
+}
+
+/**
+ * Provision a login account immediately with a generated password (#10).
+ * Mirrors activateAccount: creates the better-auth user, links the app User,
+ * and marks the employee Active. Returns the linked appUser id.
+ */
+async function provisionPasswordAccount(params: {
+  email: string
+  fullName: string
+  password: string
+}): Promise<string> {
+  const { auth } = await import('../../config/auth')
+  const createResult = await auth.api.signUpEmail({
+    body: { email: params.email, password: params.password, name: params.fullName },
+  })
+  if (!createResult || !createResult.user) {
+    throw new Error('Gagal membuat akun login. Silakan coba lagi.')
+  }
+  const authUserId = createResult.user.id
+
+  let appUser = await (prisma as any).user.findFirst({
+    where: { authUserId },
+    select: { id: true },
+  })
+  if (!appUser) {
+    appUser = await (prisma as any).user.create({
+      data: {
+        authUserId,
+        email: params.email,
+        fullName: params.fullName,
+        status: 'Active',
+      },
+      select: { id: true },
+    })
+  }
+  return appUser.id as string
 }
 
 function mapEmployeeToListItem(emp: {
@@ -444,6 +509,22 @@ export async function createEmployee(params: {
 
   const joinedAt = new Date(input.joinDate)
 
+  const usePasswordSetup = input.accountSetup === 'password'
+  let tempPassword: string | undefined
+  let provisionedUserId: string | null = null
+
+  // Password setup (#10): provision the login account up-front so we can email
+  // the credentials. Done before employee creation so a signup failure aborts
+  // cleanly without leaving an orphaned employee row.
+  if (usePasswordSetup) {
+    tempPassword = generateRandomPassword()
+    provisionedUserId = await provisionPasswordAccount({
+      email: input.email,
+      fullName: input.fullName,
+      password: tempPassword,
+    })
+  }
+
   const emp = await (prisma as any).employee.create({
     data: {
       workspaceId,
@@ -454,27 +535,42 @@ export async function createEmployee(params: {
       departmentId: input.departmentId,
       position: input.position ?? null,
       employmentStatus: input.employmentStatus ?? 'Active',
-      accountStatus: 'PendingActivation', // R2.1
+      // Password mode activates immediately; activation mode waits for the link.
+      accountStatus: usePasswordSetup ? 'Active' : 'PendingActivation',
       workMode: input.workMode ?? 'WFO',
       faceProfileStatus: 'NotRegistered', // R2.1
       assignedShiftId: input.assignedShiftId ?? null,
       assignedLocationId: input.assignedLocationId ?? null,
+      userId: provisionedUserId,
       joinedAt,
     },
     select: employeeSelectWithRelations,
   })
 
-  // Generate activation token and send email (R2.2)
-  const token = generateActivationToken({
-    employeeId: emp.id,
-    workspaceId,
-    email: emp.email,
-  })
-  const activationLink = buildActivationLink(token)
-  // Non-blocking — email failure should not break the main flow
-  sendActivationEmail(emp.email, activationLink).catch(() => {
-    // logged inside sendActivationEmail
-  })
+  if (usePasswordSetup && tempPassword) {
+    // Email the generated credentials (non-blocking).
+    const loginUrl =
+      process.env['APP_URL'] ?? process.env['NEXT_PUBLIC_APP_URL'] ?? 'http://localhost:3000'
+    sendNewAccountCredentialsEmail(emp.email, {
+      fullName: emp.fullName,
+      password: tempPassword,
+      loginUrl: `${loginUrl}/login`,
+    }).catch(() => {
+      // logged inside the mailer
+    })
+  } else {
+    // Activation flow: generate token and send the activation link (R2.2).
+    const token = generateActivationToken({
+      employeeId: emp.id,
+      workspaceId,
+      email: emp.email,
+    })
+    const activationLink = buildActivationLink(token)
+    // Non-blocking — email failure should not break the main flow
+    sendActivationEmail(emp.email, activationLink).catch(() => {
+      // logged inside sendActivationEmail
+    })
+  }
 
   // Audit: create_employee (R7.16)
   await writeAudit({
@@ -500,6 +596,7 @@ export async function createEmployee(params: {
     ...mapEmployeeToListItem(emp),
     updatedAt: (emp as { updatedAt: Date }).updatedAt.toISOString(),
     userId: (emp as { userId: string | null }).userId,
+    ...(tempPassword ? { tempPassword } : {}),
   }
 }
 

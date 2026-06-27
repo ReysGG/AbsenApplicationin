@@ -24,6 +24,7 @@ import {
   enrollFaceSchema,
   leaveCreateSchema,
   loginSchema,
+  changePasswordSchema,
 } from './mobile.schema'
 import * as service from './mobile.service'
 
@@ -149,6 +150,53 @@ export async function meHandler(
   try {
     const emp = requireEmployee(req)
     sendSuccess(res, await service.buildProfile(emp))
+  } catch (err) {
+    next(err)
+  }
+}
+
+/**
+ * POST /api/v1/mobile/me/change-password
+ * Body: { currentPassword, newPassword }
+ *
+ * Verifies the current password and rotates it via better-auth. The bearer
+ * plugin resolves the session from the `Authorization` header. Other sessions
+ * are revoked so a leaked/old credential cannot keep an active session.
+ */
+export async function changePasswordHandler(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
+  try {
+    requireEmployee(req)
+    const parsed = changePasswordSchema.safeParse(req.body)
+    if (!parsed.success) {
+      return next(
+        new ValidationError('Input tidak valid', parsed.error.flatten()),
+      )
+    }
+    const { currentPassword, newPassword } = parsed.data
+    if (currentPassword === newPassword) {
+      return next(
+        new ValidationError('Kata sandi baru harus berbeda dari yang lama'),
+      )
+    }
+
+    try {
+      await auth.api.changePassword({
+        body: { currentPassword, newPassword, revokeOtherSessions: true },
+        headers: req.headers as Record<string, string>,
+      })
+    } catch {
+      // better-auth throws when the current password is wrong; keep the
+      // message generic so we don't leak password-policy internals.
+      return next(
+        new ValidationError('Kata sandi saat ini salah'),
+      )
+    }
+
+    sendSuccess(res, null, 'Kata sandi berhasil diperbarui')
   } catch (err) {
     next(err)
   }

@@ -301,6 +301,24 @@ class ProfileScreen extends ConsumerWidget {
                               const Divider(height: 1),
                               ListTile(
                                 leading: _SettingLeading(
+                                  icon: Icons.password_rounded,
+                                  tint: AppColors.primary,
+                                ),
+                                title: const Text(
+                                  'Ganti Kata Sandi',
+                                  style: AppTypography.labelMd,
+                                ),
+                                trailing: Icon(
+                                  Icons.chevron_right_rounded,
+                                  color: AppColors.outline,
+                                ),
+                                onTap: () =>
+                                    context.push(AppRoutes.changePassword),
+                                splashColor: AppColors.surfaceContainerLow,
+                              ),
+                              const Divider(height: 1),
+                              ListTile(
+                                leading: _SettingLeading(
                                   icon: Icons.sync_rounded,
                                   tint: AppColors.accentCyan,
                                 ),

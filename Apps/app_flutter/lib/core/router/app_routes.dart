@@ -21,4 +21,5 @@ abstract final class AppRoutes {
   static const notifications = '/notifications';
   static const syncStatus = '/sync';
   static const faceEnroll = '/face-enroll';
+  static const changePassword = '/profile/change-password';
 }

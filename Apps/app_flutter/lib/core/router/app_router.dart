@@ -12,6 +12,7 @@ import '../../features/auth/login_screen.dart';
 import '../../features/auth/splash_screen.dart';
 import '../../features/auth/lock_screen.dart';
 import '../../features/auth/face_enroll_screen.dart';
+import '../../features/auth/change_password_screen.dart';
 import '../../features/history/attendance_detail_screen.dart';
 import '../../features/history/history_screen.dart';
 import '../../features/home/home_screen.dart';
@@ -132,6 +133,10 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: AppRoutes.faceEnroll,
         builder: (_, _) => const FaceEnrollScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.changePassword,
+        builder: (_, _) => const ChangePasswordScreen(),
       ),
 
       // Bottom-nav shell

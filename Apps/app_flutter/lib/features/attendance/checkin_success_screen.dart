@@ -15,19 +15,42 @@ import '../../core/widgets/solid_card.dart';
 import '../../core/widgets/lottie_icon.dart';
 import '../../shared/models/attendance_record.dart';
 import '../../shared/models/enums.dart';
+import '../history/history_controller.dart';
+import '../home/home_controller.dart';
 import '../attendance/checkin_flow_controller.dart';
 
-class CheckinSuccessScreen extends ConsumerWidget {
+class CheckinSuccessScreen extends ConsumerStatefulWidget {
   const CheckinSuccessScreen({super.key, this.recordId});
   final String? recordId;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<CheckinSuccessScreen> createState() =>
+      _CheckinSuccessScreenState();
+}
+
+class _CheckinSuccessScreenState extends ConsumerState<CheckinSuccessScreen> {
+  @override
+  void initState() {
+    super.initState();
+    // Reaching this screen means a check-in/out was just recorded. The home
+    // dashboard and history live underneath in a still-alive IndexedStack, so
+    // their cached providers must be invalidated now — otherwise the home keeps
+    // showing the stale "Belum Check-in" state and never flips to the
+    // check-out action after a successful check-in.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.invalidate(homeDataProvider);
+      ref.invalidate(historyProvider);
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final recordId = widget.recordId;
     final isCheckout =
         ref.read(checkinFlowProvider).kind == CheckFlowKind.checkOut;
     final detailAsync = recordId == null
         ? null
-        : ref.watch(_detailProvider(recordId!));
+        : ref.watch(_detailProvider(recordId));
 
     return Scaffold(
       backgroundColor: Colors.transparent,

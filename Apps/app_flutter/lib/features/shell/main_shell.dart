@@ -1,14 +1,16 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/app_refresh.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_spacing.dart';
 import '../../core/theme/app_typography.dart';
+import '../leave/leave_controller.dart';
 
 /// Bottom-navigation shell hosting the 5 primary tabs:
 /// Beranda · Riwayat · Pengajuan · Shift · Profil.
-class MainShell extends StatelessWidget {
+class MainShell extends ConsumerWidget {
   const MainShell({super.key, required this.navigationShell});
 
   final StatefulNavigationShell navigationShell;
@@ -29,8 +31,11 @@ class MainShell extends StatelessWidget {
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final current = navigationShell.currentIndex;
+    // Pending leave requests → badge on the "Izin" tab (index 2).
+    final pendingLeave = ref.watch(pendingLeaveCountProvider);
+    final badges = <int, int>{2: pendingLeave};
     return AppDataRefresher(
       child: Scaffold(
         // Set to true so body spans under the floating navigation bar,
@@ -40,6 +45,7 @@ class MainShell extends StatelessWidget {
         bottomNavigationBar: _AppNavBar(
           tabs: _tabs,
           current: current,
+          badges: badges,
           onTap: _onTap,
         ),
       ),
@@ -60,11 +66,13 @@ class _AppNavBar extends StatelessWidget {
   const _AppNavBar({
     required this.tabs,
     required this.current,
+    required this.badges,
     required this.onTap,
   });
 
   final List<_TabSpec> tabs;
   final int current;
+  final Map<int, int> badges;
   final void Function(int) onTap;
 
   @override
@@ -120,6 +128,7 @@ class _AppNavBar extends StatelessWidget {
                 _NavItem(
                   spec: tabs[i],
                   selected: i == current,
+                  badgeCount: badges[i] ?? 0,
                   onTap: () => onTap(i),
                 ),
             ],
@@ -134,11 +143,13 @@ class _NavItem extends StatefulWidget {
   const _NavItem({
     required this.spec,
     required this.selected,
+    required this.badgeCount,
     required this.onTap,
   });
 
   final _TabSpec spec;
   final bool selected;
+  final int badgeCount;
   final VoidCallback onTap;
 
   @override
@@ -224,10 +235,18 @@ class _NavItemState extends State<_NavItem>
                 mainAxisSize: MainAxisSize.min,
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(
-                    selected ? widget.spec.activeIcon : widget.spec.icon,
-                    color: iconColor,
-                    size: 24,
+                  Badge(
+                    isLabelVisible: widget.badgeCount > 0,
+                    label: Text(
+                      widget.badgeCount > 99 ? '99+' : '${widget.badgeCount}',
+                    ),
+                    backgroundColor: AppColors.error,
+                    textColor: Colors.white,
+                    child: Icon(
+                      selected ? widget.spec.activeIcon : widget.spec.icon,
+                      color: iconColor,
+                      size: 24,
+                    ),
                   ),
                   const SizedBox(height: 4),
                   Text(

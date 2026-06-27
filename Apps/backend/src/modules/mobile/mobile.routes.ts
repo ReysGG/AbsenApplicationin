@@ -31,6 +31,7 @@ import {
   registerDeviceHandler,
   deleteDeviceHandler,
   enrollFaceHandler,
+  changePasswordHandler,
 } from './mobile.controller'
 
 const router = Router()
@@ -41,6 +42,7 @@ router.post('/mobile/auth/logout', authenticateMobile, logoutHandler)
 
 // --- Profile ---
 router.get('/mobile/me', authenticateMobile, meHandler)
+router.post('/mobile/me/change-password', authenticateMobile, changePasswordHandler)
 
 // --- Face enrollment (first-time) ---
 router.post('/mobile/me/face/enroll', authenticateMobile, enrollFaceHandler)

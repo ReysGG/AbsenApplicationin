@@ -16,7 +16,7 @@
  * Requirements: 3.4, 3.11, 13.3, 19.1, 19.3
  */
 
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
@@ -38,6 +38,7 @@ import {
 } from "lucide-react";
 
 import { signOut } from "@/lib/auth-client";
+import { createClientApiClient, type PaginatedData } from "@/lib/apiClient";
 import type { DashboardUser } from "@/types/dashboard";
 import {
   hasPermission,
@@ -59,6 +60,8 @@ interface NavItem {
   requiredPermission?: (typeof PERMISSIONS)[keyof typeof PERMISSIONS];
   /** Khusus Stakeholder saja (tidak punya permission key eksplisit) */
   stakeholderOnly?: boolean;
+  /** Optional live counter shown as a badge (e.g. pending leave requests). */
+  badgeKey?: "pendingLeave";
 }
 
 const NAV_ITEMS: NavItem[] = [
@@ -103,6 +106,7 @@ const NAV_ITEMS: NavItem[] = [
     href: "/workspace/leave",
     icon: FileText,
     requiredPermission: PERMISSIONS.APPROVE_LEAVE,
+    badgeKey: "pendingLeave",
   },
   {
     label: "Laporan",
@@ -165,6 +169,42 @@ export function Sidebar({ user }: SidebarProps) {
   const router = useRouter();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
+  const [pendingLeave, setPendingLeave] = useState(0);
+
+  // Live count for the "Izin & Cuti" badge (#16). Only fetch when the user can
+  // approve leave; refresh periodically and on route changes so the number
+  // stays roughly current without a websocket.
+  const canApproveLeave = hasPermission(user, PERMISSIONS.APPROVE_LEAVE);
+  useEffect(() => {
+    if (!canApproveLeave) return;
+    let active = true;
+
+    async function loadPendingLeave() {
+      try {
+        const api = createClientApiClient();
+        const res = await api.get<PaginatedData<unknown>>("v1/leave-requests", {
+          status: "Pending",
+          page_size: "1",
+        });
+        if (active && res.success) {
+          setPendingLeave(res.data.pagination?.total ?? 0);
+        }
+      } catch {
+        // Non-critical — leave the badge hidden on failure.
+      }
+    }
+
+    loadPendingLeave();
+    const timer = setInterval(loadPendingLeave, 60_000);
+    return () => {
+      active = false;
+      clearInterval(timer);
+    };
+  }, [canApproveLeave, pathname]);
+
+  const badgeCounts: Record<NonNullable<NavItem["badgeKey"]>, number> = {
+    pendingLeave,
+  };
 
   /**
    * Tentukan apakah user punya akses ke item navigasi.
@@ -202,6 +242,7 @@ export function Sidebar({ user }: SidebarProps) {
       const accessible = canAccess(item);
       const isActive = pathname === item.href || pathname.startsWith(item.href + "/");
       const Icon = item.icon;
+      const badgeCount = item.badgeKey ? badgeCounts[item.badgeKey] : 0;
 
       if (accessible) {
         return (
@@ -218,7 +259,15 @@ export function Sidebar({ user }: SidebarProps) {
             aria-current={isActive ? "page" : undefined}
           >
             <Icon size={18} aria-hidden="true" />
-            <span>{item.label}</span>
+            <span className="flex-1">{item.label}</span>
+            {badgeCount > 0 && (
+              <span
+                className="inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full bg-red-500 text-white text-[11px] font-bold"
+                aria-label={`${badgeCount} menunggu`}
+              >
+                {badgeCount > 99 ? "99+" : badgeCount}
+              </span>
+            )}
           </Link>
         );
       }

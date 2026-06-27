@@ -32,8 +32,14 @@ vi.mock('../config/prisma', () => {
     create: vi.fn(),
     update: vi.fn(),
   }
+  const base = { attendanceLog, shift, location, employeeWfhLocation, leaveRequest }
   return {
-    prisma: { attendanceLog, shift, location, employeeWfhLocation, leaveRequest },
+    // `$transaction(fn)` executes the callback with the same mocked client so
+    // unit tests don't need a real DB; isolation-level options are ignored.
+    prisma: {
+      ...base,
+      $transaction: vi.fn(async (fn: (tx: typeof base) => unknown) => fn(base)),
+    },
   }
 })
 

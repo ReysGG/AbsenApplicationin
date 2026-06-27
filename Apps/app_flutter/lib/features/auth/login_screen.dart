@@ -517,22 +517,26 @@ class _PressableButtonState extends State<_PressableButton> {
 
   @override
   Widget build(BuildContext context) {
+    // A single GestureDetector owns both the press-scale feedback and the tap.
+    // The previous version nested a `Listener` inside the `GestureDetector`
+    // with the default `deferToChild` hit-test behavior, which could leave the
+    // tap unrecognized (button only fired via the keyboard "done" action).
+    // `HitTestBehavior.opaque` guarantees the whole button area is tappable.
     return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTapDown: (_) => _set(0.96),
+      onTapUp: (_) => _set(1.0),
+      onTapCancel: () => _set(1.0),
       onTap: widget.onPressed,
-      child: Listener(
-        onPointerDown: (_) => _set(0.96),
-        onPointerUp: (_) => _set(1.0),
-        onPointerCancel: (_) => _set(1.0),
-        child: AnimatedScale(
-          scale: _scale,
-          duration: const Duration(milliseconds: 120),
-          curve: Curves.easeOut,
-          child: MouseRegion(
-            cursor: widget.onPressed != null
-                ? SystemMouseCursors.click
-                : SystemMouseCursors.basic,
-            child: widget.child,
-          ),
+      child: AnimatedScale(
+        scale: _scale,
+        duration: const Duration(milliseconds: 120),
+        curve: Curves.easeOut,
+        child: MouseRegion(
+          cursor: widget.onPressed != null
+              ? SystemMouseCursors.click
+              : SystemMouseCursors.basic,
+          child: widget.child,
         ),
       ),
     );

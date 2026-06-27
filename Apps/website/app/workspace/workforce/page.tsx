@@ -236,6 +236,7 @@ const addEmployeeSchema = z.object({
   assignedShiftId: z.string().optional(),
   assignedLocationId: z.string().min(1, "Lokasi wajib dipilih"),
   joinedAt: z.string().min(1, "Tanggal bergabung wajib diisi"),
+  accountSetup: z.enum(["password", "activation"] as const),
 });
 
 const editEmployeeSchema = z.object({
@@ -416,23 +417,40 @@ function EmployeeFormFields({
         />
       )}
 
-      {/* Kode Karyawan */}
-      <FormField
-        control={addForm.control}
-        name="employeeCode"
-        render={({ field }) => (
-          <FormItem>
-            <FormLabel>Kode Karyawan</FormLabel>
-            <FormControl>
-              <Input placeholder="EMP-2024-0001" {...field} value={field.value ?? ""} />
-            </FormControl>
-            <FormDescription>
-              Kosongkan untuk auto-generate
-            </FormDescription>
-            <FormMessage />
-          </FormItem>
-        )}
-      />
+      {/* Metode Akun / Login (hanya pada form Tambah) */}
+      {!isEdit && (
+        <FormField
+          control={addForm.control}
+          name={"accountSetup" as keyof AddEmployeeFormValues}
+          render={({ field }) => (
+            <FormItem className="sm:col-span-2">
+              <FormLabel>Metode Login</FormLabel>
+              <Select
+                onValueChange={field.onChange}
+                value={(field.value as string) ?? "password"}
+              >
+                <FormControl>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Pilih metode" />
+                  </SelectTrigger>
+                </FormControl>
+                <SelectContent>
+                  <SelectItem value="password">
+                    Buat kata sandi otomatis & kirim email
+                  </SelectItem>
+                  <SelectItem value="activation">
+                    Kirim tautan aktivasi (karyawan buat sendiri)
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+              <FormDescription>
+                Kata sandi acak akan dibuat sistem lalu dikirim ke email karyawan.
+              </FormDescription>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+      )}
 
       {/* No. Telepon */}
       <FormField
@@ -661,6 +679,7 @@ export default function WorkforcePage() {
       assignedShiftId: "",
       assignedLocationId: "",
       joinedAt: "",
+      accountSetup: "password",
     },
   });
 
@@ -998,7 +1017,6 @@ export default function WorkforcePage() {
       const payload = {
         fullName: values.fullName,
         email: values.email,
-        employeeCode: values.employeeCode || undefined,
         phone: values.phone || undefined,
         departmentId: values.departmentId,
         position: values.position || undefined,
@@ -1006,12 +1024,31 @@ export default function WorkforcePage() {
         assignedShiftId: values.assignedShiftId || undefined,
         assignedLocationId: values.assignedLocationId,
         joinedAt: values.joinedAt,
+        accountSetup: values.accountSetup,
       };
-      const res = await api.post("v1/employees", payload);
+      const res = await api.post<{ tempPassword?: string }>(
+        "v1/employees",
+        payload,
+      );
       if (res.success) {
         setShowAddDialog(false);
         addForm.reset();
         fetchEmployees(filters);
+        const tempPassword = res.data?.tempPassword;
+        if (tempPassword) {
+          toast({
+            title: "Karyawan dibuat — kata sandi sementara",
+            description: `Kata sandi untuk ${values.email}: ${tempPassword} (juga dikirim via email). Minta karyawan menggantinya setelah login.`,
+            variant: "success",
+            durationMs: 60000,
+          });
+        } else {
+          toast({
+            title: "Karyawan dibuat",
+            description: `Tautan aktivasi telah dikirim ke ${values.email}.`,
+            variant: "success",
+          });
+        }
       } else {
         setSubmitError(res.error.message || "Gagal menambah karyawan");
       }
