@@ -13,6 +13,7 @@ import '../../core/services/face_liveness_service.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_spacing.dart';
 import '../../core/theme/app_typography.dart';
+import '../../core/widgets/face_prep_instructions.dart';
 import 'auth_controller.dart';
 
 /// First-time face enrollment. HR creates the account; here the employee
@@ -39,6 +40,10 @@ class _FaceEnrollScreenState extends ConsumerState<FaceEnrollScreen> {
   bool _submitting = false;
   String? _error;
 
+  /// Show the pre-camera instructions first; the camera only starts after the
+  /// user taps "Lanjutkan".
+  bool _showInstructions = true;
+
   /// How many consecutive "good" frames we've seen (debounce before capture).
   int _goodFrames = 0;
   static const _requiredGoodFrames = 8; // ~0.8s at ~10fps
@@ -60,6 +65,11 @@ class _FaceEnrollScreenState extends ConsumerState<FaceEnrollScreen> {
   @override
   void initState() {
     super.initState();
+    // Camera starts after the user passes the instruction step (_startCamera).
+  }
+
+  void _startCamera() {
+    setState(() => _showInstructions = false);
     if (!kIsWeb) _initCamera();
   }
 
@@ -292,6 +302,18 @@ class _FaceEnrollScreenState extends ConsumerState<FaceEnrollScreen> {
   Widget build(BuildContext context) {
     if (kIsWeb) {
       return _WebBypassView(onContinue: () => context.go(AppRoutes.home));
+    }
+    if (_showInstructions) {
+      return Scaffold(
+        backgroundColor: AppColors.surface,
+        appBar: AppBar(
+          backgroundColor: AppColors.surface,
+          foregroundColor: AppColors.onSurface,
+          elevation: 0,
+          title: const Text('Daftarkan Wajah'),
+        ),
+        body: FacePrepInstructions(onContinue: _startCamera),
+      );
     }
     return Scaffold(
       backgroundColor: AppColors.surface,

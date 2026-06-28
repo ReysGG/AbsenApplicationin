@@ -16,6 +16,7 @@ import '../../core/services/face_liveness_service.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_spacing.dart';
 import '../../core/theme/app_typography.dart';
+import '../../core/widgets/face_prep_instructions.dart';
 import 'checkin_flow_controller.dart';
 
 /// The liveness challenges, run in a random order.
@@ -43,6 +44,9 @@ class _FaceVerificationScreenState
   bool _submitting = false;
   String? _error;
 
+  /// Show pre-camera instructions first; camera starts after "Lanjutkan".
+  bool _showInstructions = true;
+
   bool _faceDetected = false;
 
   // Ordered list of challenges (randomized) + which are done.
@@ -63,8 +67,13 @@ class _FaceVerificationScreenState
       _submitWebBypass();
       return;
     }
-    _boostBrightness();
     _order = [_Challenge.blink, _Challenge.turnHead]..shuffle(Random());
+    // Brightness boost + camera start after the instruction step (_startCamera).
+  }
+
+  void _startCamera() {
+    setState(() => _showInstructions = false);
+    _boostBrightness();
     _initCamera();
   }
 
@@ -311,6 +320,19 @@ class _FaceVerificationScreenState
     final total = _order.length;
     final done = _passed.length;
     final progress = total == 0 ? 0.0 : done / total;
+
+    if (_showInstructions) {
+      return Scaffold(
+        backgroundColor: AppColors.surface,
+        appBar: AppBar(
+          backgroundColor: AppColors.surface,
+          foregroundColor: AppColors.onSurface,
+          elevation: 0,
+          title: const Text('Verifikasi Wajah'),
+        ),
+        body: FacePrepInstructions(onContinue: _startCamera),
+      );
+    }
 
     return Scaffold(
       backgroundColor: Colors.white,
