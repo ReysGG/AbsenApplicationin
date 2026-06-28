@@ -132,7 +132,7 @@ class _Illustration extends StatelessWidget {
         ),
         alignment: Alignment.center,
         child: Image.asset(
-          'assets/images/face_prep.webp',
+          'assets/images/face_prep.png',
           width: 160,
           height: 160,
           fit: BoxFit.contain,
