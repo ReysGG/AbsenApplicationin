@@ -9,6 +9,7 @@ import '../../features/attendance/face_verification_screen.dart';
 import '../../features/attendance/location_validation_screen.dart';
 import '../../features/auth/auth_controller.dart';
 import '../../features/auth/login_screen.dart';
+import '../../features/auth/welcome_screen.dart';
 import '../../features/auth/splash_screen.dart';
 import '../../features/auth/lock_screen.dart';
 import '../../features/auth/face_enroll_screen.dart';
@@ -49,8 +50,10 @@ final routerProvider = Provider<GoRouter>((ref) {
 
       // Session resolved — splash is no longer a valid resting place.
       if (!loggedIn) {
-        // Unauthenticated: only the login screen is allowed.
-        return loc == AppRoutes.login ? null : AppRoutes.login;
+        // Unauthenticated: welcome (onboarding) + login are allowed; anything
+        // else bounces to the welcome screen. Self-registration is disabled.
+        const allowed = {AppRoutes.login, AppRoutes.welcome};
+        return allowed.contains(loc) ? null : AppRoutes.welcome;
       }
 
       // Authenticated but locked: force redirect to Lock Screen.
@@ -72,8 +75,11 @@ final routerProvider = Provider<GoRouter>((ref) {
         if (loc == AppRoutes.faceEnroll) return AppRoutes.home;
       }
 
-      // Authenticated and unlocked: bounce away from splash/login/lock into the app.
-      if (loc == AppRoutes.splash || loc == AppRoutes.login || loc == AppRoutes.lock) {
+      // Authenticated and unlocked: bounce away from splash/login/lock/welcome into the app.
+      if (loc == AppRoutes.splash ||
+          loc == AppRoutes.login ||
+          loc == AppRoutes.lock ||
+          loc == AppRoutes.welcome) {
         return AppRoutes.home;
       }
       return null;
@@ -86,6 +92,10 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: AppRoutes.login,
         builder: (_, _) => const LoginScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.welcome,
+        builder: (_, _) => const WelcomeScreen(),
       ),
       GoRoute(
         path: AppRoutes.lock,
