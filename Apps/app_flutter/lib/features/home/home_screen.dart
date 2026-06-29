@@ -11,11 +11,12 @@ import '../../core/theme/app_spacing.dart';
 import '../../core/theme/app_typography.dart';
 import '../../core/utils/formatters.dart';
 import '../../core/widgets/solid_card.dart';
-import '../../shared/models/enums.dart';
 import '../../shared/models/shift.dart';
 import '../auth/auth_controller.dart';
 import 'home_controller.dart';
 
+/// Home dashboard — clean, structured layout:
+///   header → "Waktu Saat Ini" card → "Status Hari Ini" card → Layanan Mandiri.
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
 
@@ -23,60 +24,65 @@ class HomeScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final profile = ref.watch(authProfileProvider);
     final homeAsync = ref.watch(homeDataProvider);
+    final fullName = profile?.firstName ?? '';
+    final initial = fullName.isNotEmpty ? fullName.characters.first : 'A';
 
     return Scaffold(
       backgroundColor: AppColors.pageBg,
       body: RefreshIndicator(
         onRefresh: () async => ref.refresh(homeDataProvider.future),
-        child: CustomScrollView(
-          slivers: [
-            // ── Brand header band ───────────────────────────────────────
-            SliverToBoxAdapter(
-              child: _MinuteTicker(
-                builder: (context, now) => _BrandHeader(
-                  now: now,
-                  firstName: profile?.firstName ?? '',
-                  initial: profile?.firstName.characters.first ?? 'A',
-                  onBell: () => context.push(AppRoutes.notifications),
-                ),
-              ),
+        child: ListView(
+          padding: EdgeInsets.zero,
+          children: [
+            _Header(
+              firstName: fullName,
+              initial: initial,
+              onBell: () => context.push(AppRoutes.notifications),
             ),
-            SliverPadding(
-              padding: const EdgeInsets.fromLTRB(
-                AppSpacing.md,
-                AppSpacing.md,
-                AppSpacing.md,
-                120, // Extra space so content isn't hidden under floating bottom bar
-              ),
-              sliver: SliverList(
-                delegate: SliverChildListDelegate([
-                  if (profile?.faceEnrolled == false) ...[
-                    _FaceEnrollBanner(
-                      onTap: () => context.push(AppRoutes.faceEnroll),
+            Transform.translate(
+              offset: const Offset(0, -24),
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(
+                  AppSpacing.md,
+                  0,
+                  AppSpacing.md,
+                  120,
+                ),
+                child: Column(
+                  children: [
+                    if (profile?.faceEnrolled == false) ...[
+                      _FaceEnrollBanner(
+                        onTap: () => context.push(AppRoutes.faceEnroll),
+                      ),
+                      const SizedBox(height: AppSpacing.md),
+                    ],
+                    _MinuteTicker(
+                      builder: (context, now) => _TimeCard(
+                        now: now,
+                        shift: homeAsync.maybeWhen(
+                          data: (d) => d.shift,
+                          orElse: () => null,
+                        ),
+                        status: _statusOf(homeAsync),
+                      ),
                     ),
                     const SizedBox(height: AppSpacing.md),
+                    homeAsync.when(
+                      loading: () => const Padding(
+                        padding: EdgeInsets.symmetric(vertical: 40),
+                        child: Center(child: CircularProgressIndicator()),
+                      ),
+                      error: (e, _) => _ErrorState(
+                        message: e.toString(),
+                        onRetry: () => ref.refresh(homeDataProvider),
+                      ),
+                      data: (data) =>
+                          _StatusCard(today: data.today, shift: data.shift),
+                    ),
+                    const SizedBox(height: AppSpacing.lg),
+                    _ServicesSection(),
                   ],
-                  _MinuteTicker(
-                    builder: (context, now) =>
-                        _ClockShiftCard(now: now, sh: _shiftOf(homeAsync)),
-                  ),
-                  const SizedBox(height: AppSpacing.md),
-                  homeAsync.when(
-                    loading: () => const Padding(
-                      padding: EdgeInsets.symmetric(vertical: 32),
-                      child: Center(child: _HomeLoader()),
-                    ),
-                    error: (e, _) => _ErrorState(
-                      message: e.toString(),
-                      onRetry: () => ref.refresh(homeDataProvider),
-                    ),
-                    data: (data) => _AttendanceActionCard(today: data.today),
-                  ),
-                  const SizedBox(height: AppSpacing.md),
-                  _SectionLabel('Layanan Mandiri'),
-                  const SizedBox(height: AppSpacing.sm),
-                  _QuickGrid(),
-                ]),
+                ),
               ),
             ),
           ],
@@ -85,14 +91,828 @@ class HomeScreen extends ConsumerWidget {
     );
   }
 
-  Shift? _shiftOf(AsyncValue homeAsync) =>
-      homeAsync.maybeWhen(data: (d) => d.shift as Shift?, orElse: () => null);
+  /// (hasCheckedIn, hasCheckedOut) → null while loading/error.
+  _AttendanceStatus? _statusOf(AsyncValue<HomeData> async) {
+    return async.maybeWhen(
+      data: (d) => _statusFor(d.today.hasCheckedIn, d.today.hasCheckedOut),
+      orElse: () => null,
+    );
+  }
 }
 
-// ── Brand header band ──────────────────────────────────────────────────────
+// ── Shared status model ──────────────────────────────────────────────────────
+
+class _AttendanceStatus {
+  const _AttendanceStatus({
+    required this.color,
+    required this.label,
+    required this.hint,
+    required this.icon,
+    required this.done,
+  });
+  final Color color;
+  final String label;
+  final String hint;
+  final IconData icon;
+  final bool done;
+}
+
+_AttendanceStatus _statusFor(bool hasIn, bool hasOut) {
+  if (!hasIn) {
+    return _AttendanceStatus(
+      color: AppColors.error,
+      label: 'Belum Check-in',
+      hint: 'Jangan lupa absen sebelum jam masuk',
+      icon: Icons.fingerprint_rounded,
+      done: false,
+    );
+  }
+  if (!hasOut) {
+    return _AttendanceStatus(
+      color: AppColors.success,
+      label: 'Sudah Check-in',
+      hint: 'Selamat bekerja! Jangan lupa check-out nanti',
+      icon: Icons.work_history_rounded,
+      done: false,
+    );
+  }
+  return _AttendanceStatus(
+    color: AppColors.primary,
+    label: 'Absensi Selesai',
+    hint: 'Kamu sudah check-in & check-out hari ini',
+    icon: Icons.check_circle_rounded,
+    done: true,
+  );
+}
+
+// ── Header band ──────────────────────────────────────────────────────────────
+
+class _Header extends StatelessWidget {
+  const _Header({
+    required this.firstName,
+    required this.initial,
+    required this.onBell,
+  });
+
+  final String firstName;
+  final String initial;
+  final VoidCallback onBell;
+
+  String _motivasi(DateTime now) {
+    final h = now.hour;
+    if (h < 11) return 'Semangat pagi ini! ☀️';
+    if (h < 15) return 'Semangat bekerja hari ini! 👋';
+    if (h < 18) return 'Tetap semangat sore ini! 💪';
+    return 'Istirahat yang cukup ya! 🌙';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final now = DateTime.now();
+    final top = MediaQuery.of(context).padding.top;
+    return Container(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: AppColors.brandGradient,
+        ),
+        borderRadius: const BorderRadius.only(
+          bottomLeft: Radius.circular(28),
+          bottomRight: Radius.circular(28),
+        ),
+      ),
+      padding: EdgeInsets.fromLTRB(
+        AppSpacing.md,
+        top + AppSpacing.md,
+        AppSpacing.md,
+        AppSpacing.xl + AppSpacing.md,
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 52,
+            height: 52,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.18),
+              shape: BoxShape.circle,
+              border: Border.all(
+                color: Colors.white.withValues(alpha: 0.45),
+                width: 2,
+              ),
+            ),
+            child: Text(
+              initial,
+              style: const TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.w800,
+                fontSize: 20,
+                fontFamily: AppTypography.fontFamily,
+              ),
+            ),
+          ),
+          const SizedBox(width: AppSpacing.sm),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text.rich(
+                  TextSpan(
+                    text: '${Formatters.greeting(now)}, ',
+                    style: AppTypography.bodyMd.copyWith(
+                      color: Colors.white.withValues(alpha: 0.85),
+                    ),
+                    children: [
+                      TextSpan(
+                        text: firstName.isEmpty ? 'Karyawan' : firstName,
+                        style: AppTypography.titleLg.copyWith(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  _motivasi(now),
+                  style: AppTypography.bodySm.copyWith(
+                    color: Colors.white.withValues(alpha: 0.7),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          _BellButton(onTap: onBell),
+        ],
+      ),
+    );
+  }
+}
+
+class _BellButton extends StatelessWidget {
+  const _BellButton({required this.onTap});
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.white.withValues(alpha: 0.18),
+      shape: const CircleBorder(),
+      child: InkWell(
+        customBorder: const CircleBorder(),
+        onTap: onTap,
+        child: const Padding(
+          padding: EdgeInsets.all(10),
+          child: Badge(
+            smallSize: 8,
+            child: Icon(
+              Icons.notifications_none_rounded,
+              color: Colors.white,
+              size: 22,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ── "Waktu Saat Ini" card ────────────────────────────────────────────────────
+
+class _TimeCard extends StatelessWidget {
+  const _TimeCard({required this.now, required this.shift, required this.status});
+
+  final DateTime now;
+  final Shift? shift;
+  final _AttendanceStatus? status;
+
+  @override
+  Widget build(BuildContext context) {
+    final s = status;
+    final startLabel = shift?.startLabel ?? '08:00';
+    return SolidCard(
+      entrance: false,
+      child: IntrinsicHeight(
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Expanded(
+              flex: 5,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        width: 34,
+                        height: 34,
+                        alignment: Alignment.center,
+                        decoration: BoxDecoration(
+                          color: AppColors.primary.withValues(alpha: 0.12),
+                          shape: BoxShape.circle,
+                        ),
+                        child: Icon(
+                          Icons.access_time_rounded,
+                          size: 18,
+                          color: AppColors.primary,
+                        ),
+                      ),
+                      const SizedBox(width: AppSpacing.sm),
+                      Text(
+                        'Waktu Saat Ini',
+                        style: AppTypography.bodySm.copyWith(
+                          color: AppColors.onSurfaceVariant,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: AppSpacing.sm),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Text(
+                        Formatters.time(now),
+                        style: AppTypography.display.copyWith(
+                          fontSize: 38,
+                          height: 1.0,
+                          fontWeight: FontWeight.w800,
+                          color: AppColors.primary,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 6),
+                        child: _Chip(
+                          label: 'WIB',
+                          color: AppColors.primary,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: AppSpacing.sm),
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.calendar_today_rounded,
+                        size: 14,
+                        color: AppColors.onSurfaceVariant,
+                      ),
+                      const SizedBox(width: 6),
+                      Flexible(
+                        child: Text(
+                          Formatters.fullDate(now),
+                          style: AppTypography.bodySm.copyWith(
+                            color: AppColors.onSurfaceVariant,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: AppSpacing.sm),
+            VerticalDivider(width: 1, color: AppColors.outlineVariant),
+            const SizedBox(width: AppSpacing.sm),
+            Expanded(
+              flex: 4,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  if (s != null) ...[
+                    _StatusPill(color: s.color, label: s.label),
+                    const SizedBox(height: AppSpacing.sm),
+                    Text(
+                      s.done
+                          ? 'Absensi hari ini selesai'
+                          : 'Masuk sebelum $startLabel WIB',
+                      style: AppTypography.labelMd.copyWith(
+                        color: AppColors.onSurface,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ] else
+                    Text(
+                      'Memuat status…',
+                      style: AppTypography.bodySm.copyWith(
+                        color: AppColors.onSurfaceVariant,
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ── "Status Hari Ini" card ───────────────────────────────────────────────────
+
+class _StatusCard extends StatelessWidget {
+  const _StatusCard({required this.today, required this.shift});
+
+  final dynamic today;
+  final Shift? shift;
+
+  @override
+  Widget build(BuildContext context) {
+    final hasIn = today.hasCheckedIn as bool;
+    final hasOut = today.hasCheckedOut as bool;
+    final s = _statusFor(hasIn, hasOut);
+    final modeLabel = shift?.workMode.label ?? 'WFO';
+
+    return SolidCard(
+      entrance: false,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 34,
+                height: 34,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: AppColors.primary.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(AppRadius.md),
+                ),
+                child: Icon(
+                  Icons.badge_rounded,
+                  size: 18,
+                  color: AppColors.primary,
+                ),
+              ),
+              const SizedBox(width: AppSpacing.sm),
+              Text(
+                'Status Hari Ini',
+                style: AppTypography.titleLg.copyWith(
+                  color: AppColors.onSurface,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+              const Spacer(),
+              _Chip(
+                label: modeLabel,
+                color: AppColors.primary,
+                icon: modeLabel == 'WFH'
+                    ? Icons.home_work_rounded
+                    : Icons.business_rounded,
+              ),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.md),
+          // Status banner
+          Container(
+            padding: const EdgeInsets.all(AppSpacing.sm + 2),
+            decoration: BoxDecoration(
+              color: s.color.withValues(alpha: 0.08),
+              borderRadius: BorderRadius.circular(AppRadius.lg),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  width: 48,
+                  height: 48,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    color: s.color.withValues(alpha: 0.14),
+                    borderRadius: BorderRadius.circular(AppRadius.md),
+                  ),
+                  child: Icon(s.icon, color: s.color, size: 26),
+                ),
+                const SizedBox(width: AppSpacing.sm),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        s.label,
+                        style: AppTypography.titleLg.copyWith(
+                          color: s.color,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        s.hint,
+                        style: AppTypography.bodySm.copyWith(
+                          color: AppColors.onSurfaceVariant,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: AppSpacing.md),
+          // Primary action
+          if (s.done)
+            OutlinedButton.icon(
+              onPressed: null,
+              icon: const Icon(Icons.check_circle_outline_rounded),
+              label: const Text('Absensi Hari Ini Selesai'),
+              style: OutlinedButton.styleFrom(
+                minimumSize: const Size.fromHeight(52),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(AppRadius.xl),
+                ),
+              ),
+            )
+          else
+            _ActionButton(
+              checkout: hasIn,
+              onPressed: () {
+                if (!hasIn) {
+                  context.push(AppRoutes.checkinPrep);
+                } else {
+                  final wm = today.checkIn?.workMode?.name ?? 'wfo';
+                  context.push(
+                    '${AppRoutes.checkinPrep}?mode=checkout&wm=$wm',
+                  );
+                }
+              },
+            ),
+          const SizedBox(height: AppSpacing.sm),
+          const Divider(height: AppSpacing.md),
+          _InfoRow(
+            icon: Icons.schedule_rounded,
+            title: shift?.rangeLabel ?? 'Belum ada shift',
+            subtitle: 'Jam kerja hari ini',
+            onTap: () => context.go(AppRoutes.schedule),
+          ),
+          const Divider(height: AppSpacing.md),
+          _InfoRow(
+            icon: modeLabel == 'WFH'
+                ? Icons.home_work_rounded
+                : Icons.business_rounded,
+            title: '$modeLabel · ${shift?.name ?? 'Lokasi kerja'}',
+            subtitle: 'Mode & lokasi kerja',
+            onTap: () => context.go(AppRoutes.schedule),
+          ),
+          const Divider(height: AppSpacing.md),
+          _InfoRow(
+            icon: Icons.logout_rounded,
+            title: 'Jam pulang: ${shift?.endLabel ?? '--:--'} WIB',
+            subtitle: 'Sesuai jadwal shift',
+            onTap: () => context.go(AppRoutes.schedule),
+          ),
+        ],
+      ),
+    ).animate().fadeIn(duration: 320.ms).slideY(begin: 0.06, curve: Curves.easeOut);
+  }
+}
+
+class _ActionButton extends StatefulWidget {
+  const _ActionButton({required this.checkout, required this.onPressed});
+  final bool checkout;
+  final VoidCallback onPressed;
+
+  @override
+  State<_ActionButton> createState() => _ActionButtonState();
+}
+
+class _ActionButtonState extends State<_ActionButton> {
+  double _scale = 1.0;
+
+  @override
+  Widget build(BuildContext context) {
+    final checkout = widget.checkout;
+    final colors = checkout
+        ? AppColors.accentGradient(AppColors.accentRose)
+        : AppColors.headerGradient;
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTapDown: (_) => setState(() => _scale = 0.97),
+      onTapUp: (_) => setState(() => _scale = 1.0),
+      onTapCancel: () => setState(() => _scale = 1.0),
+      onTap: widget.onPressed,
+      child: AnimatedScale(
+        scale: _scale,
+        duration: const Duration(milliseconds: 110),
+        child: Container(
+          width: double.infinity,
+          height: 54,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(AppRadius.xl),
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: colors,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: (checkout ? AppColors.accentRose : AppColors.primary)
+                    .withValues(alpha: 0.32),
+                blurRadius: 18,
+                offset: const Offset(0, 8),
+                spreadRadius: -4,
+              ),
+            ],
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                checkout ? Icons.logout_rounded : Icons.login_rounded,
+                color: Colors.white,
+                size: 20,
+              ),
+              const SizedBox(width: AppSpacing.sm),
+              Text(
+                checkout ? 'Check-out Sekarang' : 'Check-in Sekarang',
+                style: AppTypography.bodyLg.copyWith(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _InfoRow extends StatelessWidget {
+  const _InfoRow({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(AppRadius.md),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
+        child: Row(
+          children: [
+            Container(
+              width: 36,
+              height: 36,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: AppColors.surfaceContainerLow,
+                borderRadius: BorderRadius.circular(AppRadius.md),
+              ),
+              child: Icon(icon, size: 18, color: AppColors.onSurfaceVariant),
+            ),
+            const SizedBox(width: AppSpacing.sm),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: AppTypography.labelMd.copyWith(
+                      color: AppColors.onSurface,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  Text(
+                    subtitle,
+                    style: AppTypography.bodySm.copyWith(
+                      color: AppColors.onSurfaceVariant,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Icon(
+              Icons.chevron_right_rounded,
+              color: AppColors.outline,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ── Layanan Mandiri ──────────────────────────────────────────────────────────
+
+class _ServicesSection extends StatelessWidget {
+  const _ServicesSection();
+
+  @override
+  Widget build(BuildContext context) {
+    final items = <(IconData, String, Color, String, bool)>[
+      (
+        Icons.edit_calendar_rounded,
+        'Ajukan Cuti',
+        AppColors.accentViolet,
+        AppRoutes.createLeave,
+        true,
+      ),
+      (
+        Icons.calendar_month_rounded,
+        'Jadwal',
+        AppColors.accentGreen,
+        AppRoutes.schedule,
+        false,
+      ),
+      (
+        Icons.history_rounded,
+        'Riwayat',
+        AppColors.primary,
+        AppRoutes.history,
+        false,
+      ),
+      (
+        Icons.event_busy_rounded,
+        'Status Cuti',
+        AppColors.accentCyan,
+        AppRoutes.leave,
+        false,
+      ),
+    ];
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              'Layanan Mandiri',
+              style: AppTypography.titleLg.copyWith(
+                color: AppColors.onSurface,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+            TextButton(
+              onPressed: () => context.go(AppRoutes.leave),
+              child: const Text('Lihat semua'),
+            ),
+          ],
+        ),
+        const SizedBox(height: AppSpacing.xs),
+        Row(
+          children: [
+            for (final it in items)
+              Expanded(
+                child: _QuickItem(
+                  icon: it.$1,
+                  label: it.$2,
+                  color: it.$3,
+                  onTap: () => it.$5 ? context.push(it.$4) : context.go(it.$4),
+                ),
+              ),
+          ],
+        ),
+      ],
+    ).animate(delay: 120.ms).fadeIn(duration: 320.ms);
+  }
+}
+
+class _QuickItem extends StatelessWidget {
+  const _QuickItem({
+    required this.icon,
+    required this.label,
+    required this.color,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String label;
+  final Color color;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(AppRadius.lg),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
+        child: Column(
+          children: [
+            Container(
+              width: 54,
+              height: 54,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: AppColors.surface,
+                borderRadius: BorderRadius.circular(AppRadius.lg),
+                border: Border.all(color: AppColors.outlineVariant),
+              ),
+              child: Icon(icon, color: color, size: 24),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              label,
+              textAlign: TextAlign.center,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: AppTypography.labelSm.copyWith(
+                color: AppColors.onSurface,
+                letterSpacing: 0,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ── Small reusable bits ──────────────────────────────────────────────────────
+
+class _Chip extends StatelessWidget {
+  const _Chip({required this.label, required this.color, this.icon});
+  final String label;
+  final Color color;
+  final IconData? icon;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(AppRadius.full),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (icon != null) ...[
+            Icon(icon, size: 13, color: color),
+            const SizedBox(width: 4),
+          ],
+          Text(
+            label,
+            style: AppTypography.labelSm.copyWith(
+              color: color,
+              letterSpacing: 0,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _StatusPill extends StatelessWidget {
+  const _StatusPill({required this.color, required this.label});
+  final Color color;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(AppRadius.full),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 8,
+            height: 8,
+            decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+          ),
+          const SizedBox(width: 6),
+          Flexible(
+            child: Text(
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: AppTypography.labelSm.copyWith(
+                color: color,
+                letterSpacing: 0,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ── Live minute ticker ───────────────────────────────────────────────────────
+
 class _MinuteTicker extends StatefulWidget {
   const _MinuteTicker({required this.builder});
-
   final Widget Function(BuildContext context, DateTime now) builder;
 
   @override
@@ -123,7 +943,6 @@ class _MinuteTickerState extends State<_MinuteTicker> {
       milliseconds: -now.millisecond,
       microseconds: -now.microsecond,
     );
-
     _timer = Timer(delay, () {
       if (!mounted) return;
       setState(() => _now = DateTime.now());
@@ -137,856 +956,7 @@ class _MinuteTickerState extends State<_MinuteTicker> {
   Widget build(BuildContext context) => widget.builder(context, _now);
 }
 
-class _BrandHeader extends StatelessWidget {
-  const _BrandHeader({
-    required this.now,
-    required this.firstName,
-    required this.initial,
-    required this.onBell,
-  });
-
-  final DateTime now;
-  final String firstName;
-  final String initial;
-  final VoidCallback onBell;
-
-  String _motivasi(DateTime now) {
-    final h = now.hour;
-    if (h < 10) return 'Selamat pagi, semangat! ☀️';
-    if (h < 15) return 'Semangat bekerja hari ini! 👋';
-    if (h < 18) return 'Tetap semangat sore ini! 💪';
-    return 'Istirahat yang baik ya! 🌙';
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final top = MediaQuery.of(context).padding.top;
-    // Split into static decoration (cached) + dynamic content (rebuilds on minute tick).
-    return RepaintBoundary(
-      child: Container(
-        clipBehavior: Clip.hardEdge,
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: AppColors.brandGradient,
-          ),
-          borderRadius: const BorderRadius.only(
-            bottomLeft: Radius.circular(32),
-            bottomRight: Radius.circular(32),
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: AppColors.brandEnd.withValues(
-                alpha: AppColors.isDark ? 0.35 : 0.22,
-              ),
-              blurRadius: 24,
-              offset: const Offset(0, 10),
-            ),
-          ],
-        ),
-        child: Stack(
-          children: [
-            // ── Decorative blobs (static — repaint boundary isolates) ───
-            Positioned(
-              right: -30,
-              top: -20,
-              child: RepaintBoundary(
-                child: Container(
-                  width: 140,
-                  height: 140,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: Colors.white.withValues(alpha: 0.07),
-                  ),
-                ),
-              ),
-            ),
-            Positioned(
-              right: 30,
-              top: 30,
-              child: RepaintBoundary(
-                child: Container(
-                  width: 90,
-                  height: 90,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: Colors.white.withValues(alpha: 0.05),
-                  ),
-                ),
-              ),
-            ),
-            // ── Dynamic content ───────────────────────────────────────────
-            Padding(
-              padding: EdgeInsets.fromLTRB(
-                AppSpacing.md,
-                top + AppSpacing.md,
-                AppSpacing.md,
-                AppSpacing.lg,
-              ),
-              child: Row(
-                children: [
-                  // Avatar circle
-                  Container(
-                    width: 56,
-                    height: 56,
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.18),
-                      shape: BoxShape.circle,
-                      border: Border.all(
-                        color: Colors.white.withValues(alpha: 0.45),
-                        width: 2,
-                      ),
-                    ),
-                    alignment: Alignment.center,
-                    child: Text(
-                      initial,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w800,
-                        fontSize: 22,
-                        fontFamily: AppTypography.fontFamily,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: AppSpacing.sm),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          '${Formatters.greeting(now)},',
-                          style: AppTypography.bodySm.copyWith(
-                            color: Colors.white.withValues(alpha: 0.78),
-                          ),
-                        ),
-                        Text(
-                          firstName.isEmpty ? 'Karyawan' : firstName,
-                          style: AppTypography.headlineMd.copyWith(
-                            color: Colors.white,
-                            fontWeight: FontWeight.w800,
-                            height: 1.1,
-                          ),
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          _motivasi(now),
-                          style: AppTypography.bodySm.copyWith(
-                            color: Colors.white.withValues(alpha: 0.65),
-                            fontSize: 11,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  _IconBubble(
-                    icon: Icons.notifications_none_rounded,
-                    onTap: onBell,
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _IconBubble extends StatelessWidget {
-  const _IconBubble({required this.icon, required this.onTap});
-  final IconData icon;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: Colors.white.withValues(alpha: 0.18),
-      shape: const CircleBorder(),
-      child: InkWell(
-        customBorder: const CircleBorder(),
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.all(10),
-          child: Badge(
-            smallSize: 8,
-            child: Icon(icon, color: Colors.white, size: 22),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _SectionLabel extends StatelessWidget {
-  const _SectionLabel(this.text);
-  final String text;
-
-  @override
-  Widget build(BuildContext context) {
-    return Text(
-      text,
-      style: AppTypography.labelMd.copyWith(
-        color: AppColors.onSurface,
-        fontWeight: FontWeight.w800,
-      ),
-    ).animate(delay: 280.ms).fadeIn(duration: 320.ms);
-  }
-}
-
-class _HomeLoader extends StatelessWidget {
-  const _HomeLoader();
-
-  @override
-  Widget build(BuildContext context) {
-    Widget dot(int i) =>
-        Container(
-              width: 10,
-              height: 10,
-              margin: const EdgeInsets.symmetric(horizontal: 4),
-              decoration: BoxDecoration(
-                color: AppColors.primary,
-                shape: BoxShape.circle,
-              ),
-            )
-            .animate(
-              onPlay: (c) => c.repeat(reverse: true),
-              delay: (i * 180).ms,
-            )
-            .scaleXY(
-              begin: 0.6,
-              end: 1.0,
-              duration: 500.ms,
-              curve: Curves.easeInOut,
-            )
-            .fadeIn(duration: 500.ms);
-
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [dot(0), dot(1), dot(2)],
-    );
-  }
-}
-
-// ── Clock & Shift Card (Stacked & Overlapped layout) ──────────────────────
-class _ClockShiftCard extends StatelessWidget {
-  const _ClockShiftCard({required this.now, required this.sh});
-  final DateTime now;
-  final Shift? sh;
-
-  static const _purple = Color(0xFF3B2E8C);
-
-  @override
-  Widget build(BuildContext context) {
-    final clockColor = AppColors.isDark ? AppColors.primary : _purple;
-    return SolidCard(
-          entrance: false,
-          padding: EdgeInsets.zero,
-          child: Stack(
-            clipBehavior: Clip.none,
-            // Stack contains the base static Column of texts and divider,
-            // and overlays the character illustration globally at the bottom right.
-            // This allows the character to draw ON TOP of the divider (Canva overlay).
-            children: [
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Clock Text Container (Left)
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(
-                      AppSpacing.md,
-                      AppSpacing.md,
-                      130, // Avoid overlapping the character on the right
-                      AppSpacing.md,
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          crossAxisAlignment: CrossAxisAlignment.center,
-                          children: [
-                            Container(
-                              width: 40,
-                              height: 40,
-                              decoration: BoxDecoration(
-                                color: clockColor.withValues(alpha: 0.14),
-                                shape: BoxShape.circle,
-                              ),
-                              child: Icon(
-                                Icons.access_time_rounded,
-                                size: 20,
-                                color: clockColor,
-                              ),
-                            ),
-                            const SizedBox(width: 10),
-                            Text(
-                              Formatters.time(now),
-                              style: AppTypography.display.copyWith(
-                                fontSize: 40,
-                                fontWeight: FontWeight.w800,
-                                height: 1.0,
-                                letterSpacing: 0,
-                                color: clockColor,
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 4),
-                        // Aligning "Waktu Lokal" exactly under the start of time text
-                        Padding(
-                          padding: const EdgeInsets.only(
-                            left: 50,
-                          ), // 40 (icon width) + 10 (spacing)
-                          child: Text(
-                            'Waktu Lokal (WIB)',
-                            style: AppTypography.bodySm.copyWith(
-                              color: AppColors.onSurfaceVariant,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  // Divider (drawn under the clock info)
-                  const Divider(height: 1),
-
-                  // Shift info row at the bottom
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(
-                      AppSpacing.md,
-                      AppSpacing.sm + 2,
-                      AppSpacing.md,
-                      AppSpacing.sm + 2,
-                    ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Row(
-                          children: [
-                            Container(
-                              width: 32,
-                              height: 32,
-                              decoration: BoxDecoration(
-                                color: clockColor.withValues(alpha: 0.12),
-                                borderRadius: BorderRadius.circular(
-                                  AppRadius.md,
-                                ),
-                              ),
-                              child: Icon(
-                                Icons.calendar_today_rounded,
-                                size: 16,
-                                color: clockColor,
-                              ),
-                            ),
-                            const SizedBox(width: AppSpacing.sm),
-                            Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  'Shift Hari Ini',
-                                  style: AppTypography.labelSm.copyWith(
-                                    color: AppColors.onSurfaceVariant,
-                                    letterSpacing: 0,
-                                  ),
-                                ),
-                                Text(
-                                  sh?.rangeLabel ?? 'Tidak ada shift',
-                                  style: AppTypography.labelMd.copyWith(
-                                    fontWeight: FontWeight.w700,
-                                    color: AppColors.onSurface,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
-                        if (sh != null)
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 12,
-                              vertical: 6,
-                            ),
-                            decoration: BoxDecoration(
-                              color: clockColor.withValues(alpha: 0.12),
-                              borderRadius: BorderRadius.circular(
-                                AppRadius.full,
-                              ),
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(
-                                  sh!.workMode == WorkMode.wfo
-                                      ? Icons.business_rounded
-                                      : Icons.home_work_rounded,
-                                  size: 13,
-                                  color: clockColor,
-                                ),
-                                const SizedBox(width: 4),
-                                Text(
-                                  sh!.workMode.label,
-                                  style: AppTypography.labelSm.copyWith(
-                                    color: clockColor,
-                                    letterSpacing: 0,
-                                    fontWeight: FontWeight.w700,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-
-              // Character illustration overlay: Sits on the bottom-right corner,
-              // overlapping the divider and drawing ON TOP values (Canva layer)
-              Positioned(
-                right: 12,
-                bottom:
-                    40, // sit right on top of the shift section divider boundary
-                child: Image.asset(
-                  'assets/images/clock_character.webp',
-                  width: 110,
-                  fit: BoxFit.contain,
-                ),
-              ),
-            ],
-          ),
-        )
-        .animate()
-        .fadeIn(duration: 360.ms, delay: 120.ms)
-        .slideY(begin: 0.08, curve: Curves.easeOut);
-  }
-}
-
-// ── Attendance Action Card (Stacked & Overlapped layout) ──────────────────
-class _AttendanceActionCard extends StatelessWidget {
-  const _AttendanceActionCard({required this.today});
-  final dynamic today;
-
-  static const _purple = Color(0xFF3B2E8C);
-
-  @override
-  Widget build(BuildContext context) {
-    final hasCheckedIn = today.hasCheckedIn as bool;
-    final hasCheckedOut = today.hasCheckedOut as bool;
-    final isDark = AppColors.isDark;
-    final completedColor = isDark ? AppColors.primary : _purple;
-
-    final (statusColor, statusText, hint) = switch ((
-      hasCheckedIn,
-      hasCheckedOut,
-    )) {
-      (false, _) => (
-        AppColors.primary,
-        'Belum Check-in',
-        'Jangan lupa absen sebelum jam masuk',
-      ),
-      (true, false) => (
-        AppColors.success,
-        'Sudah Check-in',
-        'Selamat bekerja! Jangan lupa check-out nanti',
-      ),
-      (true, true) => (
-        completedColor,
-        'Absensi Selesai',
-        'Kamu sudah check-in & check-out hari ini',
-      ),
-    };
-
-    return SolidCard(
-          entrance: false,
-          padding: EdgeInsets.zero,
-          gradient: isDark
-              ? const LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [Color(0xFF151527), Color(0xFF10101C)],
-                )
-              : null,
-          child: Stack(
-            clipBehavior: Clip.none,
-            // Stack manages top column texts and divider/button layouts,
-            // and overlays the door illustration at the bottom right.
-            // This aligns the door to overlap and sit on the button boundary box.
-            children: [
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Status Info (Left)
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(
-                      AppSpacing.md,
-                      AppSpacing.md,
-                      100, // Prevent overlap
-                      AppSpacing.md,
-                    ),
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.center,
-                      children: [
-                        // Large fingerprint icon container
-                        Container(
-                          width: 56,
-                          height: 56,
-                          decoration: BoxDecoration(
-                            gradient: LinearGradient(
-                              begin: Alignment.topLeft,
-                              end: Alignment.bottomRight,
-                              colors: [
-                                statusColor.withValues(alpha: 0.18),
-                                statusColor.withValues(alpha: 0.06),
-                              ],
-                            ),
-                            borderRadius: BorderRadius.circular(AppRadius.xl),
-                          ),
-                          child: Icon(
-                            hasCheckedOut
-                                ? Icons.check_circle_rounded
-                                : hasCheckedIn
-                                ? Icons.work_history_rounded
-                                : Icons.fingerprint_rounded,
-                            color: statusColor,
-                            size: 30,
-                          ),
-                        ),
-                        const SizedBox(width: AppSpacing.sm),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Text(
-                                statusText,
-                                style: AppTypography.titleLg.copyWith(
-                                  color: statusColor,
-                                  fontWeight: FontWeight.w800,
-                                  height: 1.1,
-                                ),
-                              ),
-                              const SizedBox(height: 2),
-                              Text(
-                                hint,
-                                style: AppTypography.bodySm.copyWith(
-                                  color: AppColors.onSurfaceVariant,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  // Action button section at the bottom (has whitespace/divider)
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(
-                      AppSpacing.md,
-                      0,
-                      AppSpacing.md,
-                      AppSpacing.md,
-                    ),
-                    child: hasCheckedOut
-                        ? OutlinedButton.icon(
-                            onPressed: null,
-                            icon: const Icon(
-                              Icons.check_circle_outline_rounded,
-                            ),
-                            label: const Text('Absensi Hari Ini Selesai'),
-                            style: OutlinedButton.styleFrom(
-                              minimumSize: const Size.fromHeight(54),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(
-                                  AppRadius.xl,
-                                ),
-                              ),
-                            ),
-                          )
-                        : !hasCheckedIn
-                        ? _HeroActionButton(
-                            glow: true,
-                            onPressed: () =>
-                                context.push(AppRoutes.checkinPrep),
-                            icon: Icons.login_rounded,
-                            label: 'Check-in Sekarang',
-                            reserveArtworkSpace: true,
-                          )
-                        : _HeroActionButton(
-                            glow: false,
-                            onPressed: () => context.push(
-                              '${AppRoutes.checkinPrep}?mode=checkout'
-                              '&wm=${today.checkIn?.workMode?.name ?? "wfo"}',
-                            ),
-                            icon: Icons.logout_rounded,
-                            label: 'Check-out Sekarang',
-                            reserveArtworkSpace: true,
-                          ),
-                  ),
-                ],
-              ),
-
-              // Door illustration alignment: sits flat at the bottom-right over the button row boundary
-              if (!hasCheckedOut)
-                Positioned(
-                  right: 10,
-                  bottom: 13,
-                  child: Image.asset(
-                    'assets/images/checkin_door.webp',
-                    width: 112,
-                    fit: BoxFit.contain,
-                  ),
-                ),
-            ],
-          ),
-        )
-        .animate()
-        .fadeIn(duration: 360.ms, delay: 200.ms)
-        .slideY(begin: 0.08, curve: Curves.easeOut);
-  }
-}
-
-class _HeroActionButton extends StatefulWidget {
-  const _HeroActionButton({
-    required this.onPressed,
-    required this.icon,
-    required this.label,
-    required this.glow,
-    this.reserveArtworkSpace = false,
-  });
-
-  final VoidCallback onPressed;
-  final IconData icon;
-  final String label;
-  final bool glow;
-  final bool reserveArtworkSpace;
-
-  @override
-  State<_HeroActionButton> createState() => _HeroActionButtonState();
-}
-
-class _HeroActionButtonState extends State<_HeroActionButton> {
-  double _scale = 1.0;
-
-  static const _purple = Color(0xFF3B2E8C);
-  static const _purpleLight = Color(0xFF5B3FBF);
-
-  @override
-  Widget build(BuildContext context) {
-    final isCheckOut = widget.icon == Icons.logout_rounded;
-    final Color buttonColor = isCheckOut ? AppColors.accentRose : _purple;
-
-    return Listener(
-      onPointerDown: (_) => setState(() => _scale = 0.96),
-      onPointerUp: (_) => setState(() => _scale = 1.0),
-      onPointerCancel: (_) => setState(() => _scale = 1.0),
-      child: AnimatedScale(
-        scale: _scale,
-        duration: const Duration(milliseconds: 100),
-        curve: Curves.easeOut,
-        child: Container(
-          width: double.infinity,
-          height: 54,
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(AppRadius.xl),
-            gradient: isCheckOut
-                ? LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: AppColors.accentGradient(buttonColor),
-                  )
-                : const LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: [_purpleLight, _purple],
-                  ),
-            boxShadow: widget.glow
-                ? [
-                    BoxShadow(
-                      color: buttonColor.withValues(alpha: 0.38),
-                      blurRadius: 20,
-                      offset: const Offset(0, 8),
-                      spreadRadius: -4,
-                    ),
-                  ]
-                : null,
-          ),
-          child: Material(
-            color: Colors.transparent,
-            child: InkWell(
-              onTap: widget.onPressed,
-              borderRadius: BorderRadius.circular(AppRadius.xl),
-              child: Padding(
-                padding: EdgeInsets.only(
-                  left: widget.reserveArtworkSpace ? 42 : 0,
-                  right: widget.reserveArtworkSpace ? 112 : 0,
-                ),
-                child: Row(
-                  mainAxisAlignment: widget.reserveArtworkSpace
-                      ? MainAxisAlignment.start
-                      : MainAxisAlignment.center,
-                  children: [
-                    Icon(widget.icon, color: Colors.white, size: 20),
-                    const SizedBox(width: AppSpacing.sm),
-                    Flexible(
-                      child: Text(
-                        widget.label,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: AppTypography.bodyLg.copyWith(
-                          color: Colors.white,
-                          fontWeight: FontWeight.w800,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _QuickGrid extends StatelessWidget {
-  const _QuickGrid();
-
-  @override
-  Widget build(BuildContext context) {
-    final items = [
-      (
-        Icons.edit_calendar_rounded,
-        'Ajukan Cuti',
-        AppColors.accentViolet,
-        AppRoutes.createLeave,
-        true,
-      ),
-      (
-        Icons.event_busy_rounded,
-        'Status Cuti',
-        AppColors.accentCyan,
-        AppRoutes.leave,
-        false,
-      ),
-      (
-        Icons.calendar_month_rounded,
-        'Jadwal',
-        AppColors.accentGreen,
-        AppRoutes.schedule,
-        false,
-      ),
-      (
-        Icons.history_rounded,
-        'Riwayat',
-        AppColors.primary,
-        AppRoutes.history,
-        false,
-      ),
-    ];
-
-    return SolidCard(
-          entrance: false,
-          padding: const EdgeInsets.symmetric(
-            vertical: AppSpacing.md,
-            horizontal: AppSpacing.sm,
-          ),
-          child: Row(
-            children: [
-              for (var i = 0; i < items.length; i++)
-                Expanded(
-                  child: _QuickItem(
-                    index: i,
-                    icon: items[i].$1,
-                    label: items[i].$2,
-                    color: items[i].$3,
-                    onTap: () => items[i].$5
-                        ? context.push(items[i].$4)
-                        : context.go(items[i].$4),
-                  ),
-                ),
-            ],
-          ),
-        )
-        .animate(delay: 320.ms)
-        .fadeIn(duration: 320.ms)
-        .slideY(begin: 0.1, curve: Curves.easeOut);
-  }
-}
-
-class _QuickItem extends StatefulWidget {
-  const _QuickItem({
-    required this.index,
-    required this.icon,
-    required this.label,
-    required this.color,
-    required this.onTap,
-  });
-
-  final int index;
-  final IconData icon;
-  final String label;
-  final Color color;
-  final VoidCallback onTap;
-
-  @override
-  State<_QuickItem> createState() => _QuickItemState();
-}
-
-class _QuickItemState extends State<_QuickItem> {
-  double _scale = 1.0;
-
-  @override
-  Widget build(BuildContext context) {
-    return Listener(
-      onPointerDown: (_) => setState(() => _scale = 0.9),
-      onPointerUp: (_) => setState(() => _scale = 1.0),
-      onPointerCancel: (_) => setState(() => _scale = 1.0),
-      child: AnimatedScale(
-        scale: _scale,
-        duration: const Duration(milliseconds: 120),
-        child: InkWell(
-          onTap: widget.onTap,
-          borderRadius: BorderRadius.circular(AppRadius.lg),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(vertical: 6),
-            child: Column(
-              children: [
-                Container(
-                  width: 48,
-                  height: 48,
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                      colors: [
-                        widget.color.withValues(alpha: 0.20),
-                        widget.color.withValues(alpha: 0.08),
-                      ],
-                    ),
-                    borderRadius: BorderRadius.circular(AppRadius.lg),
-                  ),
-                  child: Icon(widget.icon, color: widget.color, size: 24),
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  widget.label,
-                  style: AppTypography.labelSm.copyWith(
-                    color: AppColors.onSurface,
-                    letterSpacing: 0,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
+// ── Error + face-enroll banner ───────────────────────────────────────────────
 
 class _ErrorState extends StatelessWidget {
   const _ErrorState({required this.message, required this.onRetry});
@@ -1016,7 +986,6 @@ class _ErrorState extends StatelessWidget {
   }
 }
 
-// ── Face Enroll Banner (Clean 3D Alarm Clock Placement) ──────────────────
 class _FaceEnrollBanner extends StatelessWidget {
   const _FaceEnrollBanner({required this.onTap});
   final VoidCallback onTap;
@@ -1026,51 +995,42 @@ class _FaceEnrollBanner extends StatelessWidget {
     return SolidCard(
       entrance: false,
       onTap: onTap,
-      padding: EdgeInsets.zero,
+      color: AppColors.pending.withValues(alpha: 0.10),
       child: Row(
         children: [
-          // Left 3D Alarm Clock image (Image #7)
           Container(
-            width: 80,
-            height: 80,
-            margin: const EdgeInsets.all(AppSpacing.md),
-            child: Image.asset(
-              'assets/images/alarm_clock.webp',
-              fit: BoxFit.contain,
+            width: 44,
+            height: 44,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: AppColors.pending.withValues(alpha: 0.16),
+              borderRadius: BorderRadius.circular(AppRadius.md),
             ),
+            child: Icon(Icons.face_retouching_natural_rounded,
+                color: AppColors.pending),
           ),
+          const SizedBox(width: AppSpacing.sm),
           Expanded(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Daftarkan wajahmu',
-                    style: AppTypography.titleLg.copyWith(
-                      color: AppColors.onSurface,
-                      fontWeight: FontWeight.w800,
-                    ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Daftarkan wajahmu',
+                  style: AppTypography.labelMd.copyWith(
+                    color: AppColors.onSurface,
+                    fontWeight: FontWeight.w800,
                   ),
-                  const SizedBox(height: 4),
-                  Text(
-                    'Wajib sebelum bisa absen.\nHanya butuh beberapa detik.',
-                    style: AppTypography.bodySm.copyWith(
-                      color: AppColors.onSurfaceVariant,
-                    ),
+                ),
+                Text(
+                  'Wajib sebelum bisa absen. Hanya butuh beberapa detik.',
+                  style: AppTypography.bodySm.copyWith(
+                    color: AppColors.onSurfaceVariant,
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
           ),
-          Padding(
-            padding: const EdgeInsets.only(right: AppSpacing.md),
-            child: Icon(
-              Icons.arrow_forward_ios_rounded,
-              size: 16,
-              color: AppColors.onSurfaceVariant,
-            ),
-          ),
+          Icon(Icons.chevron_right_rounded, color: AppColors.onSurfaceVariant),
         ],
       ),
     );
