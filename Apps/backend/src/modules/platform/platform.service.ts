@@ -9,7 +9,8 @@
  */
 
 import { prisma } from '../../config/prisma'
-import { NotFoundError, ValidationError } from '../../lib/errors'
+import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from '../../lib/errors'
+import type { PlatformActor, PlatformGlobalRole } from '../../types/auth'
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -371,13 +372,57 @@ export interface AdminUserDto {
   lastActive: string
 }
 
-const ROLE_TO_GLOBAL: Record<string, string> = {
+const ROLE_TO_GLOBAL: Record<string, PlatformGlobalRole> = {
   'Super Admin': 'super_admin',
   'Platform Admin': 'admin_platform',
 }
-const GLOBAL_TO_ROLE: Record<string, string> = {
+const GLOBAL_TO_ROLE: Record<PlatformGlobalRole, string> = {
   super_admin: 'Super Admin',
   admin_platform: 'Platform Admin',
+}
+
+function platformRoleRank(role: string): number {
+  if (role === 'super_admin') return 2
+  if (role === 'admin_platform') return 1
+  return 0
+}
+
+function parsePlatformRole(role: string): PlatformGlobalRole {
+  const globalRole = ROLE_TO_GLOBAL[role]
+  if (!globalRole) {
+    throw new ValidationError('Role platform tidak valid')
+  }
+  return globalRole
+}
+
+function assertCanGrantPlatformRole(actor: PlatformActor, targetRole: PlatformGlobalRole): void {
+  if (targetRole === 'super_admin' && actor.globalRole !== 'super_admin') {
+    throw new ForbiddenError('Hanya Super Admin yang dapat memberikan role Super Admin')
+  }
+}
+
+async function assertCanRevokePlatformRole(
+  actor: PlatformActor,
+  target: { id: string; globalRole: string },
+): Promise<void> {
+  if (actor.userId === target.id) {
+    throw new ForbiddenError('Tidak dapat mencabut akses platform milik sendiri')
+  }
+
+  if (target.globalRole === 'super_admin') {
+    if (actor.globalRole !== 'super_admin') {
+      throw new ForbiddenError('Hanya Super Admin yang dapat mencabut akses Super Admin')
+    }
+    const superAdminCount = await prisma.user.count({ where: { globalRole: 'super_admin' } })
+    if (superAdminCount <= 1) {
+      throw new ConflictError('Tidak dapat mencabut Super Admin terakhir')
+    }
+    return
+  }
+
+  if (platformRoleRank(actor.globalRole) <= platformRoleRank(target.globalRole)) {
+    throw new ForbiddenError('Tidak dapat mencabut akses platform dengan level yang sama atau lebih tinggi')
+  }
 }
 
 export async function listAdminUsers(now: Date): Promise<AdminUserDto[]> {
@@ -389,20 +434,24 @@ export async function listAdminUsers(now: Date): Promise<AdminUserDto[]> {
     id: u.id,
     name: u.fullName,
     email: u.email,
-    role: GLOBAL_TO_ROLE[u.globalRole as string] ?? 'Platform Admin',
+    role: GLOBAL_TO_ROLE[u.globalRole as PlatformGlobalRole] ?? 'Platform Admin',
     status: u.status === 'Active' ? 'Active' : 'Inactive',
     lastActive: relativeTime(u.lastLoginAt, now),
   }))
 }
 
 /** Promote an existing app user to a platform role by email. */
-export async function inviteAdminUser(input: {
-  email: string
-  role: string
-}): Promise<AdminUserDto> {
+export async function inviteAdminUser(
+  input: {
+    email: string
+    role: string
+  },
+  actor: PlatformActor,
+): Promise<AdminUserDto> {
   const email = input.email?.trim().toLowerCase()
   if (!email) throw new ValidationError('Email diperlukan')
-  const globalRole = ROLE_TO_GLOBAL[input.role] ?? 'admin_platform'
+  const globalRole = parsePlatformRole(input.role)
+  assertCanGrantPlatformRole(actor, globalRole)
 
   const user = await prisma.user.findUnique({ where: { email } })
   if (!user) {
@@ -416,16 +465,17 @@ export async function inviteAdminUser(input: {
     id: updated.id,
     name: updated.fullName,
     email: updated.email,
-    role: GLOBAL_TO_ROLE[globalRole] ?? 'Platform Admin',
+    role: GLOBAL_TO_ROLE[globalRole],
     status: updated.status === 'Active' ? 'Active' : 'Inactive',
     lastActive: 'Just now',
   }
 }
 
 /** Revoke platform access (globalRole → user) or toggle account status. */
-export async function deactivateAdminUser(id: string): Promise<void> {
+export async function deactivateAdminUser(id: string, actor: PlatformActor): Promise<void> {
   const user = await prisma.user.findUnique({ where: { id } })
   if (!user) throw new NotFoundError('User')
+  await assertCanRevokePlatformRole(actor, user)
   await prisma.user.update({
     where: { id },
     data: { globalRole: 'user' as never },

@@ -5,7 +5,7 @@
 
 import type { Request, Response, NextFunction } from 'express'
 import { sendSuccess } from '../../lib/response'
-import { ValidationError } from '../../lib/errors'
+import { ForbiddenError, ValidationError } from '../../lib/errors'
 import * as service from './platform.service'
 
 // ── Tenants ────────────────────────────────────────────────────────────────
@@ -116,6 +116,13 @@ export async function updateInvoiceStatusHandler(req: Request, res: Response, ne
 
 // ── Admin users ──────────────────────────────────────────────────────────────
 
+function requirePlatformActor(req: Request) {
+  if (!req.platformActor) {
+    throw new ForbiddenError('Akses platform admin diperlukan')
+  }
+  return req.platformActor
+}
+
 export async function listAdminUsersHandler(_req: Request, res: Response, next: NextFunction) {
   try {
     sendSuccess(res, await service.listAdminUsers(new Date()))
@@ -128,10 +135,13 @@ export async function inviteAdminUserHandler(req: Request, res: Response, next: 
   try {
     const b = (req.body ?? {}) as Record<string, unknown>
     if (typeof b.email !== 'string') throw new ValidationError('Email diperlukan')
-    const data = await service.inviteAdminUser({
-      email: b.email,
-      role: typeof b.role === 'string' ? b.role : 'Platform Admin',
-    })
+    const data = await service.inviteAdminUser(
+      {
+        email: b.email,
+        role: typeof b.role === 'string' ? b.role : 'Platform Admin',
+      },
+      requirePlatformActor(req),
+    )
     sendSuccess(res, data, 'Admin diundang', 201)
   } catch (err) {
     next(err)
@@ -140,7 +150,7 @@ export async function inviteAdminUserHandler(req: Request, res: Response, next: 
 
 export async function deactivateAdminUserHandler(req: Request, res: Response, next: NextFunction) {
   try {
-    await service.deactivateAdminUser(String(req.params.id))
+    await service.deactivateAdminUser(String(req.params.id), requirePlatformActor(req))
     sendSuccess(res, null, 'Akses admin dicabut')
   } catch (err) {
     next(err)

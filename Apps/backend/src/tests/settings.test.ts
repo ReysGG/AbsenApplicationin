@@ -49,6 +49,15 @@ vi.mock('../config/prisma', () => ({
     permission: {
       findMany: vi.fn(),
     },
+    employee: {
+      findFirst: vi.fn(),
+    },
+    department: {
+      findFirst: vi.fn(),
+    },
+    location: {
+      findFirst: vi.fn(),
+    },
     holidayCalendar: {
       findMany: vi.fn(),
       findFirst: vi.fn(),
@@ -88,7 +97,7 @@ import {
   deleteHoliday,
 } from '../modules/settings/settings.service'
 import { listAuditLogs, getAuditLogById } from '../modules/audit/audit.service'
-import { ForbiddenError, ConflictError, NotFoundError } from '../lib/errors'
+import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from '../lib/errors'
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -293,6 +302,7 @@ describe('assignRole', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     vi.mocked(prisma.auditLog.create).mockResolvedValue({} as never)
+    vi.mocked(prisma.employee.findFirst).mockResolvedValue({ id: 'emp-001' } as never)
   })
 
   it('Stakeholder can assign a role and writes audit', async () => {
@@ -383,6 +393,170 @@ describe('assignRole', () => {
         actorRoles: STAKEHOLDER_ROLES,
       }),
     ).rejects.toThrow(ConflictError)
+  })
+
+  it('rejects a global user that is not connected to the workspace', async () => {
+    vi.mocked(prisma.user.findUnique).mockResolvedValueOnce({
+      id: 'user-foreign',
+      email: 'foreign@test.com',
+      fullName: 'Foreign User',
+    } as never)
+    vi.mocked(prisma.employee.findFirst).mockResolvedValueOnce(null as never)
+    vi.mocked(prisma.roleAssignment.findFirst).mockResolvedValueOnce(null as never)
+
+    await expect(
+      assignRole({
+        workspaceId: WORKSPACE_ID,
+        input: {
+          userId: 'user-foreign',
+          role: 'support_admin',
+          scopeType: 'workspace',
+          permissions: [],
+        },
+        actorUserId: ACTOR_ID,
+        actorRoles: STAKEHOLDER_ROLES,
+      }),
+    ).rejects.toThrow(ForbiddenError)
+
+    expect(prisma.roleAssignment.create).not.toHaveBeenCalled()
+  })
+
+  it('allows a target user with an existing workspace role assignment', async () => {
+    vi.mocked(prisma.user.findUnique).mockResolvedValueOnce({
+      id: 'user-002',
+      email: 'newuser@test.com',
+      fullName: 'New User',
+    } as never)
+    vi.mocked(prisma.employee.findFirst).mockResolvedValueOnce(null as never)
+    vi.mocked(prisma.roleAssignment.findFirst)
+      .mockResolvedValueOnce({ id: 'membership-ra' } as never)
+      .mockResolvedValueOnce(null as never)
+    vi.mocked(prisma.roleAssignment.create).mockResolvedValueOnce({
+      id: 'ra-new',
+      workspaceId: WORKSPACE_ID,
+      userId: 'user-002',
+      role: 'support_admin',
+      scopeType: 'workspace',
+      scopeId: null,
+      createdAt: new Date('2024-01-01T00:00:00Z'),
+      updatedAt: new Date('2024-01-01T00:00:00Z'),
+      user: { id: 'user-002', email: 'newuser@test.com', fullName: 'New User' },
+      permissions: [],
+    } as never)
+
+    const result = await assignRole({
+      workspaceId: WORKSPACE_ID,
+      input: {
+        userId: 'user-002',
+        role: 'support_admin',
+        scopeType: 'workspace',
+        permissions: [],
+      },
+      actorUserId: ACTOR_ID,
+      actorRoles: STAKEHOLDER_ROLES,
+    })
+
+    expect(result.id).toBe('ra-new')
+  })
+
+  it('rejects workspace scope with a scopeId', async () => {
+    vi.mocked(prisma.user.findUnique).mockResolvedValueOnce({ id: 'user-002' } as never)
+
+    await expect(
+      assignRole({
+        workspaceId: WORKSPACE_ID,
+        input: {
+          userId: 'user-002',
+          role: 'support_admin',
+          scopeType: 'workspace',
+          scopeId: 'dept-foreign',
+          permissions: [],
+        },
+        actorUserId: ACTOR_ID,
+        actorRoles: STAKEHOLDER_ROLES,
+      }),
+    ).rejects.toThrow(ValidationError)
+  })
+
+  it('rejects department scope without a scopeId', async () => {
+    vi.mocked(prisma.user.findUnique).mockResolvedValueOnce({ id: 'user-002' } as never)
+
+    await expect(
+      assignRole({
+        workspaceId: WORKSPACE_ID,
+        input: {
+          userId: 'user-002',
+          role: 'support_admin',
+          scopeType: 'department',
+          permissions: [],
+        },
+        actorUserId: ACTOR_ID,
+        actorRoles: STAKEHOLDER_ROLES,
+      }),
+    ).rejects.toThrow(ValidationError)
+  })
+
+  it('rejects department scope outside the workspace', async () => {
+    vi.mocked(prisma.user.findUnique).mockResolvedValueOnce({ id: 'user-002' } as never)
+    vi.mocked(prisma.department.findFirst).mockResolvedValueOnce(null as never)
+
+    await expect(
+      assignRole({
+        workspaceId: WORKSPACE_ID,
+        input: {
+          userId: 'user-002',
+          role: 'support_admin',
+          scopeType: 'department',
+          scopeId: 'dept-foreign',
+          permissions: [],
+        },
+        actorUserId: ACTOR_ID,
+        actorRoles: STAKEHOLDER_ROLES,
+      }),
+    ).rejects.toThrow(NotFoundError)
+  })
+
+  it('rejects location scope outside the workspace', async () => {
+    vi.mocked(prisma.user.findUnique).mockResolvedValueOnce({ id: 'user-002' } as never)
+    vi.mocked(prisma.location.findFirst).mockResolvedValueOnce(null as never)
+
+    await expect(
+      assignRole({
+        workspaceId: WORKSPACE_ID,
+        input: {
+          userId: 'user-002',
+          role: 'support_admin',
+          scopeType: 'location',
+          scopeId: 'loc-foreign',
+          permissions: [],
+        },
+        actorUserId: ACTOR_ID,
+        actorRoles: STAKEHOLDER_ROLES,
+      }),
+    ).rejects.toThrow(NotFoundError)
+  })
+
+  it('rejects unknown permission keys', async () => {
+    vi.mocked(prisma.user.findUnique).mockResolvedValueOnce({ id: 'user-002' } as never)
+    vi.mocked(prisma.permission.findMany).mockResolvedValueOnce([
+      { id: 'perm-001', key: 'view_dashboard' },
+    ] as never)
+
+    await expect(
+      assignRole({
+        workspaceId: WORKSPACE_ID,
+        input: {
+          userId: 'user-002',
+          role: 'support_admin',
+          scopeType: 'workspace',
+          permissions: ['view_dashboard', 'unknown_permission'],
+        },
+        actorUserId: ACTOR_ID,
+        actorRoles: STAKEHOLDER_ROLES,
+      }),
+    ).rejects.toThrow(ValidationError)
+
+    expect(prisma.roleAssignment.create).not.toHaveBeenCalled()
   })
 })
 

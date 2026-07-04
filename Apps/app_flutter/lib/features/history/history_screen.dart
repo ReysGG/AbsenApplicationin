@@ -142,7 +142,9 @@ class _HistoryCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: AppSpacing.md),
-          Row(
+          Wrap(
+            spacing: AppSpacing.lg + 8,
+            runSpacing: AppSpacing.sm,
             children: [
               _TimeChunk(
                 icon: Icons.login_rounded,
@@ -150,16 +152,15 @@ class _HistoryCard extends StatelessWidget {
                 label: 'Masuk',
                 value: record.checkInAt != null
                     ? Formatters.time(record.checkInAt!)
-                    : '—',
+                    : '-',
               ),
-              const SizedBox(width: AppSpacing.lg + 8),
               _TimeChunk(
                 icon: Icons.logout_rounded,
                 tint: AppColors.accentRose,
                 label: 'Pulang',
                 value: record.checkOutAt != null
                     ? Formatters.time(record.checkOutAt!)
-                    : '—',
+                    : '-',
               ),
             ],
           ),
@@ -174,15 +175,19 @@ class _HistoryCard extends StatelessWidget {
                 color: AppColors.onSurfaceVariant,
               ),
               const SizedBox(width: 6),
-              Text(
-                '${record.workMode.label} · ${record.locationName ?? '-'}',
-                style: AppTypography.labelSm.copyWith(
-                  color: AppColors.onSurfaceVariant,
-                  letterSpacing: 0,
-                  fontWeight: FontWeight.w600,
+              Expanded(
+                child: Text(
+                  '${record.workMode.label} - ${record.locationName ?? '-'}',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: AppTypography.labelSm.copyWith(
+                    color: AppColors.onSurfaceVariant,
+                    letterSpacing: 0,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
               ),
-              const Spacer(),
+              const SizedBox(width: AppSpacing.sm),
               if (record.syncStatus != SyncStatus.synced)
                 StatusBadge(
                   label: record.syncStatus.label,
@@ -223,6 +228,7 @@ class _TimeChunk extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Row(
+      mainAxisSize: MainAxisSize.min,
       children: [
         Container(
           width: 38,

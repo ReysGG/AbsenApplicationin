@@ -43,6 +43,7 @@ import { prisma } from '../config/prisma'
 import { authenticate } from '../middleware/authenticate'
 import { resolveActiveWorkspace } from '../middleware/resolveActiveWorkspace'
 import { requirePermission } from '../middleware/requirePermission'
+import { requirePlatformAdmin } from '../middleware/requirePlatformAdmin'
 import { enforceScope } from '../middleware/enforceScope'
 import {
   PERMISSIONS,
@@ -186,6 +187,7 @@ describe('authenticate middleware', () => {
     authUserId: 'auth-user-1',
     email: 'hr@acme.com',
     fullName: 'HR Manager',
+    status: 'Active',
     roleAssignments: [
       {
         role: 'stakeholder',
@@ -201,6 +203,7 @@ describe('authenticate middleware', () => {
     authUserId: 'auth-user-1',
     email: 'support@acme.com',
     fullName: 'Support Admin',
+    status: 'Active',
     roleAssignments: [
       {
         role: 'support_admin',
@@ -316,6 +319,7 @@ describe('authenticate middleware', () => {
       authUserId: 'auth-user-1',
       email: 'platform@attendx.dev',
       fullName: 'Platform Admin',
+      status: 'Active',
       globalRole: 'super_admin',
     } as never)
     vi.mocked(prisma.roleAssignment.findFirst).mockResolvedValue(null as never)
@@ -647,6 +651,60 @@ describe('requirePermission middleware', () => {
         }),
       }),
     )
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Tests: requirePlatformAdmin middleware
+// ---------------------------------------------------------------------------
+
+describe('requirePlatformAdmin middleware', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  it('allows super_admin and attaches platformActor', async () => {
+    vi.mocked(prisma.user.findUnique).mockResolvedValueOnce({ globalRole: 'super_admin' } as never)
+    const req = mockRequest({ user: buildAuthenticatedUser() })
+    const next = mockNext()
+
+    await requirePlatformAdmin()(req, mockResponse(), next)
+
+    expect(next).toHaveBeenCalledWith()
+    expect(req.platformActor).toEqual({ userId: 'user-1', globalRole: 'super_admin' })
+  })
+
+  it('allows admin_platform and attaches platformActor', async () => {
+    vi.mocked(prisma.user.findUnique).mockResolvedValueOnce({ globalRole: 'admin_platform' } as never)
+    const req = mockRequest({ user: buildAuthenticatedUser() })
+    const next = mockNext()
+
+    await requirePlatformAdmin()(req, mockResponse(), next)
+
+    expect(next).toHaveBeenCalledWith()
+    expect(req.platformActor).toEqual({ userId: 'user-1', globalRole: 'admin_platform' })
+  })
+
+  it('rejects normal users', async () => {
+    vi.mocked(prisma.user.findUnique).mockResolvedValueOnce({ globalRole: 'user' } as never)
+    const req = mockRequest({ user: buildAuthenticatedUser() })
+    const next = mockNext()
+
+    await requirePlatformAdmin()(req, mockResponse(), next)
+
+    const [error] = (next as unknown as { mock: { calls: unknown[][] } }).mock.calls[0]
+    expect(error).toBeInstanceOf(ForbiddenError)
+    expect(req.platformActor).toBeUndefined()
+  })
+
+  it('missing req.user → UnauthenticatedError', async () => {
+    const req = mockRequest()
+    const next = mockNext()
+
+    await requirePlatformAdmin()(req, mockResponse(), next)
+
+    const [error] = (next as unknown as { mock: { calls: unknown[][] } }).mock.calls[0]
+    expect(error).toBeInstanceOf(UnauthenticatedError)
   })
 })
 

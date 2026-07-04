@@ -13,6 +13,7 @@ import '../../core/widgets/pressable.dart';
 import '../../core/widgets/solid_card.dart';
 import '../../core/widgets/status_badge.dart';
 import '../auth/auth_controller.dart';
+import '../shell/main_shell.dart';
 
 class ProfileScreen extends ConsumerWidget {
   const ProfileScreen({super.key});
@@ -25,6 +26,10 @@ class ProfileScreen extends ConsumerWidget {
         themeMode == ThemeMode.dark ||
         (themeMode == ThemeMode.system &&
             MediaQuery.platformBrightnessOf(context) == Brightness.dark);
+    final firstName = profile?.firstName ?? '';
+    final profileInitial = firstName.isNotEmpty
+        ? firstName.characters.first
+        : 'A';
 
     return Scaffold(
       backgroundColor: AppColors.pageBg,
@@ -41,11 +46,11 @@ class ProfileScreen extends ConsumerWidget {
           ),
           Expanded(
             child: ListView(
-              padding: const EdgeInsets.fromLTRB(
+              padding: EdgeInsets.fromLTRB(
                 AppSpacing.md,
                 AppSpacing.md,
                 AppSpacing.md,
-                AppSpacing.xl,
+                MainShellLayout.bottomContentPadding(context),
               ),
               children: [
                 // ── Profile header ──────────────────────────────────────────
@@ -71,7 +76,7 @@ class ProfileScreen extends ConsumerWidget {
                               radius: 42,
                               backgroundColor: AppColors.primaryFixed,
                               child: Text(
-                                profile?.firstName.characters.first ?? 'A',
+                                profileInitial,
                                 style: AppTypography.display.copyWith(
                                   color: AppColors.brandMid,
                                 ),

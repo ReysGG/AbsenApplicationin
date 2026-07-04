@@ -632,7 +632,7 @@ describe('uploadLeaveAttachment', () => {
       workspaceId: WORKSPACE_ID,
       leaveId: LEAVE_ID,
       input: {
-        fileBase64: Buffer.from('fake pdf content').toString('base64'),
+        fileBase64: Buffer.from('%PDF-1.7\n% test pdf content').toString('base64'),
         fileName: 'test.pdf',
         mimeType: 'application/pdf',
       },
@@ -660,7 +660,7 @@ describe('uploadLeaveAttachment', () => {
         workspaceId: WORKSPACE_ID,
         leaveId: 'non-existent',
         input: {
-          fileBase64: Buffer.from('content').toString('base64'),
+          fileBase64: Buffer.from('%PDF-1.7\n% test pdf content').toString('base64'),
           fileName: 'doc.pdf',
           mimeType: 'application/pdf',
         },

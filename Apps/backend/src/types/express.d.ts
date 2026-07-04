@@ -9,7 +9,7 @@
  */
 
 import type { Workspace } from '@prisma/client'
-import type { AuthenticatedUser, ScopeFilter, MobileEmployee } from './auth'
+import type { AuthenticatedUser, ScopeFilter, MobileEmployee, PlatformActor } from './auth'
 
 declare global {
   namespace Express {
@@ -22,6 +22,8 @@ declare global {
       workspaceId?: string
       /** Full Workspace record — set by `resolveActiveWorkspace` middleware */
       activeWorkspace?: Workspace
+      /** Platform-admin actor context — set by `requirePlatformAdmin` middleware */
+      platformActor?: PlatformActor
       /**
        * The Employee record for the authenticated mobile user — set by the
        * `authenticateMobile` middleware. Mobile endpoints are scoped to this

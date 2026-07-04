@@ -60,6 +60,23 @@ class _TabSpec {
   final String label;
 }
 
+abstract final class MainShellLayout {
+  static double bottomContentPadding(BuildContext context) {
+    final bottomPadding = MediaQuery.paddingOf(context).bottom;
+    final labelStyle = AppTypography.labelSm;
+    final labelFontSize = labelStyle.fontSize ?? 10;
+    final labelHeight =
+        MediaQuery.textScalerOf(context).scale(labelFontSize) *
+        (labelStyle.height ?? 1.2);
+    final navBottomPadding = bottomPadding > 0
+        ? bottomPadding + 6
+        : AppSpacing.md;
+    final navHeight = 24 + navBottomPadding + 16 + 16 + 24 + 4 + labelHeight;
+
+    return navHeight + AppSpacing.sm;
+  }
+}
+
 /// Floating bottom nav bar from Image #1/#2 concepts:
 /// Melayang (floating) with rounded borders, smooth gradients, and no raw overlap bugs.
 class _AppNavBar extends StatelessWidget {
@@ -103,16 +120,22 @@ class _AppNavBar extends StatelessWidget {
       child: DecoratedBox(
         decoration: BoxDecoration(
           color: AppColors.surface,
-          borderRadius: BorderRadius.circular(32), // Rounded custom shape (Image #1)
+          borderRadius: BorderRadius.circular(
+            32,
+          ), // Rounded custom shape (Image #1)
           border: Border.all(color: AppColors.cardBorder, width: 1.0),
           boxShadow: [
             BoxShadow(
-              color: AppColors.cardShadow.withValues(alpha: AppColors.isDark ? 0.3 : 0.05),
+              color: AppColors.cardShadow.withValues(
+                alpha: AppColors.isDark ? 0.3 : 0.05,
+              ),
               blurRadius: 24,
               offset: const Offset(0, 8),
             ),
             BoxShadow(
-              color: AppColors.cardShadowAmbient.withValues(alpha: AppColors.isDark ? 0.22 : 0.03),
+              color: AppColors.cardShadowAmbient.withValues(
+                alpha: AppColors.isDark ? 0.22 : 0.03,
+              ),
               blurRadius: 40,
               offset: const Offset(0, 16),
               spreadRadius: -12,

@@ -17,7 +17,7 @@
 
 import { prisma } from '../../config/prisma'
 import { writeAudit } from '../../lib/audit'
-import { ConflictError, ForbiddenError, NotFoundError } from '../../lib/errors'
+import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from '../../lib/errors'
 import { isStakeholder } from '../../lib/permissions'
 import type {
   UpdateWorkspaceInput,
@@ -323,6 +323,94 @@ export async function getRoleAssignments(
  *
  * Requirements: 3.8, 3.9, 13.10, 13.11
  */
+async function assertTargetUserInWorkspace(
+  workspaceId: string,
+  userId: string,
+): Promise<void> {
+  const employee = await (prisma as any).employee.findFirst({
+    where: { workspaceId, userId },
+    select: { id: true },
+  })
+
+  if (employee) return
+
+  const existingMembership = await (prisma as any).roleAssignment.findFirst({
+    where: { workspaceId, userId },
+    select: { id: true },
+  })
+
+  if (!existingMembership) {
+    throw new ForbiddenError('User tidak terdaftar di workspace ini')
+  }
+}
+
+async function validateRoleScope(
+  workspaceId: string,
+  input: AssignRoleInput,
+): Promise<{ scopeType: AssignRoleInput['scopeType']; scopeId: string | null }> {
+  const scopeId = input.scopeId?.trim() || null
+
+  if (input.scopeType === 'workspace') {
+    if (scopeId !== null) {
+      throw new ValidationError('Scope workspace tidak boleh memiliki scopeId')
+    }
+    return { scopeType: 'workspace', scopeId: null }
+  }
+
+  if (input.scopeType === 'department') {
+    if (!scopeId) {
+      throw new ValidationError('scopeId department wajib diisi')
+    }
+    const department = await (prisma as any).department.findFirst({
+      where: { id: scopeId, workspaceId },
+      select: { id: true },
+    })
+    if (!department) {
+      throw new NotFoundError('Department')
+    }
+    return { scopeType: 'department', scopeId }
+  }
+
+  if (input.scopeType === 'location') {
+    if (!scopeId) {
+      throw new ValidationError('scopeId lokasi wajib diisi')
+    }
+    const location = await (prisma as any).location.findFirst({
+      where: { id: scopeId, workspaceId },
+      select: { id: true },
+    })
+    if (!location) {
+      throw new NotFoundError('Lokasi')
+    }
+    return { scopeType: 'location', scopeId }
+  }
+
+  throw new ValidationError('Scope role tidak valid')
+}
+
+async function resolvePermissionIds(
+  permissions: string[] | undefined,
+): Promise<{ ids: string[]; keys: string[] }> {
+  const requestedKeys = [...new Set((permissions ?? []).map((key) => key.trim()).filter(Boolean))]
+  if (requestedKeys.length === 0) {
+    return { ids: [], keys: [] }
+  }
+
+  const perms = await (prisma as any).permission.findMany({
+    where: { key: { in: requestedKeys } },
+    select: { id: true, key: true },
+  })
+  const rows = perms as Array<{ id: string; key: string }>
+  const foundKeys = new Set(rows.map((p) => p.key))
+  const missingKeys = requestedKeys.filter((key) => !foundKeys.has(key))
+
+  if (missingKeys.length > 0) {
+    throw new ValidationError('Permission tidak dikenal', { permissions: missingKeys })
+  }
+
+  return { ids: rows.map((p) => p.id), keys: requestedKeys }
+}
+
 export async function assignRole(params: {
   workspaceId: string
   input: AssignRoleInput
@@ -349,14 +437,17 @@ export async function assignRole(params: {
     throw new NotFoundError('User')
   }
 
+  await assertTargetUserInWorkspace(workspaceId, input.userId)
+  const normalizedScope = await validateRoleScope(workspaceId, input)
+
   // Check if this exact role assignment already exists
   const existingAssignment = await (prisma as any).roleAssignment.findFirst({
     where: {
       workspaceId,
       userId: input.userId,
       role: input.role,
-      scopeType: input.scopeType,
-      scopeId: input.scopeId ?? null,
+      scopeType: normalizedScope.scopeType,
+      scopeId: normalizedScope.scopeId,
     },
   })
 
@@ -364,15 +455,7 @@ export async function assignRole(params: {
     throw new ConflictError('Penugasan peran dengan kombinasi yang sama sudah ada')
   }
 
-  // Resolve permission IDs if permissions provided (R3.9)
-  let resolvedPermIds: string[] = []
-  if (input.permissions && input.permissions.length > 0) {
-    const perms = await (prisma as any).permission.findMany({
-      where: { key: { in: input.permissions } },
-      select: { id: true, key: true },
-    })
-    resolvedPermIds = (perms as Array<{ id: string; key: string }>).map((p) => p.id)
-  }
+  const resolvedPermissions = await resolvePermissionIds(input.permissions)
 
   // Create RoleAssignment + RoleAssignmentPermission records
   const assignment = await (prisma as any).roleAssignment.create({
@@ -380,10 +463,10 @@ export async function assignRole(params: {
       workspaceId,
       userId: input.userId,
       role: input.role,
-      scopeType: input.scopeType,
-      scopeId: input.scopeId ?? null,
+      scopeType: normalizedScope.scopeType,
+      scopeId: normalizedScope.scopeId,
       permissions: {
-        create: resolvedPermIds.map((permId) => ({
+        create: resolvedPermissions.ids.map((permId) => ({
           permissionId: permId,
         })),
       },
@@ -406,9 +489,9 @@ export async function assignRole(params: {
     newValue: {
       userId: input.userId,
       role: input.role,
-      scopeType: input.scopeType,
-      scopeId: input.scopeId ?? null,
-      permissions: input.permissions,
+      scopeType: normalizedScope.scopeType,
+      scopeId: normalizedScope.scopeId,
+      permissions: resolvedPermissions.keys,
     },
     ipAddress,
     userAgent,

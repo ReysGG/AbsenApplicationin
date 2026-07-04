@@ -436,7 +436,7 @@ class _LeaveCard extends StatelessWidget {
                                   ),
                                   const SizedBox(height: 2),
                                   Text(
-                                    '$dateLabel · ${request.dayCount} hari',
+                                    '$dateLabel - ${request.dayCount} hari',
                                     style: AppTypography.bodySm.copyWith(
                                       color: AppColors.onSurfaceVariant,
                                     ),

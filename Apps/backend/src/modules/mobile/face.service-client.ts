@@ -50,9 +50,14 @@ export async function analyzeFaceImage(
   const timeout = setTimeout(() => controller.abort(), env.FACE_SERVICE_TIMEOUT_MS)
 
   try {
+    const headers: Record<string, string> = { 'content-type': 'application/json' }
+    if (env.FACE_SERVICE_API_KEY) {
+      headers['x-internal-api-key'] = env.FACE_SERVICE_API_KEY
+    }
+
     const response = await fetch(`${env.FACE_SERVICE_URL}/v1/face/analyze`, {
       method: 'POST',
-      headers: { 'content-type': 'application/json' },
+      headers,
       body: JSON.stringify({ imageBase64, mode }),
       signal: controller.signal,
     })

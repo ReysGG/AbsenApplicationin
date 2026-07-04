@@ -326,6 +326,7 @@ describe('createEmployee', () => {
   })
 
   it('throws ConflictError when email already exists in workspace (R7.6, R7.7)', async () => {
+    vi.mocked(prisma.department.findFirst).mockResolvedValueOnce({ id: DEPT_ID } as never)
     vi.mocked(prisma.employee.findFirst).mockResolvedValueOnce({ id: 'other-emp' } as never)
 
     await expect(
@@ -346,10 +347,11 @@ describe('createEmployee', () => {
   })
 
   it('throws ConflictError when employeeCode already exists in workspace (R7.5)', async () => {
+    vi.mocked(prisma.department.findFirst).mockResolvedValueOnce({ id: DEPT_ID } as never)
     vi.mocked(prisma.employee.findFirst)
       .mockResolvedValueOnce(null as never)         // email: ok
       .mockResolvedValueOnce({ id: 'other' } as never) // code: duplicate
-    
+
     await expect(
       createEmployee({
         workspaceId: WORKSPACE_ID,
@@ -528,6 +530,7 @@ describe('updateEmployee', () => {
       assignedLocationId: null,
     } as never)
 
+    vi.mocked(prisma.department.findFirst).mockResolvedValueOnce({ id: DEPT_ID } as never)
     vi.mocked(prisma.employee.update).mockResolvedValueOnce({
       ...baseEmployee,
       position: 'Senior Developer',

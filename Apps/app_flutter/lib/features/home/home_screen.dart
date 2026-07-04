@@ -160,10 +160,10 @@ class _Header extends StatelessWidget {
 
   String _motivasi(DateTime now) {
     final h = now.hour;
-    if (h < 11) return 'Semangat pagi ini! ☀️';
-    if (h < 15) return 'Semangat bekerja hari ini! 👋';
-    if (h < 18) return 'Tetap semangat sore ini! 💪';
-    return 'Istirahat yang cukup ya! 🌙';
+    if (h < 11) return 'Semangat pagi ini!';
+    if (h < 15) return 'Semangat bekerja hari ini!';
+    if (h < 18) return 'Tetap semangat sore ini!';
+    return 'Istirahat yang cukup ya!';
   }
 
   @override
@@ -282,7 +282,11 @@ class _BellButton extends StatelessWidget {
 // ── "Waktu Saat Ini" card ────────────────────────────────────────────────────
 
 class _TimeCard extends StatelessWidget {
-  const _TimeCard({required this.now, required this.shift, required this.status});
+  const _TimeCard({
+    required this.now,
+    required this.shift,
+    required this.status,
+  });
 
   final DateTime now;
   final Shift? shift;
@@ -332,22 +336,25 @@ class _TimeCard extends StatelessWidget {
                   Row(
                     crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
-                      Text(
-                        Formatters.time(now),
-                        style: AppTypography.display.copyWith(
-                          fontSize: 38,
-                          height: 1.0,
-                          fontWeight: FontWeight.w800,
-                          color: AppColors.primary,
+                      Flexible(
+                        child: FittedBox(
+                          fit: BoxFit.scaleDown,
+                          alignment: Alignment.centerLeft,
+                          child: Text(
+                            Formatters.time(now),
+                            style: AppTypography.display.copyWith(
+                              fontSize: 38,
+                              height: 1.0,
+                              fontWeight: FontWeight.w800,
+                              color: AppColors.primary,
+                            ),
+                          ),
                         ),
                       ),
                       const SizedBox(width: 8),
                       Padding(
                         padding: const EdgeInsets.only(bottom: 6),
-                        child: _Chip(
-                          label: 'WIB',
-                          color: AppColors.primary,
-                        ),
+                        child: _Chip(label: 'WIB', color: AppColors.primary),
                       ),
                     ],
                   ),
@@ -396,7 +403,7 @@ class _TimeCard extends StatelessWidget {
                     ),
                   ] else
                     Text(
-                      'Memuat status…',
+                      'Memuat status...',
                       style: AppTypography.bodySm.copyWith(
                         color: AppColors.onSurfaceVariant,
                       ),
@@ -427,144 +434,147 @@ class _StatusCard extends StatelessWidget {
     final modeLabel = shift?.workMode.label ?? 'WFO';
 
     return SolidCard(
-      entrance: false,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
+          entrance: false,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              Row(
+                children: [
+                  Container(
+                    width: 34,
+                    height: 34,
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      color: AppColors.primary.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(AppRadius.md),
+                    ),
+                    child: Icon(
+                      Icons.badge_rounded,
+                      size: 18,
+                      color: AppColors.primary,
+                    ),
+                  ),
+                  const SizedBox(width: AppSpacing.sm),
+                  Text(
+                    'Status Hari Ini',
+                    style: AppTypography.titleLg.copyWith(
+                      color: AppColors.onSurface,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  const Spacer(),
+                  _Chip(
+                    label: modeLabel,
+                    color: AppColors.primary,
+                    icon: modeLabel == 'WFH'
+                        ? Icons.home_work_rounded
+                        : Icons.business_rounded,
+                  ),
+                ],
+              ),
+              const SizedBox(height: AppSpacing.md),
+              // Status banner
               Container(
-                width: 34,
-                height: 34,
-                alignment: Alignment.center,
+                padding: const EdgeInsets.all(AppSpacing.sm + 2),
                 decoration: BoxDecoration(
-                  color: AppColors.primary.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(AppRadius.md),
+                  color: s.color.withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(AppRadius.lg),
                 ),
-                child: Icon(
-                  Icons.badge_rounded,
-                  size: 18,
-                  color: AppColors.primary,
+                child: Row(
+                  children: [
+                    Container(
+                      width: 48,
+                      height: 48,
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(
+                        color: s.color.withValues(alpha: 0.14),
+                        borderRadius: BorderRadius.circular(AppRadius.md),
+                      ),
+                      child: Icon(s.icon, color: s.color, size: 26),
+                    ),
+                    const SizedBox(width: AppSpacing.sm),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            s.label,
+                            style: AppTypography.titleLg.copyWith(
+                              color: s.color,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            s.hint,
+                            style: AppTypography.bodySm.copyWith(
+                              color: AppColors.onSurfaceVariant,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
               ),
-              const SizedBox(width: AppSpacing.sm),
-              Text(
-                'Status Hari Ini',
-                style: AppTypography.titleLg.copyWith(
-                  color: AppColors.onSurface,
-                  fontWeight: FontWeight.w800,
+              const SizedBox(height: AppSpacing.md),
+              // Primary action
+              if (s.done)
+                OutlinedButton.icon(
+                  onPressed: null,
+                  icon: const Icon(Icons.check_circle_outline_rounded),
+                  label: const Text('Absensi Hari Ini Selesai'),
+                  style: OutlinedButton.styleFrom(
+                    minimumSize: const Size.fromHeight(52),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(AppRadius.xl),
+                    ),
+                  ),
+                )
+              else
+                _ActionButton(
+                  checkout: hasIn,
+                  onPressed: () {
+                    if (!hasIn) {
+                      context.push(AppRoutes.checkinPrep);
+                    } else {
+                      final wm = today.checkIn?.workMode?.name ?? 'wfo';
+                      context.push(
+                        '${AppRoutes.checkinPrep}?mode=checkout&wm=$wm',
+                      );
+                    }
+                  },
                 ),
+              const SizedBox(height: AppSpacing.sm),
+              const Divider(height: AppSpacing.md),
+              _InfoRow(
+                icon: Icons.schedule_rounded,
+                title: shift?.rangeLabel ?? 'Belum ada shift',
+                subtitle: 'Jam kerja hari ini',
+                onTap: () => context.go(AppRoutes.schedule),
               ),
-              const Spacer(),
-              _Chip(
-                label: modeLabel,
-                color: AppColors.primary,
+              const Divider(height: AppSpacing.md),
+              _InfoRow(
                 icon: modeLabel == 'WFH'
                     ? Icons.home_work_rounded
                     : Icons.business_rounded,
+                title: '$modeLabel - ${shift?.name ?? 'Lokasi kerja'}',
+                subtitle: 'Mode & lokasi kerja',
+                onTap: () => context.go(AppRoutes.schedule),
+              ),
+              const Divider(height: AppSpacing.md),
+              _InfoRow(
+                icon: Icons.logout_rounded,
+                title: 'Jam pulang: ${shift?.endLabel ?? '--:--'} WIB',
+                subtitle: 'Sesuai jadwal shift',
+                onTap: () => context.go(AppRoutes.schedule),
               ),
             ],
           ),
-          const SizedBox(height: AppSpacing.md),
-          // Status banner
-          Container(
-            padding: const EdgeInsets.all(AppSpacing.sm + 2),
-            decoration: BoxDecoration(
-              color: s.color.withValues(alpha: 0.08),
-              borderRadius: BorderRadius.circular(AppRadius.lg),
-            ),
-            child: Row(
-              children: [
-                Container(
-                  width: 48,
-                  height: 48,
-                  alignment: Alignment.center,
-                  decoration: BoxDecoration(
-                    color: s.color.withValues(alpha: 0.14),
-                    borderRadius: BorderRadius.circular(AppRadius.md),
-                  ),
-                  child: Icon(s.icon, color: s.color, size: 26),
-                ),
-                const SizedBox(width: AppSpacing.sm),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        s.label,
-                        style: AppTypography.titleLg.copyWith(
-                          color: s.color,
-                          fontWeight: FontWeight.w800,
-                        ),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        s.hint,
-                        style: AppTypography.bodySm.copyWith(
-                          color: AppColors.onSurfaceVariant,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: AppSpacing.md),
-          // Primary action
-          if (s.done)
-            OutlinedButton.icon(
-              onPressed: null,
-              icon: const Icon(Icons.check_circle_outline_rounded),
-              label: const Text('Absensi Hari Ini Selesai'),
-              style: OutlinedButton.styleFrom(
-                minimumSize: const Size.fromHeight(52),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(AppRadius.xl),
-                ),
-              ),
-            )
-          else
-            _ActionButton(
-              checkout: hasIn,
-              onPressed: () {
-                if (!hasIn) {
-                  context.push(AppRoutes.checkinPrep);
-                } else {
-                  final wm = today.checkIn?.workMode?.name ?? 'wfo';
-                  context.push(
-                    '${AppRoutes.checkinPrep}?mode=checkout&wm=$wm',
-                  );
-                }
-              },
-            ),
-          const SizedBox(height: AppSpacing.sm),
-          const Divider(height: AppSpacing.md),
-          _InfoRow(
-            icon: Icons.schedule_rounded,
-            title: shift?.rangeLabel ?? 'Belum ada shift',
-            subtitle: 'Jam kerja hari ini',
-            onTap: () => context.go(AppRoutes.schedule),
-          ),
-          const Divider(height: AppSpacing.md),
-          _InfoRow(
-            icon: modeLabel == 'WFH'
-                ? Icons.home_work_rounded
-                : Icons.business_rounded,
-            title: '$modeLabel · ${shift?.name ?? 'Lokasi kerja'}',
-            subtitle: 'Mode & lokasi kerja',
-            onTap: () => context.go(AppRoutes.schedule),
-          ),
-          const Divider(height: AppSpacing.md),
-          _InfoRow(
-            icon: Icons.logout_rounded,
-            title: 'Jam pulang: ${shift?.endLabel ?? '--:--'} WIB',
-            subtitle: 'Sesuai jadwal shift',
-            onTap: () => context.go(AppRoutes.schedule),
-          ),
-        ],
-      ),
-    ).animate().fadeIn(duration: 320.ms).slideY(begin: 0.06, curve: Curves.easeOut);
+        )
+        .animate()
+        .fadeIn(duration: 320.ms)
+        .slideY(begin: 0.06, curve: Curves.easeOut);
   }
 }
 
@@ -693,10 +703,7 @@ class _InfoRow extends StatelessWidget {
                 ],
               ),
             ),
-            Icon(
-              Icons.chevron_right_rounded,
-              color: AppColors.outline,
-            ),
+            Icon(Icons.chevron_right_rounded, color: AppColors.outline),
           ],
         ),
       ),
@@ -1006,8 +1013,10 @@ class _FaceEnrollBanner extends StatelessWidget {
               color: AppColors.pending.withValues(alpha: 0.16),
               borderRadius: BorderRadius.circular(AppRadius.md),
             ),
-            child: Icon(Icons.face_retouching_natural_rounded,
-                color: AppColors.pending),
+            child: Icon(
+              Icons.face_retouching_natural_rounded,
+              color: AppColors.pending,
+            ),
           ),
           const SizedBox(width: AppSpacing.sm),
           Expanded(

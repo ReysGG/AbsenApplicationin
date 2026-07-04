@@ -28,6 +28,9 @@ uvicorn app.main:app --host 0.0.0.0 --port 4100
 - `FACE_MODEL_NAME`: InsightFace model pack name. Default: `buffalo_l`.
 - `FACE_MODEL_ROOT`: Directory containing InsightFace models. Default: `/models`.
 - `FACE_DET_SIZE`: Detector size in `WIDTHxHEIGHT` format. Default: `640x640`.
+- `FACE_SERVICE_API_KEY`: Optional internal credential for `/v1/face/analyze`.
+  Set this in Docker/production and have the backend send it via
+  `x-internal-api-key`. Leave empty only for isolated local development.
 
 ## Model setup
 
@@ -56,8 +59,8 @@ Two ways to provide the model:
    python3 -c "import zipfile;zipfile.ZipFile('/tmp/buffalo_l.zip').extractall('/tmp/blz')"
    find /tmp/blz -name '*.onnx' -exec cp -f {} "$TARGET"/ \;
    docker compose restart face-service
-   # verify:
-   curl -s http://localhost:10003/health   # expect {"ready":true,...}
+   # verify inside the internal container network:
+   docker compose exec face-service python -c "import urllib.request;print(urllib.request.urlopen('http://127.0.0.1:4100/health').read().decode())"
    ```
 
    Expected files in `buffalo_l/`: `det_10g.onnx`, `w600k_r50.onnx`,

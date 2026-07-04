@@ -1,12 +1,13 @@
 import base64
 import binascii
 import os
+import secrets
 from contextlib import asynccontextmanager
 from typing import Literal
 
 import cv2
 import numpy as np
-from fastapi import FastAPI
+from fastapi import Depends, FastAPI, Header, HTTPException
 from pydantic import BaseModel, Field
 
 
@@ -59,6 +60,28 @@ _model_error: str | None = None
 # deployment can tune strictness for real phone front-cameras. Used both for the
 # obstruction hint and the hard reject in /v1/face/analyze.
 QUALITY_MIN_SCORE = float(os.getenv("FACE_QUALITY_MIN_SCORE", "0.45"))
+FACE_SERVICE_API_KEY = os.getenv("FACE_SERVICE_API_KEY", "").strip()
+
+
+def _extract_bearer_token(authorization: str | None) -> str | None:
+    if not authorization:
+        return None
+    scheme, _, token = authorization.partition(" ")
+    if scheme.lower() != "bearer" or not token:
+        return None
+    return token.strip()
+
+
+def require_internal_api_key(
+    x_internal_api_key: str | None = Header(default=None),
+    authorization: str | None = Header(default=None),
+) -> None:
+    if not FACE_SERVICE_API_KEY:
+        return
+
+    provided = (x_internal_api_key or _extract_bearer_token(authorization) or "").strip()
+    if not provided or not secrets.compare_digest(provided, FACE_SERVICE_API_KEY):
+        raise HTTPException(status_code=401, detail="Invalid internal face-service credential")
 
 
 def _parse_det_size(value: str) -> tuple[int, int]:
@@ -189,7 +212,11 @@ def health() -> HealthResponse:
     )
 
 
-@app.post("/v1/face/analyze", response_model=AnalyzeSuccess | AnalyzeReject)
+@app.post(
+    "/v1/face/analyze",
+    response_model=AnalyzeSuccess | AnalyzeReject,
+    dependencies=[Depends(require_internal_api_key)],
+)
 def analyze_face(payload: AnalyzeRequest) -> AnalyzeSuccess | AnalyzeReject:
     if _face_app is None:
         return AnalyzeReject(

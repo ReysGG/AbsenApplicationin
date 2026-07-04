@@ -13,8 +13,9 @@
 import type { Request, Response, NextFunction, RequestHandler } from 'express'
 import { prisma } from '../config/prisma'
 import { ForbiddenError, UnauthenticatedError } from '../lib/errors'
+import type { PlatformGlobalRole } from '../types/auth'
 
-const PLATFORM_ROLES = ['super_admin', 'admin_platform']
+const PLATFORM_ROLES: PlatformGlobalRole[] = ['super_admin', 'admin_platform']
 
 export function requirePlatformAdmin(): RequestHandler {
   return async (req: Request, _res: Response, next: NextFunction): Promise<void> => {
@@ -28,8 +29,14 @@ export function requirePlatformAdmin(): RequestHandler {
         select: { globalRole: true },
       })
 
-      if (!dbUser || !PLATFORM_ROLES.includes(dbUser.globalRole as string)) {
+      const globalRole = dbUser?.globalRole as PlatformGlobalRole | undefined
+      if (!globalRole || !PLATFORM_ROLES.includes(globalRole)) {
         return next(new ForbiddenError('Akses platform admin diperlukan'))
+      }
+
+      req.platformActor = {
+        userId: req.user.userId,
+        globalRole,
       }
 
       return next()

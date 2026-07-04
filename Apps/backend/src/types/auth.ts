@@ -49,6 +49,17 @@ export interface ScopeFilter {
 }
 
 // ---------------------------------------------------------------------------
+// Platform admin context
+// ---------------------------------------------------------------------------
+
+export type PlatformGlobalRole = 'super_admin' | 'admin_platform'
+
+export interface PlatformActor {
+  userId: string
+  globalRole: PlatformGlobalRole
+}
+
+// ---------------------------------------------------------------------------
 // Authenticated user context
 // ---------------------------------------------------------------------------
 

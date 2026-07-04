@@ -32,12 +32,14 @@ vi.mock('../config/prisma', () => {
     create: vi.fn(),
     update: vi.fn(),
   }
-  const base = { attendanceLog, shift, location, employeeWfhLocation, leaveRequest }
+  const attendanceRawLog = { create: vi.fn() }
+  const base = { attendanceLog, shift, location, employeeWfhLocation, leaveRequest, attendanceRawLog }
   return {
     // `$transaction(fn)` executes the callback with the same mocked client so
     // unit tests don't need a real DB; isolation-level options are ignored.
     prisma: {
       ...base,
+      $queryRaw: vi.fn(),
       $transaction: vi.fn(async (fn: (tx: typeof base) => unknown) => fn(base)),
     },
   }
@@ -47,7 +49,19 @@ vi.mock('../config/env', () => ({
   env: {
     NODE_ENV: 'test',
     INTERNAL_JWT_SECRET: 'test-secret-minimum-32-characters-long-ok',
+    FACE_MATCH_THRESHOLD: 0.6,
+    FACE_QUALITY_MIN_SCORE: 0.65,
   },
+}))
+
+vi.mock('../modules/mobile/face.service-client', () => ({
+  analyzeFaceImage: vi.fn().mockResolvedValue({
+    ok: true,
+    embedding: [1, 0, 0],
+    model: 'test-face-model',
+    embeddingDim: 3,
+    quality: { score: 0.95, faceCount: 1 },
+  }),
 }))
 
 // ---------------------------------------------------------------------------
@@ -129,10 +143,18 @@ const validInput = {
   faceVerified: true,
   livenessPassed: true,
   isMocked: false,
+  faceImageBase64: '/9j/4AAQSkZJRgABAQAAAQABAAD/2w==',
+}
+
+const activeFaceProfile = {
+  embedding: [1, 0, 0],
+  matchThreshold: 0.6,
+  embeddingModel: 'test-face-model',
 }
 
 beforeEach(() => {
   vi.clearAllMocks()
+  ;(prisma.$queryRaw as any).mockResolvedValue([activeFaceProfile])
 })
 
 // ---------------------------------------------------------------------------
@@ -170,7 +192,7 @@ describe('checkIn — geofence', () => {
     ;(prisma.location.findFirst as any).mockResolvedValue(officeLocation)
 
     await expect(
-      checkIn(employee, { ...validInput, faceVerified: false }),
+      checkIn(employee, { ...validInput, livenessPassed: false }),
     ).rejects.toBeInstanceOf(ValidationError)
   })
 })
