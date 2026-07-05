@@ -11,6 +11,8 @@ import '../../core/theme/app_spacing.dart';
 import '../../core/theme/app_typography.dart';
 import '../../core/utils/formatters.dart';
 import '../../core/widgets/solid_card.dart';
+import '../../shared/data/attendance_repository.dart';
+import '../../shared/models/enums.dart';
 import '../../shared/models/shift.dart';
 import '../auth/auth_controller.dart';
 import 'home_controller.dart';
@@ -423,15 +425,19 @@ class _TimeCard extends StatelessWidget {
 class _StatusCard extends StatelessWidget {
   const _StatusCard({required this.today, required this.shift});
 
-  final dynamic today;
+  final TodayAttendance today;
   final Shift? shift;
+
+  WorkMode get _activeWorkMode =>
+      today.checkIn?.workMode ?? today.checkOut?.workMode ?? shift?.workMode ?? WorkMode.wfo;
 
   @override
   Widget build(BuildContext context) {
-    final hasIn = today.hasCheckedIn as bool;
-    final hasOut = today.hasCheckedOut as bool;
+    final hasIn = today.hasCheckedIn;
+    final hasOut = today.hasCheckedOut;
     final s = _statusFor(hasIn, hasOut);
-    final modeLabel = shift?.workMode.label ?? 'WFO';
+    final activeWorkMode = _activeWorkMode;
+    final modeLabel = activeWorkMode.label;
 
     return SolidCard(
           entrance: false,
@@ -538,10 +544,14 @@ class _StatusCard extends StatelessWidget {
                     if (!hasIn) {
                       context.push(AppRoutes.checkinPrep);
                     } else {
-                      final wm = today.checkIn?.workMode?.name ?? 'wfo';
-                      context.push(
-                        '${AppRoutes.checkinPrep}?mode=checkout&wm=$wm',
-                      );
+                      final route = Uri(
+                        path: AppRoutes.checkinPrep,
+                        queryParameters: {
+                          'mode': 'checkout',
+                          'wm': activeWorkMode.name,
+                        },
+                      ).toString();
+                      context.push(route);
                     }
                   },
                 ),
@@ -589,6 +599,25 @@ class _ActionButton extends StatefulWidget {
 
 class _ActionButtonState extends State<_ActionButton> {
   double _scale = 1.0;
+  bool _navigating = false;
+
+  void _setScale(double value) {
+    if (_navigating || !mounted) return;
+    setState(() => _scale = value);
+  }
+
+  void _handleTap() {
+    if (_navigating) return;
+    setState(() {
+      _navigating = true;
+      _scale = 1.0;
+    });
+    widget.onPressed();
+    Future<void>.delayed(const Duration(milliseconds: 600), () {
+      if (!mounted) return;
+      setState(() => _navigating = false);
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -596,53 +625,59 @@ class _ActionButtonState extends State<_ActionButton> {
     final colors = checkout
         ? AppColors.accentGradient(AppColors.accentRose)
         : AppColors.headerGradient;
-    return GestureDetector(
-      behavior: HitTestBehavior.opaque,
-      onTapDown: (_) => setState(() => _scale = 0.97),
-      onTapUp: (_) => setState(() => _scale = 1.0),
-      onTapCancel: () => setState(() => _scale = 1.0),
-      onTap: widget.onPressed,
-      child: AnimatedScale(
-        scale: _scale,
-        duration: const Duration(milliseconds: 110),
-        child: Container(
-          width: double.infinity,
-          height: 54,
-          alignment: Alignment.center,
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(AppRadius.xl),
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: colors,
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: (checkout ? AppColors.accentRose : AppColors.primary)
-                    .withValues(alpha: 0.32),
-                blurRadius: 18,
-                offset: const Offset(0, 8),
-                spreadRadius: -4,
+    final label = checkout ? 'Check-out Sekarang' : 'Check-in Sekarang';
+    return Semantics(
+      button: true,
+      enabled: !_navigating,
+      label: label,
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTapDown: (_) => _setScale(0.97),
+        onTapUp: (_) => _setScale(1.0),
+        onTapCancel: () => _setScale(1.0),
+        onTap: _navigating ? null : _handleTap,
+        child: AnimatedScale(
+          scale: _scale,
+          duration: const Duration(milliseconds: 110),
+          child: Container(
+            width: double.infinity,
+            height: 54,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(AppRadius.xl),
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: colors,
               ),
-            ],
-          ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(
-                checkout ? Icons.logout_rounded : Icons.login_rounded,
-                color: Colors.white,
-                size: 20,
-              ),
-              const SizedBox(width: AppSpacing.sm),
-              Text(
-                checkout ? 'Check-out Sekarang' : 'Check-in Sekarang',
-                style: AppTypography.bodyLg.copyWith(
-                  color: Colors.white,
-                  fontWeight: FontWeight.w800,
+              boxShadow: [
+                BoxShadow(
+                  color: (checkout ? AppColors.accentRose : AppColors.primary)
+                      .withValues(alpha: 0.32),
+                  blurRadius: 18,
+                  offset: const Offset(0, 8),
+                  spreadRadius: -4,
                 ),
-              ),
-            ],
+              ],
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  checkout ? Icons.logout_rounded : Icons.login_rounded,
+                  color: Colors.white,
+                  size: 20,
+                ),
+                const SizedBox(width: AppSpacing.sm),
+                Text(
+                  label,
+                  style: AppTypography.bodyLg.copyWith(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),

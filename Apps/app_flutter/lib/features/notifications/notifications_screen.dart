@@ -14,11 +14,18 @@ import '../../core/widgets/lottie_icon.dart';
 import '../../shared/models/app_notification.dart';
 import 'notifications_controller.dart';
 
-class NotificationsScreen extends ConsumerWidget {
+class NotificationsScreen extends ConsumerStatefulWidget {
   const NotificationsScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<NotificationsScreen> createState() => _NotificationsScreenState();
+}
+
+class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
+  bool _markingAllRead = false;
+
+  @override
+  Widget build(BuildContext context) {
     final async = ref.watch(notificationsListProvider);
 
     return Scaffold(
@@ -29,11 +36,18 @@ class NotificationsScreen extends ConsumerWidget {
             title: 'Notifikasi',
             subtitle: 'Pengingat dan status aktivitas Anda',
             trailing: BrandHeaderAction(
-              icon: Icons.done_all_rounded,
-              onTap: () async {
-                await ref.read(notificationRepositoryProvider).markAllRead();
-                ref.invalidate(notificationsListProvider);
-              },
+              icon: _markingAllRead ? Icons.hourglass_top_rounded : Icons.done_all_rounded,
+              onTap: _markingAllRead
+                  ? null
+                  : () async {
+                      setState(() => _markingAllRead = true);
+                      try {
+                        await ref.read(notificationRepositoryProvider).markAllRead();
+                        ref.invalidate(notificationsListProvider);
+                      } finally {
+                        if (mounted) setState(() => _markingAllRead = false);
+                      }
+                    },
               tooltip: 'Tandai Semua Dibaca',
             ),
           ),

@@ -78,6 +78,7 @@ class _CreateLeaveScreenState extends ConsumerState<CreateLeaveScreen>
   }
 
   Future<void> _submit() async {
+    if (_submitting) return;
     final valid = _formKey.currentState!.validate();
     if (!valid || _start == null || _end == null) {
       _shakeCtrl.forward(from: 0);

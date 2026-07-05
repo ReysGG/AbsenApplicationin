@@ -39,6 +39,7 @@ class AuthController extends StateNotifier<AuthState> {
   }
 
   final Ref _ref;
+  bool _appLockUpdating = false;
 
   Future<void> _restore() async {
     try {
@@ -85,9 +86,15 @@ class AuthController extends StateNotifier<AuthState> {
   }
 
   Future<void> setAppLockEnabled(bool enabled) async {
-    final tokenStore = _ref.read(tokenStoreProvider);
-    await tokenStore.setAppLockEnabled(enabled);
-    state = state.copyWith(isAppLockEnabled: enabled);
+    if (_appLockUpdating || state.isAppLockEnabled == enabled) return;
+    _appLockUpdating = true;
+    try {
+      final tokenStore = _ref.read(tokenStoreProvider);
+      await tokenStore.setAppLockEnabled(enabled);
+      state = state.copyWith(isAppLockEnabled: enabled);
+    } finally {
+      _appLockUpdating = false;
+    }
   }
 
   void unlock() {

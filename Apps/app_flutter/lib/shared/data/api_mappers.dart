@@ -21,8 +21,15 @@ abstract final class ApiMappers {
     _ => AttendanceStatus.invalid,
   };
 
-  static WorkMode workMode(String? v) =>
-      v == 'wfh' ? WorkMode.wfh : WorkMode.wfo;
+  static WorkMode workMode(String? v) {
+    final normalized = (v ?? '').trim().toLowerCase().replaceAll('-', '_');
+    return switch (normalized) {
+      'wfh' || 'work_from_home' || 'work from home' || 'remote' => WorkMode.wfh,
+      'wfo' || 'work_from_office' || 'work from office' || 'office' || 'onsite' =>
+        WorkMode.wfo,
+      _ => WorkMode.wfo,
+    };
+  }
 
   static VerificationStatus faceStatus(String? v) => switch (v) {
     'passed' => VerificationStatus.passed,
@@ -94,7 +101,7 @@ abstract final class ApiMappers {
       date: date,
       startTime: _hm(j['startTime'] as String),
       endTime: _hm(j['endTime'] as String),
-      workMode: WorkMode.wfo,
+      workMode: workMode(j['workMode'] as String?),
       gracePeriodMinutes: (j['gracePeriodMinutes'] as num?)?.toInt() ?? 10,
     );
   }

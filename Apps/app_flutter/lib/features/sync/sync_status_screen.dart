@@ -76,10 +76,17 @@ class SyncStatusScreen extends ConsumerWidget {
               if (pending > 0)
                 Pressable(
                   child: FilledButton.icon(
-                    onPressed: () =>
-                        ref.read(syncQueueProvider.notifier).syncNow(),
-                    icon: const Icon(Icons.sync_rounded),
-                    label: const Text('Sinkronkan Sekarang'),
+                    onPressed: syncing
+                        ? null
+                        : () => ref.read(syncQueueProvider.notifier).syncNow(),
+                    icon: syncing
+                        ? const SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Icon(Icons.sync_rounded),
+                    label: Text(syncing ? 'Menyinkronkan...' : 'Sinkronkan Sekarang'),
                     style: FilledButton.styleFrom(
                       minimumSize: const Size.fromHeight(48),
                       shape: RoundedRectangleBorder(

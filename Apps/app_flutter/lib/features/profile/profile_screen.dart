@@ -40,7 +40,12 @@ class ProfileScreen extends ConsumerWidget {
             subtitle: profile?.workspaceName ?? 'AttendX',
             trailing: BrandHeaderAction(
               icon: Icons.settings_rounded,
-              onTap: () {},
+              onTap: () => _showComingSoon(
+                context,
+                title: 'Pengaturan',
+                message:
+                    'Pengaturan lengkap sedang disiapkan. Untuk sekarang, gunakan menu pengaturan di halaman ini.',
+              ),
               tooltip: 'Pengaturan',
             ),
           ),
@@ -431,6 +436,26 @@ class ProfileScreen extends ConsumerWidget {
                     ),
               ],
             ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showComingSoon(
+    BuildContext context, {
+    required String title,
+    required String message,
+  }) {
+    showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(title),
+        content: Text(message),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Tutup'),
           ),
         ],
       ),

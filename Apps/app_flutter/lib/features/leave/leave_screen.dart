@@ -85,7 +85,8 @@ class _LeaveScreenState extends ConsumerState<LeaveScreen> {
                 request: filtered[i],
                 index: i,
                 cancelling: _cancellingId == filtered[i].id,
-                onCancel: filtered[i].status == LeaveStatus.pending
+                onCancel: filtered[i].status == LeaveStatus.pending &&
+                        _cancellingId == null
                     ? () => _cancel(filtered[i])
                     : null,
                 key: ValueKey('${_filter?.name ?? 'all'}-${filtered[i].id}'),
@@ -100,6 +101,7 @@ class _LeaveScreenState extends ConsumerState<LeaveScreen> {
   }
 
   Future<void> _cancel(LeaveRequest request) async {
+    if (_cancellingId != null) return;
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(

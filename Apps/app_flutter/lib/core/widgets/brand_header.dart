@@ -161,7 +161,7 @@ class BrandHeaderAction extends StatelessWidget {
   });
 
   final IconData icon;
-  final VoidCallback onTap;
+  final VoidCallback? onTap;
   final String? tooltip;
   final bool badge;
 

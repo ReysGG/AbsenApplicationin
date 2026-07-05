@@ -44,7 +44,22 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
               subtitle: 'Pantau kehadiran dan aktivitas Anda',
               trailing: BrandHeaderAction(
                 icon: Icons.calendar_month_rounded,
-                onTap: () {},
+                onTap: () => showDialog<void>(
+                  context: context,
+                  builder: (ctx) => AlertDialog(
+                    title: const Text('Filter Kalender'),
+                    content: const Text(
+                      'Filter berdasarkan tanggal akan tersedia di pembaruan berikutnya. '
+                      'Untuk saat ini, gunakan chip status di bawah header.',
+                    ),
+                    actions: [
+                      TextButton(
+                        onPressed: () => Navigator.pop(ctx),
+                        child: const Text('Tutup'),
+                      ),
+                    ],
+                  ),
+                ),
                 tooltip: 'Kalender',
               ),
             ),

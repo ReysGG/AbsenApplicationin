@@ -31,6 +31,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   }
 
   Future<void> _submit() async {
+    if (_loading) return;
     if (!_formKey.currentState!.validate()) return;
     FocusScope.of(context).unfocus();
     setState(() {
@@ -307,7 +308,22 @@ class _LoginCard extends StatelessWidget {
             Align(
               alignment: Alignment.centerRight,
               child: TextButton(
-                onPressed: () {},
+                onPressed: () => showDialog<void>(
+                  context: context,
+                  builder: (ctx) => AlertDialog(
+                    title: const Text('Lupa Kata Sandi?'),
+                    content: const Text(
+                      'Hubungi HR/admin perusahaan untuk reset kata sandi sementara. '
+                      'Fitur reset mandiri akan tersedia di pembaruan berikutnya.',
+                    ),
+                    actions: [
+                      TextButton(
+                        onPressed: () => Navigator.pop(ctx),
+                        child: const Text('Tutup'),
+                      ),
+                    ],
+                  ),
+                ),
                 child: const Text('Lupa Kata Sandi?'),
               ),
             ),

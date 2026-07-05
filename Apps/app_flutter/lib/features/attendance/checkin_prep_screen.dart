@@ -10,6 +10,7 @@ import '../../core/theme/app_typography.dart';
 import '../../core/widgets/page_background.dart';
 import '../../core/widgets/pressable.dart';
 import '../../core/widgets/solid_card.dart';
+import '../../shared/data/api_mappers.dart';
 import '../../shared/models/enums.dart';
 import 'checkin_flow_controller.dart';
 
@@ -45,8 +46,7 @@ class _CheckinPrepScreenState extends ConsumerState<CheckinPrepScreen> {
           widget.isCheckout ? CheckFlowKind.checkOut : CheckFlowKind.checkIn);
       // Check-out reuses the work mode chosen at check-in (don't re-ask).
       if (widget.isCheckout && widget.checkInModeName != null) {
-        notifier.setWorkMode(
-            widget.checkInModeName == 'wfh' ? WorkMode.wfh : WorkMode.wfo);
+        notifier.setWorkMode(ApiMappers.workMode(widget.checkInModeName));
       }
     });
   }

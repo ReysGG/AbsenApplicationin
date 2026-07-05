@@ -92,6 +92,7 @@ class SyncQueueController extends StateNotifier<List<SyncItem>> {
 
   final SyncService _syncService;
   StreamSubscription<bool>? _connectivitySub;
+  bool _syncing = false;
 
   Future<void> _load() async {
     try {
@@ -103,6 +104,8 @@ class SyncQueueController extends StateNotifier<List<SyncItem>> {
   }
 
   Future<void> syncNow() async {
+    if (_syncing) return;
+    _syncing = true;
     // Optimistically mark all pending as syncing in the UI.
     state = [
       for (final item in state)
@@ -112,9 +115,13 @@ class SyncQueueController extends StateNotifier<List<SyncItem>> {
           item,
     ];
 
-    await _syncService.syncPending();
-    // Reload from DB to reflect the authoritative state after sync.
-    await _load();
+    try {
+      await _syncService.syncPending();
+      // Reload from DB to reflect the authoritative state after sync.
+      await _load();
+    } finally {
+      _syncing = false;
+    }
   }
 
   @override

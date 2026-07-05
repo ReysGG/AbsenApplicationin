@@ -10,6 +10,7 @@ import 'package:go_router/go_router.dart';
 import 'package:google_mlkit_face_detection/google_mlkit_face_detection.dart';
 import 'package:screen_brightness/screen_brightness.dart';
 
+import '../../core/config/app_config.dart';
 import '../../core/network/api_exception.dart';
 import '../../core/router/app_routes.dart';
 import '../../core/services/face_liveness_service.dart';
@@ -78,9 +79,16 @@ class _FaceVerificationScreenState
   }
 
   Future<void> _submitWebBypass() async {
-    // On web, camera/ML Kit are unavailable — mark verification passed and submit.
     await Future.delayed(const Duration(milliseconds: 300));
     if (!mounted) return;
+    if (!AppConfig.useMockData) {
+      setState(
+        () => _error =
+            'Verifikasi wajah hanya tersedia di aplikasi mobile dengan kamera perangkat.',
+      );
+      return;
+    }
+
     ref.read(checkinFlowProvider.notifier).setFaceResult(
           faceVerified: true,
           liveness: true,
@@ -228,9 +236,6 @@ class _FaceVerificationScreenState
       await _controller?.stopImageStream();
     } catch (_) {}
 
-    // Best-effort: grab a still of the verified face for HR review. Never block
-    // the submission if capture fails (some devices reject takePicture right
-    // after stopping a stream).
     String? faceImageBase64;
     try {
       final controller = _controller;
@@ -239,8 +244,15 @@ class _FaceVerificationScreenState
         final bytes = await shot.readAsBytes();
         faceImageBase64 = base64Encode(bytes);
       }
-    } catch (_) {
-      // Proceed without a stored image.
+    } catch (_) {}
+
+    if (faceImageBase64 == null || faceImageBase64.isEmpty) {
+      if (!mounted) return;
+      setState(() {
+        _submitting = false;
+        _error = 'Foto wajah gagal diambil. Coba verifikasi ulang.';
+      });
+      return;
     }
 
     ref.read(checkinFlowProvider.notifier).setFaceResult(
@@ -449,9 +461,21 @@ class _FaceVerificationScreenState
   }
 
   Future<void> _retry() async {
+    final oldController = _controller;
+    _controller = null;
+    try {
+      if (oldController != null) {
+        if (oldController.value.isStreamingImages) {
+          await oldController.stopImageStream();
+        }
+        await oldController.dispose();
+      }
+    } catch (_) {}
+    if (!mounted) return;
     setState(() {
       _error = null;
       _initializing = true;
+      _submitting = false;
       _faceDetected = false;
       _current = 0;
       _passed.clear();

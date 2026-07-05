@@ -2,6 +2,7 @@ import '../models/attendance_record.dart';
 import '../models/enums.dart';
 import '../models/shift.dart';
 import '../models/work_location.dart';
+import 'api_mappers.dart';
 import 'mock_data.dart';
 
 /// Input payload for a check-in / check-out submission.
@@ -60,10 +61,7 @@ class AttendanceSubmission {
 
   factory AttendanceSubmission.fromJson(Map<String, dynamic> j) =>
       AttendanceSubmission(
-        workMode: WorkMode.values.firstWhere(
-          (m) => m.name == j['workMode'],
-          orElse: () => WorkMode.wfo,
-        ),
+        workMode: ApiMappers.workMode(j['workMode'] as String?),
         latitude: (j['latitude'] as num?)?.toDouble() ?? 0,
         longitude: (j['longitude'] as num?)?.toDouble() ?? 0,
         faceVerified: j['faceVerified'] as bool? ?? false,
