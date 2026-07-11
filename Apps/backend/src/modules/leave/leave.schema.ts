@@ -5,6 +5,11 @@
  */
 
 import { z } from 'zod'
+import { isValidIsoDate } from '../../lib/validDate'
+
+const calendarDate = z
+  .string()
+  .refine(isValidIsoDate, 'Tanggal harus format YYYY-MM-DD yang valid')
 
 // ---------------------------------------------------------------------------
 // Create Leave Request (POST /leave-requests)
@@ -14,12 +19,8 @@ export const createLeaveSchema = z
   .object({
     employeeId: z.string().min(1, 'employeeId wajib diisi'),
     type: z.string().min(1, 'type wajib diisi').max(100, 'type maksimal 100 karakter'),
-    startDate: z
-      .string()
-      .regex(/^\d{4}-\d{2}-\d{2}$/, 'startDate harus format YYYY-MM-DD'),
-    endDate: z
-      .string()
-      .regex(/^\d{4}-\d{2}-\d{2}$/, 'endDate harus format YYYY-MM-DD'),
+    startDate: calendarDate,
+    endDate: calendarDate,
     reason: z.string().max(1000, 'reason maksimal 1000 karakter').optional(),
     notes: z.string().max(1000, 'notes maksimal 1000 karakter').optional(),
     /**
@@ -79,14 +80,8 @@ export type UploadAttachmentInput = z.infer<typeof uploadAttachmentSchema>
 export const listLeaveQuerySchema = z.object({
   status: z.enum(['Pending', 'Approved', 'Rejected', 'Cancelled', 'all']).default('all'),
   employee_id: z.string().optional(),
-  start_date: z
-    .string()
-    .regex(/^\d{4}-\d{2}-\d{2}$/)
-    .optional(),
-  end_date: z
-    .string()
-    .regex(/^\d{4}-\d{2}-\d{2}$/)
-    .optional(),
+  start_date: calendarDate.optional(),
+  end_date: calendarDate.optional(),
   page: z.coerce.number().int().positive().default(1),
   page_size: z
     .coerce

@@ -54,6 +54,9 @@ class _FaceVerificationScreenState
   late final List<_Challenge> _order;
   int _current = 0;
   final Set<_Challenge> _passed = {};
+  bool _awaitingNeutralCapture = false;
+  int _neutralFrames = 0;
+  static const _requiredNeutralFrames = 5;
 
   // Blink state machine: need open → closed → open again.
   bool _sawOpen = false;
@@ -89,7 +92,9 @@ class _FaceVerificationScreenState
       return;
     }
 
-    ref.read(checkinFlowProvider.notifier).setFaceResult(
+    ref
+        .read(checkinFlowProvider.notifier)
+        .setFaceResult(
           faceVerified: true,
           liveness: true,
           checksPassed: 2,
@@ -157,7 +162,8 @@ class _FaceVerificationScreenState
       if (!mounted) return;
       setState(() {
         _initializing = false;
-        _error = 'Kamera tidak tersedia. Gunakan perangkat dengan kamera depan.';
+        _error =
+            'Kamera tidak tersedia. Gunakan perangkat dengan kamera depan.';
       });
     }
   }
@@ -179,6 +185,11 @@ class _FaceVerificationScreenState
 
       final face = faces.first;
       if (!_faceDetected && mounted) setState(() => _faceDetected = true);
+
+      if (_awaitingNeutralCapture) {
+        _evaluateNeutralCapture(face, image);
+        return;
+      }
 
       _evaluateChallenge(face);
     } finally {
@@ -222,12 +233,37 @@ class _FaceVerificationScreenState
         setState(() => _current++);
       }
       if (_passed.length == _order.length) {
-        _complete();
+        _beginNeutralCapture();
       }
     }
   }
 
-  Future<void> _complete() async {
+  void _beginNeutralCapture() {
+    if (_submitting || _awaitingNeutralCapture) return;
+    setState(() => _awaitingNeutralCapture = true);
+  }
+
+  void _evaluateNeutralCapture(Face face, CameraImage image) {
+    final yaw = face.headEulerAngleY ?? 0;
+    final roll = face.headEulerAngleZ ?? 0;
+    final leftEye = face.leftEyeOpenProbability;
+    final rightEye = face.rightEyeOpenProbability;
+    final faceWidthRatio = face.boundingBox.width / image.width;
+    final isNeutral =
+        yaw.abs() <= 12 &&
+        roll.abs() <= 12 &&
+        faceWidthRatio >= 0.18 &&
+        faceWidthRatio <= 0.80 &&
+        (leftEye == null || leftEye >= 0.5) &&
+        (rightEye == null || rightEye >= 0.5);
+
+    _neutralFrames = isNeutral ? _neutralFrames + 1 : 0;
+    if (_neutralFrames >= _requiredNeutralFrames) {
+      _captureAndSubmit();
+    }
+  }
+
+  Future<void> _captureAndSubmit() async {
     if (_submitting) return;
     setState(() => _submitting = true);
 
@@ -255,7 +291,9 @@ class _FaceVerificationScreenState
       return;
     }
 
-    ref.read(checkinFlowProvider.notifier).setFaceResult(
+    ref
+        .read(checkinFlowProvider.notifier)
+        .setFaceResult(
           faceVerified: true,
           liveness: true,
           checksPassed: _passed.length,
@@ -302,6 +340,9 @@ class _FaceVerificationScreenState
   String get _instruction {
     if (_submitting) return 'Memproses absensi...';
     if (!_faceDetected) return 'Posisikan wajah di dalam bingkai';
+    if (_awaitingNeutralCapture) {
+      return 'Hadapkan wajah lurus dan tatap kamera sebentar';
+    }
     if (_current >= _order.length) return 'Verifikasi selesai';
     return switch (_order[_current]) {
       _Challenge.blink => 'Kedipkan mata perlahan',
@@ -322,7 +363,9 @@ class _FaceVerificationScreenState
               const SizedBox(height: AppSpacing.md),
               Text(
                 _error ?? 'Memproses...',
-                style: AppTypography.bodyMd.copyWith(color: AppColors.onSurfaceVariant),
+                style: AppTypography.bodyMd.copyWith(
+                  color: AppColors.onSurfaceVariant,
+                ),
               ),
             ],
           ),
@@ -371,15 +414,17 @@ class _FaceVerificationScreenState
                 ),
                 const SizedBox(height: AppSpacing.xl),
                 Padding(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AppSpacing.lg,
+                  ),
                   child: Column(
                     children: [
                       Text(
                         _instruction,
                         textAlign: TextAlign.center,
-                        style: AppTypography.headlineMd
-                            .copyWith(color: AppColors.onSurface),
+                        style: AppTypography.headlineMd.copyWith(
+                          color: AppColors.onSurface,
+                        ),
                       ),
                       const SizedBox(height: AppSpacing.md),
                       // Per-challenge checkmarks.
@@ -400,7 +445,8 @@ class _FaceVerificationScreenState
                             Text(
                               c == _Challenge.blink ? 'Kedip' : 'Hadap',
                               style: AppTypography.labelSm.copyWith(
-                                  color: AppColors.onSurfaceVariant),
+                                color: AppColors.onSurfaceVariant,
+                              ),
                             ),
                             const SizedBox(width: AppSpacing.md),
                           ],
@@ -413,15 +459,15 @@ class _FaceVerificationScreenState
                           value: _submitting ? null : progress,
                           minHeight: 8,
                           backgroundColor: AppColors.surfaceContainerHigh,
-                          valueColor: AlwaysStoppedAnimation(
-                              AppColors.primary),
+                          valueColor: AlwaysStoppedAnimation(AppColors.primary),
                         ),
                       ),
                       const SizedBox(height: AppSpacing.sm),
                       Text(
                         'Tantangan $done dari $total',
-                        style: AppTypography.labelSm
-                            .copyWith(color: AppColors.onSurfaceVariant),
+                        style: AppTypography.labelSm.copyWith(
+                          color: AppColors.onSurfaceVariant,
+                        ),
                       ),
                     ],
                   ),
@@ -434,7 +480,9 @@ class _FaceVerificationScreenState
 
   Widget _buildPreview() {
     final controller = _controller;
-    if (_initializing || controller == null || !controller.value.isInitialized) {
+    if (_initializing ||
+        controller == null ||
+        !controller.value.isInitialized) {
       return Container(
         color: Colors.black26,
         child: Center(
@@ -481,6 +529,8 @@ class _FaceVerificationScreenState
       _passed.clear();
       _sawOpen = false;
       _sawClosed = false;
+      _awaitingNeutralCapture = false;
+      _neutralFrames = 0;
     });
     await _initCamera();
   }
@@ -499,14 +549,16 @@ class _ErrorView extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.videocam_off_outlined,
-                size: 56, color: AppColors.primary),
+            Icon(
+              Icons.videocam_off_outlined,
+              size: 56,
+              color: AppColors.primary,
+            ),
             const SizedBox(height: AppSpacing.md),
             Text(
               message,
               textAlign: TextAlign.center,
-              style: AppTypography.bodyMd
-                  .copyWith(color: AppColors.onSurface),
+              style: AppTypography.bodyMd.copyWith(color: AppColors.onSurface),
             ),
             const SizedBox(height: AppSpacing.lg),
             FilledButton.icon(

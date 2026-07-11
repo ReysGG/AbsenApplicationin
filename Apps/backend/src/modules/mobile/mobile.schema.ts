@@ -22,8 +22,8 @@ export const checkSubmissionSchema = z.object({
   capturedAt: z.string().datetime().optional(),
   // ── Integrity signals (server is the decision authority, see mobile.integrity.ts) ──
   // Number of distinct liveness challenges passed / presented on-device.
-  livenessChecksPassed: z.number().int().min(0).max(10).optional(),
-  livenessChecksTotal: z.number().int().min(0).max(10).optional(),
+  livenessChecksPassed: z.number().int().min(2).max(10),
+  livenessChecksTotal: z.number().int().min(2).max(10),
   // Legacy/diagnostic only. The backend computes the authoritative score from
   // the submitted face image and stored employee embedding.
   faceMatchScore: z.number().min(0).max(1).optional(),

@@ -12,7 +12,7 @@ export default defineConfig({
     { name: 'chromium', use: { ...devices['Desktop Chrome'] } },
   ],
   webServer: process.env.CI ? {
-    command: 'npm run start',
+    command: 'node .next/standalone/server.js',
     url: 'http://localhost:3000',
     reuseExistingServer: false,
   } : undefined,

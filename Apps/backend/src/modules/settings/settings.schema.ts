@@ -5,6 +5,11 @@
  */
 
 import { z } from 'zod'
+import { isValidIsoDate } from '../../lib/validDate'
+
+const calendarDate = z
+  .string()
+  .refine(isValidIsoDate, 'Format tanggal harus YYYY-MM-DD yang valid')
 
 /**
  * PATCH /settings/workspace — update workspace-level settings
@@ -65,7 +70,7 @@ export const assignRoleSchema = z.object({
  * R13.12
  */
 export const createHolidaySchema = z.object({
-  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Format tanggal harus YYYY-MM-DD'),
+  date: calendarDate,
   name: z
     .string()
     .min(1, 'Nama hari libur wajib diisi')
@@ -80,10 +85,7 @@ export const createHolidaySchema = z.object({
  * R13.12
  */
 export const updateHolidaySchema = z.object({
-  date: z
-    .string()
-    .regex(/^\d{4}-\d{2}-\d{2}$/, 'Format tanggal harus YYYY-MM-DD')
-    .optional(),
+  date: calendarDate.optional(),
   name: z
     .string()
     .min(1, 'Nama hari libur wajib diisi')

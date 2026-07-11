@@ -5,6 +5,7 @@
  */
 
 import { z } from 'zod'
+import { isValidIsoDate } from '../../lib/validDate'
 
 // Valid day enum values (R10.3)
 const dayEnum = z.enum([
@@ -19,6 +20,9 @@ const dayEnum = z.enum([
 
 // HH:MM time format regex
 const timeRegex = /^([01]\d|2[0-3]):[0-5]\d$/
+const calendarDate = z
+  .string()
+  .refine(isValidIsoDate, 'Format tanggal harus YYYY-MM-DD yang valid')
 
 /**
  * POST /shifts — create a new shift
@@ -70,10 +74,7 @@ export const createShiftSchema = z
       .array(dayEnum, { required_error: 'Hari kerja wajib diisi' })
       .min(1, 'Minimal 1 hari kerja harus dipilih')
       .max(7, 'Maksimal 7 hari kerja'),
-    effectiveFrom: z
-      .string()
-      .regex(/^\d{4}-\d{2}-\d{2}$/, 'Format tanggal harus YYYY-MM-DD')
-      .optional(),
+    effectiveFrom: calendarDate.optional(),
   })
   .refine((data) => data.startTime !== data.endTime, {
     message: 'Jam masuk dan jam keluar tidak boleh sama',
@@ -120,10 +121,7 @@ export const updateShiftSchema = z
       .max(480)
       .optional(),
     workDays: z.array(dayEnum).min(1).max(7).optional(),
-    effectiveFrom: z
-      .string()
-      .regex(/^\d{4}-\d{2}-\d{2}$/, 'Format tanggal harus YYYY-MM-DD')
-      .optional(),
+    effectiveFrom: calendarDate.optional(),
     status: z.enum(['Active', 'Inactive']).optional(),
   })
   .refine(

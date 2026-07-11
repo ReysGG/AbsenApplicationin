@@ -143,9 +143,10 @@ function buildEmployeeWhere(
     if (scopeFilter.locationIds.length > 0) {
       scopeOr.push({ assignedLocationId: { in: scopeFilter.locationIds } })
     }
-    if (scopeOr.length > 0) {
-      andClauses.push({ OR: scopeOr })
-    }
+    // A restricted user without any assignment must see no data. Omitting the
+    // clause here would accidentally turn an empty scope into workspace-wide
+    // access.
+    andClauses.push(scopeOr.length > 0 ? { OR: scopeOr } : { id: { in: [] } })
   }
 
   if (andClauses.length > 0) {
@@ -194,9 +195,7 @@ function buildAttendanceWhere(
     if (scopeFilter.locationIds.length > 0) {
       scopeOr.push({ employee: { assignedLocationId: { in: scopeFilter.locationIds } } })
     }
-    if (scopeOr.length > 0) {
-      andClauses.push({ OR: scopeOr })
-    }
+    andClauses.push(scopeOr.length > 0 ? { OR: scopeOr } : { id: { in: [] } })
   }
 
   if (andClauses.length > 0) {

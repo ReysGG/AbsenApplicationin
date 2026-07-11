@@ -59,7 +59,7 @@ Kedua app berbagi `BETTER_AUTH_SECRET` (kredensial sama) dan `INTERNAL_JWT_SECRE
 
 ```bash
 # 1. Salin env contoh dan isi secret
-cp .env.docker.example .env
+cp .env.example .env
 
 # 2. Generate dua secret (masing-masing minimal 32 karakter)
 openssl rand -base64 48   # untuk BETTER_AUTH_SECRET
@@ -72,7 +72,7 @@ docker compose up --build
 
 Yang terjadi saat boot:
 - `db` (Postgres) start → healthcheck.
-- `backend` menunggu db sehat, menjalankan `prisma db push` (menerapkan schema), lalu **seed otomatis** (idempotent), lalu start di `:4000`.
+- `backend` menunggu db sehat, menjalankan `prisma db push` (menerapkan schema), lalu start di `:4000`.
 - `website` start di `:3000`, mem-proxy API ke `backend:4000`.
 
 Akses:
@@ -82,13 +82,16 @@ Akses:
 Mematikan: `docker compose down` (data Postgres tetap tersimpan di volume `attendx_pgdata`).
 Reset total termasuk data: `docker compose down -v`.
 
-### Akun demo (password: `Attendx2024!`)
+Secara default stack tidak membuat akun contoh atau kredensial bawaan. Buat
+tenant, administrator, dan akun karyawan melalui alur provisioning yang aman.
+Untuk data presentasi pada database terisolasi saja, aktifkan kedua variabel
+`RUN_SEED=true` dan `SEED_DEMO_DATA=true` secara eksplisit.
 
-| Email | Peran | Login ke |
-|-------|-------|----------|
-| `stakeholder@attendx.dev` | Stakeholder (semua izin) | Website |
-| `hradmin@attendx.dev` | Support Admin (HR) | Website |
-| `karyawan@attendx.dev` | End user (karyawan) | Mobile |
+Untuk bootstrap pertama, isi `PLATFORM_SUPER_ADMIN_EMAIL` dan
+`PLATFORM_SUPER_ADMIN_PASSWORD` (minimal 16 karakter) di `.env`. Docker akan
+membuat atau mengaktifkan akun `super_admin` tersebut tanpa role workspace.
+Gunakan `PLATFORM_SUPER_ADMIN_RESET_PASSWORD=true` hanya untuk satu deployment
+saat rotasi password yang disengaja.
 
 ---
 
@@ -174,7 +177,8 @@ npm run dev          # :3000
 | `BETTER_AUTH_URL` | backend, website | Default `http://localhost:10000` (Docker) |
 | `BACKEND_URL` | website | URL backend untuk BFF proxy (di Docker: `http://backend:4000`) |
 | `CORS_ORIGIN` | backend | Origin yang diizinkan (Docker: `http://localhost:10000`) |
-| `RUN_SEED` | backend (Docker) | `true` = seed saat boot pertama |
+| `RUN_SEED` | backend (Docker) | Menjalankan seed hanya bila `SEED_DEMO_DATA=true`; default `false` |
+| `SEED_DEMO_DATA` | backend (Docker) | Izin eksplisit membuat data contoh; hanya untuk database dev terisolasi |
 | `API_BASE_URL` | flutter | Via `env/*.json` (`--dart-define-from-file`); Docker: `http://10.0.2.2:10001/api/v1` |
 | `USE_MOCK_DATA` | flutter | Via `env/*.json`; `true`=mock, `false`=backend |
 

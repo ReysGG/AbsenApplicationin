@@ -66,9 +66,9 @@ describe('evaluateCapturedAt', () => {
 })
 
 describe('evaluateFaceLiveness — server is the authority', () => {
-  it('falls back to booleans when no signals are present, marking clientAttestedOnly', () => {
+  it('rejects legacy boolean-only liveness claims', () => {
     const r = evaluateFaceLiveness({ faceVerified: true, livenessPassed: true })
-    expect(r.passed).toBe(true)
+    expect(r.passed).toBe(false)
     expect(r.clientAttestedOnly).toBe(true)
   })
 

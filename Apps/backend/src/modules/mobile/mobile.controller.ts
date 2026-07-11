@@ -169,7 +169,7 @@ export async function changePasswordHandler(
   next: NextFunction,
 ): Promise<void> {
   try {
-    requireEmployee(req)
+    const emp = requireEmployee(req)
     const parsed = changePasswordSchema.safeParse(req.body)
     if (!parsed.success) {
       return next(
@@ -440,14 +440,17 @@ export async function deleteDeviceHandler(
   next: NextFunction,
 ): Promise<void> {
   try {
-    requireEmployee(req)
+    const emp = requireEmployee(req)
+    if (!emp.userId) {
+      return next(new ValidationError('Akun pengguna tidak valid'))
+    }
     const parsed = deviceTokenDeleteSchema.safeParse(req.body)
     if (!parsed.success) {
       return next(
         new ValidationError('Token tidak valid', parsed.error.flatten()),
       )
     }
-    await service.deleteDeviceToken(parsed.data.token)
+    await service.deleteDeviceToken(emp.userId, parsed.data.token)
     sendSuccess(res, null, 'Device dihapus')
   } catch (err) {
     next(err)

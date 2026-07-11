@@ -20,3 +20,13 @@ export function signContext(
     .digest("hex");
   return { contextHeader, sigHeader };
 }
+
+/** Sign a pre-auth event before the BFF forwards it to Express. */
+export function signAuthEvent(
+  event: "login-check" | "login-failed",
+  email: string,
+  secret: string,
+): string {
+  const payload = `auth-event:${event}:${email.trim().toLowerCase()}`
+  return createHmac("sha256", secret).update(payload).digest("hex")
+}

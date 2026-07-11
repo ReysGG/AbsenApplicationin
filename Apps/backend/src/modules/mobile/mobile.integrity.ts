@@ -127,6 +127,9 @@ export function evaluateFaceLiveness(input: FaceDecisionInput): FaceDecision {
     const passed = input.livenessChecksPassed as number
     const total = input.livenessChecksTotal as number
 
+    if (!input.livenessPassed) {
+      return { passed: false, reason: 'Verifikasi liveness gagal.', clientAttestedOnly: false }
+    }
     if (total < MIN_LIVENESS_CHALLENGES) {
       return { passed: false, reason: 'Tantangan liveness tidak memadai.', clientAttestedOnly: false }
     }
@@ -142,11 +145,13 @@ export function evaluateFaceLiveness(input: FaceDecisionInput): FaceDecision {
     return { passed: true, reason: null, clientAttestedOnly: false }
   }
 
-  // Fallback: no richer signals (older client / offline capture).
-  if (!input.faceVerified || !input.livenessPassed) {
-    return { passed: false, reason: 'Verifikasi wajah gagal.', clientAttestedOnly: true }
+  // Never accept a legacy boolean fallback. It is client-controlled and cannot
+  // prove that a liveness challenge actually happened.
+  return {
+    passed: false,
+    reason: 'Data liveness tidak lengkap. Selesaikan verifikasi wajah lagi.',
+    clientAttestedOnly: true,
   }
-  return { passed: true, reason: null, clientAttestedOnly: true }
 }
 
 // ---------------------------------------------------------------------------

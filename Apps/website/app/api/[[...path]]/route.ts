@@ -12,7 +12,7 @@
 
 import { type NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import { signContext } from "@/lib/hmac";
+import { signAuthEvent, signContext } from "@/lib/hmac";
 import { headers } from "next/headers";
 
 // ---------------------------------------------------------------------------
@@ -85,6 +85,26 @@ async function forwardPublic(req: NextRequest, path: string): Promise<NextRespon
     forwardedHeaders.set(key, value);
   });
   forwardedHeaders.set("x-request-id", requestId);
+
+  const authEvent = path === "/auth/login-check"
+    ? "login-check"
+    : path === "/auth/login-failed"
+      ? "login-failed"
+      : null;
+  if (authEvent) {
+    if (!INTERNAL_JWT_SECRET) {
+      return NextResponse.json({ success: false, error: { code: "INTERNAL_ERROR", message: "Server configuration error." } }, { status: 500 });
+    }
+    const candidate = await req.clone().json().catch(() => null) as { email?: unknown } | null;
+    if (typeof candidate?.email !== "string" || !candidate.email.trim()) {
+      return NextResponse.json({ success: false, error: { code: "VALIDATION_ERROR", message: "Email diperlukan." } }, { status: 400 });
+    }
+    forwardedHeaders.set("x-internal-auth-event", authEvent);
+    forwardedHeaders.set(
+      "x-internal-auth-event-sig",
+      signAuthEvent(authEvent, candidate.email, INTERNAL_JWT_SECRET),
+    );
+  }
 
   const method = req.method.toUpperCase();
   const hasBody =

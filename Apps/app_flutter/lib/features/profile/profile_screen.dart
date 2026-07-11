@@ -148,6 +148,13 @@ class ProfileScreen extends ConsumerWidget {
                             minimumSize: const Size.fromHeight(44),
                           ),
                         ),
+                      ] else ...[
+                        const SizedBox(height: AppSpacing.sm),
+                        TextButton.icon(
+                          onPressed: () => context.push(AppRoutes.faceEnroll),
+                          icon: const Icon(Icons.refresh_rounded),
+                          label: const Text('Daftarkan Ulang Wajah'),
+                        ),
                       ],
                       const SizedBox(height: AppSpacing.sm),
                     ],

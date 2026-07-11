@@ -20,10 +20,16 @@ echo "[entrypoint] Applying schema (prisma db push)..."
 npx prisma db push --accept-data-loss
 echo "[entrypoint] Schema applied."
 
-# Idempotent seed of the demo workspace + accounts.
-if [ "${RUN_SEED:-true}" = "true" ]; then
-  echo "[entrypoint] Running seed (idempotent)..."
+echo "[entrypoint] Bootstrapping configured platform super-admin..."
+node dist/prisma/bootstrapPlatformAdmin.js
+
+# Optional development seed. Disabled by default so production/local stacks do
+# not create accounts with known credentials.
+if [ "${RUN_SEED:-false}" = "true" ] && [ "${SEED_DEMO_DATA:-false}" = "true" ]; then
+  echo "[entrypoint] Running optional development seed..."
   node dist/prisma/seed.js || echo "[entrypoint] Seed skipped/failed (non-fatal)."
+elif [ "${RUN_SEED:-false}" = "true" ]; then
+  echo "[entrypoint] Seed requested but SEED_DEMO_DATA is not true; skipping demo data."
 fi
 
 echo "[entrypoint] Starting backend: $*"

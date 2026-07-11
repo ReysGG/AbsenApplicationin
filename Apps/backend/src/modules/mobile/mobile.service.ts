@@ -569,6 +569,11 @@ async function verifyEmployeeFace(
   }
 
   const live = await analyzeFaceImage(faceImageBase64, 'verify')
+  if (live.model !== profile.embeddingModel) {
+    throw new ValidationError(
+      'Profil wajah perlu didaftarkan ulang karena model verifikasi telah diperbarui.',
+    )
+  }
   const storedEmbedding = parseEmbedding(profile.embedding)
   const score = cosineSimilarity(storedEmbedding, live.embedding)
   const threshold = Number(profile.matchThreshold || env.FACE_MATCH_THRESHOLD)
@@ -1089,9 +1094,9 @@ export async function registerDeviceToken(
   })
 }
 
-export async function deleteDeviceToken(token: string): Promise<void> {
+export async function deleteDeviceToken(userId: string, token: string): Promise<void> {
   try {
-    await prisma.deviceToken.deleteMany({ where: { token } })
+    await prisma.deviceToken.deleteMany({ where: { token, userId } })
   } catch {
     // best-effort
   }

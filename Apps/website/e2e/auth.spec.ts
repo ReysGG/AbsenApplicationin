@@ -15,20 +15,20 @@ import { test, expect } from '@playwright/test'
 
 test('login page renders correctly', async ({ page }) => {
   await page.goto('/login')
-  await expect(page.getByRole('heading', { name: 'Masuk' })).toBeVisible()
-  await expect(page.getByLabel('Email')).toBeVisible()
-  await expect(page.getByLabel('Password')).toBeVisible()
-  await expect(page.getByRole('button', { name: 'Masuk' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Masuk ke akun Anda' })).toBeVisible()
+  await expect(page.getByLabel('Email kerja')).toBeVisible()
+  await expect(page.getByLabel('Kata sandi')).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Masuk ke dashboard' })).toBeVisible()
 })
 
 // ── Invalid login shows generic error (no email enumeration) ─────────────────
 
 test('invalid login shows generic error', async ({ page }) => {
   await page.goto('/login')
-  await page.getByLabel('Email').fill('invalid@test.com')
+  await page.getByLabel('Email kerja').fill('invalid@test.com')
   // Fill password using the label that matches the visible "Password" label
-  await page.getByLabel('Password').fill('wrongpassword123')
-  await page.getByRole('button', { name: 'Masuk' }).click()
+  await page.getByLabel('Kata sandi').fill('wrongpassword123')
+  await page.getByRole('button', { name: 'Masuk ke dashboard' }).click()
   // Error should be generic — must not reveal whether the email exists (R1.2)
   await expect(page.getByRole('alert')).toContainText('tidak valid')
 })

@@ -14,23 +14,23 @@ import { test, expect } from '@playwright/test'
 test('login page has proper form labels', async ({ page }) => {
   await page.goto('/login')
   // Inputs must be labelled
-  const emailInput = page.getByLabel('Email')
+  const emailInput = page.getByLabel('Email kerja')
   await expect(emailInput).toBeVisible()
-  const passwordInput = page.getByLabel('Password')
+  const passwordInput = page.getByLabel('Kata sandi')
   await expect(passwordInput).toBeVisible()
 })
 
 test('login page submit button has accessible name', async ({ page }) => {
   await page.goto('/login')
-  await expect(page.getByRole('button', { name: 'Masuk' })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Masuk ke dashboard' })).toBeVisible()
 })
 
 test('login page email validation error uses role=alert', async ({ page }) => {
   await page.goto('/login')
   // Submit with an invalid email to trigger client-side validation
-  await page.getByLabel('Email').fill('bukan-email')
-  await page.getByLabel('Password').fill('password1A')
-  await page.getByRole('button', { name: 'Masuk' }).click()
+  await page.getByLabel('Email kerja').fill('bukan-email')
+  await page.getByLabel('Kata sandi').fill('password1A')
+  await page.getByRole('button', { name: 'Masuk ke dashboard' }).click()
   // The error paragraph must carry role="alert"
   const alert = page.locator('[role="alert"]').first()
   await expect(alert).toBeVisible()

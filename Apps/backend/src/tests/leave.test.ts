@@ -710,6 +710,16 @@ describe('createLeaveSchema', () => {
     expect(result.success).toBe(false)
   })
 
+  it('rejects impossible calendar dates', () => {
+    const result = createLeaveSchema.safeParse({
+      employeeId: 'emp-001',
+      type: 'Sakit',
+      startDate: '2026-02-30',
+      endDate: '2026-03-01',
+    })
+    expect(result.success).toBe(false)
+  })
+
   it('accepts single-day leave (startDate == endDate)', () => {
     const result = createLeaveSchema.safeParse({
       employeeId: 'emp-001',

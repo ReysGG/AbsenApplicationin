@@ -142,6 +142,8 @@ const validInput = {
   longitude: 106.8456,
   faceVerified: true,
   livenessPassed: true,
+  livenessChecksPassed: 2,
+  livenessChecksTotal: 2,
   isMocked: false,
   faceImageBase64: '/9j/4AAQSkZJRgABAQAAAQABAAD/2w==',
 }
@@ -192,7 +194,7 @@ describe('checkIn — geofence', () => {
     ;(prisma.location.findFirst as any).mockResolvedValue(officeLocation)
 
     await expect(
-      checkIn(employee, { ...validInput, livenessPassed: false }),
+      checkIn(employee, { ...validInput, livenessChecksPassed: 1 }),
     ).rejects.toBeInstanceOf(ValidationError)
   })
 })

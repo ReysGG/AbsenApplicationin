@@ -15,6 +15,7 @@ import { Router } from 'express'
 import { authenticate } from '../../middleware/authenticate'
 import { resolveActiveWorkspace } from '../../middleware/resolveActiveWorkspace'
 import { loginGuard } from '../../middleware/loginGuard'
+import { requireInternalAuthEvent } from '../../middleware/requireInternalAuthEvent'
 import {
   meHandler,
   currentWorkspaceHandler,
@@ -45,7 +46,7 @@ router.get('/workspaces/current', authenticate, resolveActiveWorkspace, currentW
  * BFF calls this before better-auth sign-in.
  * Applies loginGuard without incrementing failed-attempt counters.
  */
-router.post('/auth/login-check', loginGuard, loginCheckHandler)
+router.post('/auth/login-check', requireInternalAuthEvent('login-check'), loginGuard, loginCheckHandler)
 
 /**
  * POST /api/v1/auth/login-event
@@ -67,6 +68,6 @@ router.post('/auth/logout-event', authenticate, logoutEventHandler)
  * Applies loginGuard (lockout check) then increments the attempt counter.
  * Returns 423 if already locked, 200 otherwise.
  */
-router.post('/auth/login-failed', loginGuard, loginFailedHandler)
+router.post('/auth/login-failed', requireInternalAuthEvent('login-failed'), loginGuard, loginFailedHandler)
 
 export default router

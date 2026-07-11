@@ -33,7 +33,7 @@ export default function CTA() {
             </p>
             
             <div className="flex flex-col sm:flex-row gap-4 items-center justify-center font-sans w-full sm:w-auto z-10">
-              <Link href="/sign-up" className="w-full sm:w-auto px-8 py-4 bg-mint text-navy hover:bg-white hover:text-navy rounded-xl text-sm font-semibold transition-all duration-300 shadow-level-2 hover:scale-[1.02] active:scale-[0.98] cursor-pointer text-center">
+              <Link href="/uji-coba" className="w-full sm:w-auto px-8 py-4 bg-mint text-navy hover:bg-white hover:text-navy rounded-xl text-sm font-semibold transition-all duration-300 shadow-level-2 hover:scale-[1.02] active:scale-[0.98] cursor-pointer text-center">
                 Coba Gratis 14 Hari
               </Link>
               <a href="#harga" className="w-full sm:w-auto px-8 py-4 bg-transparent border border-white/20 hover:border-mint text-white rounded-xl text-sm font-semibold transition-all hover:bg-white/5 duration-300 cursor-pointer text-center">

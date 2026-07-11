@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/config/app_config.dart';
@@ -39,10 +38,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       _error = null;
     });
     try {
-      await ref.read(authControllerProvider.notifier).login(
-            email: _emailCtrl.text.trim(),
-            password: _passwordCtrl.text,
-          );
+      await ref
+          .read(authControllerProvider.notifier)
+          .login(email: _emailCtrl.text.trim(), password: _passwordCtrl.text);
     } catch (e) {
       setState(() => _error = e.toString().replaceFirst('Exception: ', ''));
     } finally {
@@ -74,15 +72,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     // ── Logo pill ──────────────────────────────────────────
-                    _LogoPill()
-                        .animate()
-                        .scaleXY(
-                          begin: 0.7,
-                          end: 1.0,
-                          duration: 450.ms,
-                          curve: Curves.easeOutBack,
-                        )
-                        .fadeIn(),
+                    _LogoPill(),
                     const SizedBox(height: AppSpacing.lg),
 
                     // ── Card ───────────────────────────────────────────────
@@ -97,13 +87,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                           setState(() => _obscure = !_obscure),
                       onSubmit: _loading ? null : _submit,
                     ),
-                    const SizedBox(height: AppSpacing.lg),
-
-                    // ── Illustration ── (karakter di bawah card) ──────────
-                    _CharacterIllustration()
-                        .animate()
-                        .fadeIn(duration: 600.ms)
-                        .slideY(begin: 0.08, curve: Curves.easeOut),
                   ],
                 ),
               ),
@@ -162,25 +145,6 @@ class _LogoPill extends StatelessWidget {
 }
 
 // ────────────────────────────────────────────────────────────────────────────
-// Character Illustration (bawah card)
-// ────────────────────────────────────────────────────────────────────────────
-class _CharacterIllustration extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: SizedBox(
-        height: 220,
-        child: Image.asset(
-          'assets/images/login_illustration.webp',
-          fit: BoxFit.contain,
-          errorBuilder: (context, error, stackTrace) => const SizedBox.shrink(),
-        ),
-      ),
-    );
-  }
-}
-
-// ────────────────────────────────────────────────────────────────────────────
 // Login Card
 // ────────────────────────────────────────────────────────────────────────────
 class _LoginCard extends StatelessWidget {
@@ -208,57 +172,59 @@ class _LoginCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(AppRadius.xxl),
+        color: AppColors.surface.withValues(alpha: 0.96),
+        borderRadius: BorderRadius.circular(AppRadius.xxxl),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.42)),
         boxShadow: [
           BoxShadow(
+            color: AppColors.primary.withValues(alpha: 0.14),
+            blurRadius: 34,
+            offset: const Offset(0, 18),
+            spreadRadius: -10,
+          ),
+          BoxShadow(
             color: Colors.black.withValues(alpha: 0.08),
-            blurRadius: 24,
+            blurRadius: 20,
             offset: const Offset(0, 8),
           ),
         ],
       ),
-      padding: const EdgeInsets.all(AppSpacing.xl),
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.lg,
+        AppSpacing.xl,
+        AppSpacing.lg,
+        AppSpacing.lg,
+      ),
       child: Form(
         key: formKey,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             // Heading
-            Text('Selamat Datang Kembali', style: AppTypography.display)
-                .animate(delay: 80.ms)
-                .fadeIn(duration: 320.ms)
-                .slideY(begin: 0.08, curve: Curves.easeOut),
+            Text('Selamat Datang Kembali', style: AppTypography.display),
             const SizedBox(height: AppSpacing.xs),
             Text(
               'Masuk untuk mencatat kehadiranmu hari ini',
-              style: AppTypography.bodyMd
-                  .copyWith(color: AppColors.onSurfaceVariant),
-            )
-                .animate(delay: 140.ms)
-                .fadeIn(duration: 320.ms)
-                .slideY(begin: 0.08, curve: Curves.easeOut),
+              style: AppTypography.bodyMd.copyWith(
+                color: AppColors.onSurfaceVariant,
+              ),
+            ),
             const SizedBox(height: AppSpacing.lg),
 
             if (error != null) ...[
-              _ErrorBanner(message: error!)
-                  .animate()
-                  .shake(hz: 4, curve: Curves.easeInOut)
-                  .fadeIn(duration: 240.ms),
+              _ErrorBanner(message: error!),
               const SizedBox(height: AppSpacing.md),
             ],
 
             // Email
             _Field(
-              delay: 200.ms,
               label: 'Email',
               child: TextFormField(
                 controller: emailCtrl,
                 keyboardType: TextInputType.emailAddress,
                 textInputAction: TextInputAction.next,
                 autofillHints: const [AutofillHints.email],
-                style: TextStyle(
-                    color: AppColors.onSurface, fontSize: 15),
+                style: TextStyle(color: AppColors.onSurface, fontSize: 15),
                 decoration: _inputDecoration(
                   hint: 'nama@perusahaan.com',
                   icon: Icons.mail_outline_rounded,
@@ -275,7 +241,6 @@ class _LoginCard extends StatelessWidget {
 
             // Password
             _Field(
-              delay: 280.ms,
               label: 'Kata Sandi',
               child: TextFormField(
                 controller: passwordCtrl,
@@ -283,8 +248,7 @@ class _LoginCard extends StatelessWidget {
                 textInputAction: TextInputAction.done,
                 autofillHints: const [AutofillHints.password],
                 onFieldSubmitted: (_) => onSubmit?.call(),
-                style: TextStyle(
-                    color: AppColors.onSurface, fontSize: 15),
+                style: TextStyle(color: AppColors.onSurface, fontSize: 15),
                 decoration: _inputDecoration(
                   hint: 'Masukkan kata sandi',
                   icon: Icons.lock_outline_rounded,
@@ -292,9 +256,11 @@ class _LoginCard extends StatelessWidget {
                     tooltip: obscure
                         ? 'Tampilkan kata sandi'
                         : 'Sembunyikan kata sandi',
-                    icon: Icon(obscure
-                        ? Icons.visibility_outlined
-                        : Icons.visibility_off_outlined),
+                    icon: Icon(
+                      obscure
+                          ? Icons.visibility_outlined
+                          : Icons.visibility_off_outlined,
+                    ),
                     onPressed: onToggleObscure,
                   ),
                 ),
@@ -356,15 +322,19 @@ class _LoginCard extends StatelessWidget {
                         height: 22,
                         child: CircularProgressIndicator(
                           strokeWidth: 2.5,
-                          valueColor:
-                              AlwaysStoppedAnimation<Color>(Colors.white),
+                          valueColor: AlwaysStoppedAnimation<Color>(
+                            Colors.white,
+                          ),
                         ),
                       )
                     : Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          const Icon(Icons.login_rounded,
-                              color: Colors.white, size: 20),
+                          const Icon(
+                            Icons.login_rounded,
+                            color: Colors.white,
+                            size: 20,
+                          ),
                           const SizedBox(width: AppSpacing.xs),
                           Text(
                             'Masuk',
@@ -376,51 +346,40 @@ class _LoginCard extends StatelessWidget {
                         ],
                       ),
               ),
-            ).animate(delay: 360.ms).fadeIn(duration: 320.ms).slideY(
-                  begin: 0.08,
-                  curve: Curves.easeOut,
-                ),
+            ),
 
             const SizedBox(height: AppSpacing.xl),
 
             // Security note
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(Icons.shield_outlined, size: 15, color: AppColors.outline),
-                const SizedBox(width: AppSpacing.xs),
-                Expanded(
-                  child: Text(
-                    'Data Anda dilindungi dengan enkripsi end-to-end',
-                    style:
-                        AppTypography.labelSm.copyWith(color: AppColors.outline),
-                    textAlign: TextAlign.center,
-                  ),
-                ),
-              ],
-            ),
-
-            const SizedBox(height: AppSpacing.md),
-
-            // Demo credentials
             Container(
-              padding: const EdgeInsets.all(AppSpacing.sm),
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.sm,
+                vertical: AppSpacing.xs,
+              ),
               decoration: BoxDecoration(
                 color: AppColors.surfaceContainerLow,
-                borderRadius: BorderRadius.circular(AppRadius.md),
-                border: Border.all(color: AppColors.outlineVariant),
+                borderRadius: BorderRadius.circular(AppRadius.full),
               ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Text('Akun demo',
-                      style: AppTypography.labelSm
-                          .copyWith(color: AppColors.brandMid, letterSpacing: 0)),
-                  const SizedBox(height: 2),
-                  Text('karyawan@attendx.dev', style: AppTypography.labelMd),
-                  Text('Attendx2024!',
-                      style: AppTypography.bodyMd
-                          .copyWith(color: AppColors.onSurfaceVariant)),
+                  Icon(
+                    Icons.shield_outlined,
+                    size: 15,
+                    color: AppColors.outline,
+                  ),
+                  const SizedBox(width: AppSpacing.xs),
+                  Flexible(
+                    child: Text(
+                      'Data Anda dilindungi dengan enkripsi',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: AppTypography.labelSm.copyWith(
+                        color: AppColors.outline,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -465,100 +424,41 @@ class _LoginCard extends StatelessWidget {
 // Helpers (shared with old code, kept identical to avoid regressions)
 // ────────────────────────────────────────────────────────────────────────────
 
-class _Field extends StatefulWidget {
-  const _Field({
-    required this.label,
-    required this.child,
-    required this.delay,
-  });
+class _Field extends StatelessWidget {
+  const _Field({required this.label, required this.child});
 
   final String label;
   final Widget child;
-  final Duration delay;
-
-  @override
-  State<_Field> createState() => _FieldState();
-}
-
-class _FieldState extends State<_Field> {
-  bool _focused = false;
 
   @override
   Widget build(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(widget.label, style: AppTypography.labelMd),
+        Text(label, style: AppTypography.labelMd),
         const SizedBox(height: AppSpacing.xs),
-        Focus(
-          onFocusChange: (f) => setState(() => _focused = f),
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 250),
-            curve: Curves.easeOut,
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(AppRadius.lg),
-              boxShadow: _focused
-                  ? [
-                      BoxShadow(
-                        color: AppColors.primary.withValues(alpha: 0.22),
-                        blurRadius: 16,
-                        spreadRadius: 1,
-                      ),
-                    ]
-                  : const [],
-            ),
-            child: widget.child,
-          ),
-        ),
+        child,
       ],
-    )
-        .animate(delay: widget.delay)
-        .fadeIn(duration: 320.ms)
-        .slideY(begin: 0.08, curve: Curves.easeOut);
+    );
   }
 }
 
-class _PressableButton extends StatefulWidget {
+class _PressableButton extends StatelessWidget {
   const _PressableButton({required this.child, required this.onPressed});
 
   final Widget child;
   final VoidCallback? onPressed;
 
   @override
-  State<_PressableButton> createState() => _PressableButtonState();
-}
-
-class _PressableButtonState extends State<_PressableButton> {
-  double _scale = 1.0;
-
-  void _set(double v) {
-    if (widget.onPressed == null) return;
-    setState(() => _scale = v);
-  }
-
-  @override
   Widget build(BuildContext context) {
-    // A single GestureDetector owns both the press-scale feedback and the tap.
-    // The previous version nested a `Listener` inside the `GestureDetector`
-    // with the default `deferToChild` hit-test behavior, which could leave the
-    // tap unrecognized (button only fired via the keyboard "done" action).
-    // `HitTestBehavior.opaque` guarantees the whole button area is tappable.
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
-      onTapDown: (_) => _set(0.96),
-      onTapUp: (_) => _set(1.0),
-      onTapCancel: () => _set(1.0),
-      onTap: widget.onPressed,
-      child: AnimatedScale(
-        scale: _scale,
-        duration: const Duration(milliseconds: 120),
-        curve: Curves.easeOut,
-        child: MouseRegion(
-          cursor: widget.onPressed != null
-              ? SystemMouseCursors.click
-              : SystemMouseCursors.basic,
-          child: widget.child,
-        ),
+      onTap: onPressed,
+      child: MouseRegion(
+        cursor: onPressed != null
+            ? SystemMouseCursors.click
+            : SystemMouseCursors.basic,
+        child: child,
       ),
     );
   }

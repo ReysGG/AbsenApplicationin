@@ -19,11 +19,12 @@ abstract final class AppConfig {
 
   static final String apiBaseUrl = _resolveApiBaseUrl();
 
-  /// When true, repositories use in-memory mock data instead of the network.
-  /// Lets the full UI run before the mobile backend endpoints exist.
+  /// Mock data is opt-in for isolated UI development only. Real API-backed
+  /// authentication is the default even in debug builds, so no fake account is
+  /// available accidentally.
   static const useMockData = bool.fromEnvironment(
     'USE_MOCK_DATA',
-    defaultValue: !_isRelease,
+    defaultValue: false,
   );
 
   static const appName = 'AttendX';

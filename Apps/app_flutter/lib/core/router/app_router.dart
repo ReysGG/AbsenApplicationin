@@ -69,7 +69,8 @@ final routerProvider = Provider<GoRouter>((ref) {
           return loc == AppRoutes.faceEnroll ? null : AppRoutes.faceEnroll;
         }
         // Enrolled — don't let them linger on the enrollment screen.
-        if (loc == AppRoutes.faceEnroll) return AppRoutes.home;
+        // Re-enrollment remains available from the profile screen when a
+        // previous capture was poor or the verification model changes.
       } else {
         // Web: bounce away from enroll screen if somehow navigated there.
         if (loc == AppRoutes.faceEnroll) return AppRoutes.home;
@@ -85,22 +86,13 @@ final routerProvider = Provider<GoRouter>((ref) {
       return null;
     },
     routes: [
-      GoRoute(
-        path: AppRoutes.splash,
-        builder: (_, _) => const SplashScreen(),
-      ),
-      GoRoute(
-        path: AppRoutes.login,
-        builder: (_, _) => const LoginScreen(),
-      ),
+      GoRoute(path: AppRoutes.splash, builder: (_, _) => const SplashScreen()),
+      GoRoute(path: AppRoutes.login, builder: (_, _) => const LoginScreen()),
       GoRoute(
         path: AppRoutes.welcome,
         builder: (_, _) => const WelcomeScreen(),
       ),
-      GoRoute(
-        path: AppRoutes.lock,
-        builder: (_, _) => const LockScreen(),
-      ),
+      GoRoute(path: AppRoutes.lock, builder: (_, _) => const LockScreen()),
 
       // Full-screen flows (outside the bottom-nav shell)
       GoRoute(
@@ -164,30 +156,38 @@ final routerProvider = Provider<GoRouter>((ref) {
               ),
             ],
           ),
-          StatefulShellBranch(routes: [
-            GoRoute(
-              path: AppRoutes.history,
-              builder: (_, _) => const HistoryScreen(),
-            ),
-          ]),
-          StatefulShellBranch(routes: [
-            GoRoute(
-              path: AppRoutes.leave,
-              builder: (_, _) => const LeaveScreen(),
-            ),
-          ]),
-          StatefulShellBranch(routes: [
-            GoRoute(
-              path: AppRoutes.schedule,
-              builder: (_, _) => const ScheduleScreen(),
-            ),
-          ]),
-          StatefulShellBranch(routes: [
-            GoRoute(
-              path: AppRoutes.profile,
-              builder: (_, _) => const ProfileScreen(),
-            ),
-          ]),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: AppRoutes.history,
+                builder: (_, _) => const HistoryScreen(),
+              ),
+            ],
+          ),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: AppRoutes.leave,
+                builder: (_, _) => const LeaveScreen(),
+              ),
+            ],
+          ),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: AppRoutes.schedule,
+                builder: (_, _) => const ScheduleScreen(),
+              ),
+            ],
+          ),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: AppRoutes.profile,
+                builder: (_, _) => const ProfileScreen(),
+              ),
+            ],
+          ),
         ],
       ),
     ],

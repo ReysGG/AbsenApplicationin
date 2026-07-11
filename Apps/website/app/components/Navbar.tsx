@@ -7,6 +7,7 @@ import { LazyMotion, m, domAnimation } from 'motion/react';
 
 export default function Navbar() {
   const [isScrolled, setIsScrolled] = React.useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = React.useState(false);
 
   React.useEffect(() => {
     const handleScroll = () => {
@@ -48,10 +49,42 @@ export default function Navbar() {
               </ShinyButton>
             </Link>
           </div>
-          <button className="md:hidden flex items-center justify-center p-2 text-neutral-900">
+          <button
+            type="button"
+            className="md:hidden flex items-center justify-center p-2 text-neutral-900"
+            aria-label={mobileMenuOpen ? "Tutup menu navigasi" : "Buka menu navigasi"}
+            aria-expanded={mobileMenuOpen}
+            aria-controls="mobile-navigation"
+            onClick={() => setMobileMenuOpen((open) => !open)}
+          >
             <span className="material-symbols-outlined">menu</span>
           </button>
         </div>
+        {mobileMenuOpen && (
+          <div id="mobile-navigation" className="md:hidden absolute left-0 right-0 top-full border-b border-neutral-200 bg-white px-margin-mobile py-5 shadow-lg">
+            <nav aria-label="Navigasi utama" className="mx-auto flex max-w-container-max flex-col gap-1">
+              {[
+                ['#hero', 'Beranda'],
+                ['#fitur', 'Fitur'],
+                ['#alur', 'Alur Kerja'],
+                ['#harga', 'Harga'],
+                ['#faq', 'FAQ'],
+              ].map(([href, label]) => (
+                <a key={href} href={href} onClick={() => setMobileMenuOpen(false)} className="rounded-lg px-3 py-2.5 font-medium text-neutral-700 hover:bg-emerald-50 hover:text-brand-teal">
+                  {label}
+                </a>
+              ))}
+              <div className="mt-3 grid grid-cols-2 gap-3 border-t border-neutral-100 pt-4">
+                <Link href="/sign-in" onClick={() => setMobileMenuOpen(false)} className="rounded-lg border border-neutral-200 px-3 py-2.5 text-center text-sm font-semibold text-neutral-700">
+                  Masuk
+                </Link>
+                <Link href="/uji-coba" onClick={() => setMobileMenuOpen(false)} className="rounded-lg bg-navy px-3 py-2.5 text-center text-sm font-semibold text-white">
+                  Uji Coba
+                </Link>
+              </div>
+            </nav>
+          </div>
+        )}
       </m.nav>
     </LazyMotion>
   );

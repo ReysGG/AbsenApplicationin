@@ -59,6 +59,11 @@ const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL! })
 const prisma = new PrismaClient({ adapter })
 
 async function main(): Promise<void> {
+  if (process.env.SEED_DEMO_DATA !== 'true') {
+    console.log('Demo seed disabled. Set SEED_DEMO_DATA=true only for an isolated development database.')
+    return
+  }
+
   console.log('🌱 Starting seed...')
 
   // ── 1. Tenant ──────────────────────────────────────────────────────────────
