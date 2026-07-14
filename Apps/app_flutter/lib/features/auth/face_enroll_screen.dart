@@ -256,7 +256,9 @@ class _FaceEnrollScreenState extends ConsumerState<FaceEnrollScreen> {
           ],
         ),
       );
-      if (mounted) context.pop();
+      // Enrollment can be opened by the auth redirect as the root route, so
+      // there may be no navigation entry to pop after the success dialog.
+      if (mounted) context.go(AppRoutes.home);
     } catch (e) {
       if (!mounted) return;
       setState(() {

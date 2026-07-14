@@ -1,4 +1,5 @@
 import React from 'react';
+import Link from 'next/link';
 
 export default function Footer() {
   return (
@@ -23,6 +24,7 @@ export default function Footer() {
             <li><a className="text-white/70 hover:text-mint transition-colors" href="#fitur">Fitur Utama</a></li>
             <li><a className="text-white/70 hover:text-mint transition-colors" href="#alur">Alur Kerja</a></li>
             <li><a className="text-white/70 hover:text-mint transition-colors" href="#harga">Paket Harga</a></li>
+            <li><Link className="text-white/70 hover:text-mint transition-colors" href="/download-app">Download App</Link></li>
           </ul>
         </div>
         <div>

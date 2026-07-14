@@ -40,6 +40,7 @@ export default function Navbar() {
             <a className="text-neutral-600 hover:text-brand-teal transition-colors duration-200" href="#alur">Alur Kerja</a>
             <a className="text-neutral-600 hover:text-brand-teal transition-colors duration-200" href="#harga">Harga</a>
             <a className="text-neutral-600 hover:text-brand-teal transition-colors duration-200" href="#faq">FAQ</a>
+            <Link className="text-neutral-600 hover:text-brand-teal transition-colors duration-200" href="/download-app">Download App</Link>
           </div>
           <div className="hidden md:flex items-center gap-4">
             <Link href="/sign-in" className="text-neutral-600 hover:text-brand-teal font-sans text-sm font-medium transition-colors">Masuk</Link>
@@ -74,6 +75,9 @@ export default function Navbar() {
                   {label}
                 </a>
               ))}
+              <Link href="/download-app" onClick={() => setMobileMenuOpen(false)} className="rounded-lg px-3 py-2.5 font-medium text-neutral-700 hover:bg-emerald-50 hover:text-brand-teal">
+                Download App
+              </Link>
               <div className="mt-3 grid grid-cols-2 gap-3 border-t border-neutral-100 pt-4">
                 <Link href="/sign-in" onClick={() => setMobileMenuOpen(false)} className="rounded-lg border border-neutral-200 px-3 py-2.5 text-center text-sm font-semibold text-neutral-700">
                   Masuk
