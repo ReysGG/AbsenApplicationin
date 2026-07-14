@@ -8,6 +8,7 @@ Responsibilities:
 - Detect exactly one face.
 - Generate a face embedding using InsightFace/ArcFace.
 - Return basic image quality signals.
+- Report conservative eyewear and eye-visibility signals.
 - Reject unusable images with stable error codes.
 
 This service is intentionally fail-closed. If the model is missing or cannot be
@@ -31,6 +32,14 @@ uvicorn app.main:app --host 0.0.0.0 --port 4100
 - `FACE_SERVICE_API_KEY`: Optional internal credential for `/v1/face/analyze`.
   Set this in Docker/production and have the backend send it via
   `x-internal-api-key`. Leave empty only for isolated local development.
+- `FACE_REJECT_DARK_EYEWEAR`: Reject a strong bilateral dark-eye signal, such
+  as sunglasses. Default: `true`. Ordinary clear glasses remain allowed and
+  are returned as an informational `quality.eyewear` attribute.
+
+The eyewear signal is deliberately conservative. It uses InsightFace eye
+landmarks plus eye-region brightness and edge information. It is not presented
+as a medical or demographic classifier and must not be used for identity; the
+ArcFace embedding remains the identity signal.
 
 ## Model setup
 
@@ -67,4 +76,3 @@ Two ways to provide the model:
    `genderage.onnx`, `2d106det.onnx`, `1k3d68.onnx`.
 
 Check readiness any time with `GET /health` → `{"ready":true,"error":null}`.
-

@@ -112,6 +112,9 @@ services:
       # Minimum face-quality score for enroll/verify (0..1). Lower = more
       # lenient (better for real phone cameras / glasses). Default 0.45.
       FACE_QUALITY_MIN_SCORE: ${FACE_QUALITY_MIN_SCORE:-0.45}
+      # Clear glasses remain allowed; only a strong bilateral dark-eye signal
+      # such as sunglasses is rejected by the face service.
+      FACE_REJECT_DARK_EYEWEAR: ${FACE_REJECT_DARK_EYEWEAR:-true}
       # Shared internal credential required by /v1/face/analyze when set.
       FACE_SERVICE_API_KEY: ${FACE_SERVICE_API_KEY:-}
     volumes:

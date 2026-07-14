@@ -14,6 +14,12 @@ export interface FaceQualityResult {
     status: 'clear' | 'suspected' | 'blocked'
     reason: string | null
   }
+  eyewear?: {
+    type: 'none' | 'clear_glasses' | 'dark_glasses' | 'suspected' | 'unknown'
+    confidence: number
+    eyeVisibilityScore: number
+    blocksEyes: boolean
+  }
 }
 
 export interface FaceAnalyzeResult {

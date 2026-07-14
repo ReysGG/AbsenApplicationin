@@ -27,6 +27,13 @@ class ObstructionResult(BaseModel):
     reason: str | None = None
 
 
+class EyewearResult(BaseModel):
+    type: Literal["none", "clear_glasses", "dark_glasses", "suspected", "unknown"]
+    confidence: float
+    eyeVisibilityScore: float
+    blocksEyes: bool
+
+
 class QualityResult(BaseModel):
     score: float
     faceCount: int
@@ -35,6 +42,7 @@ class QualityResult(BaseModel):
     poseOk: bool
     faceSizeOk: bool
     obstruction: ObstructionResult
+    eyewear: EyewearResult
 
 
 class AnalyzeSuccess(BaseModel):
@@ -60,6 +68,7 @@ _model_error: str | None = None
 # deployment can tune strictness for real phone front-cameras. Used both for the
 # obstruction hint and the hard reject in /v1/face/analyze.
 QUALITY_MIN_SCORE = float(os.getenv("FACE_QUALITY_MIN_SCORE", "0.45"))
+REJECT_DARK_EYEWEAR = os.getenv("FACE_REJECT_DARK_EYEWEAR", "true").lower() == "true"
 FACE_SERVICE_API_KEY = os.getenv("FACE_SERVICE_API_KEY", "").strip()
 
 
@@ -166,6 +175,126 @@ def _quality_score(
     return float(max(0.0, min(1.0, min(brightness_score, blur_score, size_score, pose_score))))
 
 
+def _clamp01(value: float) -> float:
+    return float(max(0.0, min(1.0, value)))
+
+
+def _eye_patch(
+    gray: np.ndarray,
+    center: np.ndarray,
+    half_width: int,
+    half_height: int,
+) -> np.ndarray | None:
+    height, width = gray.shape[:2]
+    cx, cy = int(center[0]), int(center[1])
+    x1, x2 = max(0, cx - half_width), min(width, cx + half_width)
+    y1, y2 = max(0, cy - half_height), min(height, cy + half_height)
+    if x2 - x1 < 4 or y2 - y1 < 4:
+        return None
+    return gray[y1:y2, x1:x2]
+
+
+def _analyze_eyewear(image: np.ndarray, face) -> EyewearResult:
+    """Estimate eye obstruction while keeping ordinary clear glasses allowed."""
+    landmarks = getattr(face, "kps", None)
+    if landmarks is None or len(landmarks) < 2:
+        return EyewearResult(
+            type="unknown",
+            confidence=0.0,
+            eyeVisibilityScore=0.5,
+            blocksEyes=False,
+        )
+
+    gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+    x1, y1, x2, y2 = [int(round(float(v))) for v in face.bbox]
+    height, width = gray.shape[:2]
+    x1, x2 = max(0, x1), min(width, x2)
+    y1, y2 = max(0, y1), min(height, y2)
+    face_crop = gray[y1:y2, x1:x2]
+    if face_crop.size == 0:
+        return EyewearResult(
+            type="unknown",
+            confidence=0.0,
+            eyeVisibilityScore=0.5,
+            blocksEyes=False,
+        )
+
+    eyes = np.asarray(landmarks[:2], dtype=np.float32)
+    eye_distance = float(np.linalg.norm(eyes[0] - eyes[1]))
+    if eye_distance < 8:
+        return EyewearResult(
+            type="unknown",
+            confidence=0.0,
+            eyeVisibilityScore=0.5,
+            blocksEyes=False,
+        )
+
+    half_width = max(5, int(eye_distance * 0.28))
+    half_height = max(4, int(eye_distance * 0.18))
+    face_brightness = max(1.0, float(np.mean(face_crop)))
+    dark_threshold = max(24.0, min(72.0, face_brightness * 0.48))
+
+    brightness_ratios: list[float] = []
+    dark_fractions: list[float] = []
+    edge_densities: list[float] = []
+    for eye in eyes:
+        patch = _eye_patch(gray, eye, half_width, half_height)
+        if patch is None or patch.size == 0:
+            continue
+        brightness_ratios.append(float(np.mean(patch)) / face_brightness)
+        dark_fractions.append(float(np.mean(patch < dark_threshold)))
+        edges = cv2.Canny(patch, 50, 130)
+        edge_densities.append(float(np.mean(edges > 0)))
+
+    if len(brightness_ratios) != 2:
+        return EyewearResult(
+            type="unknown",
+            confidence=0.0,
+            eyeVisibilityScore=0.5,
+            blocksEyes=False,
+        )
+
+    mean_ratio = float(np.mean(brightness_ratios))
+    mean_dark = float(np.mean(dark_fractions))
+    mean_edges = float(np.mean(edge_densities))
+    darkness_score = _clamp01((0.72 - mean_ratio) / 0.38)
+    coverage_score = _clamp01((mean_dark - 0.18) / 0.52)
+    dark_glasses_score = _clamp01(0.62 * darkness_score + 0.38 * coverage_score)
+    eye_visibility = _clamp01(1.0 - dark_glasses_score)
+
+    if dark_glasses_score >= 0.88 and min(dark_fractions) >= 0.42:
+        return EyewearResult(
+            type="dark_glasses",
+            confidence=round(dark_glasses_score, 4),
+            eyeVisibilityScore=round(eye_visibility, 4),
+            blocksEyes=True,
+        )
+    if dark_glasses_score >= 0.58:
+        return EyewearResult(
+            type="suspected",
+            confidence=round(dark_glasses_score, 4),
+            eyeVisibilityScore=round(eye_visibility, 4),
+            blocksEyes=False,
+        )
+
+    # Frame edges with a visible, non-dark eye area suggest ordinary glasses.
+    if mean_edges >= 0.15 and mean_ratio >= 0.58:
+        frame_score = _clamp01((mean_edges - 0.12) / 0.20)
+        return EyewearResult(
+            type="clear_glasses",
+            confidence=round(frame_score, 4),
+            eyeVisibilityScore=round(eye_visibility, 4),
+            blocksEyes=False,
+        )
+
+    return EyewearResult(
+        type="none",
+        confidence=round(_clamp01(1.0 - max(dark_glasses_score, mean_edges)), 4),
+        eyeVisibilityScore=round(eye_visibility, 4),
+        blocksEyes=False,
+    )
+
+
 def _face_quality(image: np.ndarray, face) -> QualityResult:
     height, width = image.shape[:2]
     brightness, blur_score = _quality_metrics(image)
@@ -183,8 +312,19 @@ def _face_quality(image: np.ndarray, face) -> QualityResult:
         pose_ok = yaw <= 25 and pitch <= 25 and roll <= 25
 
     score = _quality_score(brightness, blur_score, face_size_ok, pose_ok)
+    eyewear = _analyze_eyewear(image, face)
     obstruction = ObstructionResult(status="clear")
-    if score < QUALITY_MIN_SCORE:
+    if eyewear.blocksEyes:
+        obstruction = ObstructionResult(
+            status="blocked",
+            reason="Area mata tertutup atau menggunakan kacamata sangat gelap.",
+        )
+    elif eyewear.type == "suspected":
+        obstruction = ObstructionResult(
+            status="suspected",
+            reason="Area mata kurang terlihat jelas. Pastikan tidak tertutup bayangan atau kacamata gelap.",
+        )
+    elif score < QUALITY_MIN_SCORE:
         obstruction = ObstructionResult(
             status="suspected",
             reason="Wajah kurang jelas atau sebagian tertutup.",
@@ -198,6 +338,7 @@ def _face_quality(image: np.ndarray, face) -> QualityResult:
         poseOk=pose_ok,
         faceSizeOk=face_size_ok,
         obstruction=obstruction,
+        eyewear=eyewear,
     )
 
 
@@ -236,6 +377,11 @@ def analyze_face(payload: AnalyzeRequest) -> AnalyzeSuccess | AnalyzeReject:
 
     face = faces[0]
     quality = _face_quality(image, face)
+    if REJECT_DARK_EYEWEAR and quality.eyewear.blocksEyes:
+        return AnalyzeReject(
+            reason="Lepaskan sunglasses atau pastikan area mata terlihat jelas.",
+            code="eye_area_blocked",
+        )
     if quality.score < QUALITY_MIN_SCORE:
         # Diagnostic: show which metric pulled the score down (stdout → docker logs).
         print(
@@ -265,4 +411,3 @@ def analyze_face(payload: AnalyzeRequest) -> AnalyzeSuccess | AnalyzeReject:
         embeddingDim=len(embedding_list),
         quality=quality,
     )
-
