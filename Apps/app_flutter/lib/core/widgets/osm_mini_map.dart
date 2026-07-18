@@ -17,6 +17,8 @@ class OsmMiniMap extends StatelessWidget {
     super.key,
     required this.latitude,
     required this.longitude,
+    this.geofenceLatitude,
+    this.geofenceLongitude,
     this.geofenceRadiusMeters,
     this.height = 180,
     this.interactive = false,
@@ -25,6 +27,8 @@ class OsmMiniMap extends StatelessWidget {
 
   final double latitude;
   final double longitude;
+  final double? geofenceLatitude;
+  final double? geofenceLongitude;
   final double? geofenceRadiusMeters;
   final double height;
   final bool interactive;
@@ -32,7 +36,18 @@ class OsmMiniMap extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final center = LatLng(latitude, longitude);
+    final userPosition = LatLng(latitude, longitude);
+    final hasGeofenceCenter =
+        geofenceLatitude != null && geofenceLongitude != null;
+    final geofenceCenter = hasGeofenceCenter
+        ? LatLng(geofenceLatitude!, geofenceLongitude!)
+        : userPosition;
+    final mapCenter = hasGeofenceCenter
+        ? LatLng(
+            (latitude + geofenceLatitude!) / 2,
+            (longitude + geofenceLongitude!) / 2,
+          )
+        : userPosition;
 
     return ClipRRect(
       borderRadius: BorderRadius.circular(borderRadius),
@@ -45,17 +60,17 @@ class OsmMiniMap extends StatelessWidget {
             const _MapBase(),
             FlutterMap(
               options: MapOptions(
-                initialCenter: center,
-                initialZoom: 16,
+                initialCenter: mapCenter,
+                initialZoom: hasGeofenceCenter ? 15 : 16,
                 interactionOptions: InteractionOptions(
-                  flags:
-                      interactive ? InteractiveFlag.all : InteractiveFlag.none,
+                  flags: interactive
+                      ? InteractiveFlag.all
+                      : InteractiveFlag.none,
                 ),
               ),
               children: [
                 TileLayer(
-                  urlTemplate:
-                      'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                  urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
                   userAgentPackageName: 'com.example.app_flutter',
                   tileProvider: NetworkTileProvider(),
                   // Keep transparent on error so the styled base shows through.
@@ -65,7 +80,7 @@ class OsmMiniMap extends StatelessWidget {
                   CircleLayer(
                     circles: [
                       CircleMarker(
-                        point: center,
+                        point: geofenceCenter,
                         radius: geofenceRadiusMeters!,
                         useRadiusInMeter: true,
                         color: AppColors.primary.withValues(alpha: 0.15),
@@ -77,11 +92,18 @@ class OsmMiniMap extends StatelessWidget {
                 MarkerLayer(
                   markers: [
                     Marker(
-                      point: center,
+                      point: userPosition,
                       width: 44,
                       height: 44,
                       child: const _Pin(),
                     ),
+                    if (hasGeofenceCenter)
+                      Marker(
+                        point: geofenceCenter,
+                        width: 40,
+                        height: 40,
+                        child: const _OfficePin(),
+                      ),
                   ],
                 ),
               ],
@@ -92,7 +114,9 @@ class OsmMiniMap extends StatelessWidget {
               bottom: AppSpacing.sm,
               child: Container(
                 padding: const EdgeInsets.symmetric(
-                    horizontal: AppSpacing.sm, vertical: 3),
+                  horizontal: AppSpacing.sm,
+                  vertical: 3,
+                ),
                 decoration: BoxDecoration(
                   color: AppColors.surface,
                   borderRadius: BorderRadius.circular(AppRadius.full),
@@ -125,8 +149,10 @@ class _MapBase extends StatelessWidget {
   Widget build(BuildContext context) {
     return DecoratedBox(
       decoration: BoxDecoration(color: AppColors.surfaceContainer),
-      child:
-          CustomPaint(painter: _GridPainter(), child: const SizedBox.expand()),
+      child: CustomPaint(
+        painter: _GridPainter(),
+        child: const SizedBox.expand(),
+      ),
     );
   }
 }
@@ -169,6 +195,29 @@ class _Pin extends StatelessWidget {
         ],
       ),
       child: const Icon(Icons.person_pin_circle, color: Colors.white, size: 22),
+    );
+  }
+}
+
+class _OfficePin extends StatelessWidget {
+  const _OfficePin();
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        shape: BoxShape.circle,
+        border: Border.all(color: AppColors.primary, width: 3),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x30000000),
+            blurRadius: 7,
+            offset: Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Icon(Icons.business_rounded, color: AppColors.primary, size: 20),
     );
   }
 }

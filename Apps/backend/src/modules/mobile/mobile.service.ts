@@ -18,6 +18,7 @@ import { evaluateCheckInIntegrity, evaluateCapturedAt, isValidCoordinate } from 
 import { createNotification } from '../notifications/notifications.service'
 import { uploadFaceImage } from '../../config/faceStorage'
 import { analyzeFaceImage } from './face.service-client'
+import { compareFaceEmbeddings } from './face-matching'
 
 // ---------------------------------------------------------------------------
 // Time / geo helpers
@@ -509,6 +510,8 @@ interface ActiveFaceProfileRow {
 interface FaceVerificationResult {
   score: number
   threshold: number
+  distance: number
+  maxDistance: number
   model: string
   qualityScore: number
 }
@@ -523,24 +526,6 @@ function parseEmbedding(value: unknown): number[] {
     throw new ValidationError('Template wajah terdaftar tidak valid.')
   }
   return vector
-}
-
-function cosineSimilarity(a: number[], b: number[]): number {
-  if (a.length !== b.length || a.length === 0) {
-    throw new ValidationError('Dimensi template wajah tidak cocok.')
-  }
-  let dot = 0
-  let normA = 0
-  let normB = 0
-  for (let i = 0; i < a.length; i++) {
-    dot += a[i] * b[i]
-    normA += a[i] * a[i]
-    normB += b[i] * b[i]
-  }
-  if (normA <= 0 || normB <= 0) {
-    throw new ValidationError('Template wajah tidak valid.')
-  }
-  return dot / (Math.sqrt(normA) * Math.sqrt(normB))
 }
 
 async function verifyEmployeeFace(
@@ -575,19 +560,28 @@ async function verifyEmployeeFace(
     )
   }
   const storedEmbedding = parseEmbedding(profile.embedding)
-  const score = cosineSimilarity(storedEmbedding, live.embedding)
   const threshold = Number(profile.matchThreshold || env.FACE_MATCH_THRESHOLD)
+  let match
+  try {
+    match = compareFaceEmbeddings(storedEmbedding, live.embedding, threshold)
+  } catch {
+    throw new ValidationError('Template wajah tidak valid atau tidak kompatibel.')
+  }
 
-  if (score < threshold) {
+  if (!match.matched) {
     throw new ValidationError('Wajah tidak cocok dengan data terdaftar.', {
-      faceMatchScore: Number(score.toFixed(4)),
+      faceMatchScore: Number(match.similarity.toFixed(4)),
+      faceDistance: Number(match.distance.toFixed(4)),
       threshold,
+      maxDistance: Number(match.maxDistance.toFixed(4)),
     })
   }
 
   return {
-    score,
+    score: match.similarity,
     threshold,
+    distance: match.distance,
+    maxDistance: match.maxDistance,
     model: live.model || profile.embeddingModel,
     qualityScore: live.quality.score,
   }
@@ -789,6 +783,8 @@ export async function checkIn(
       anomalies: integrity.anomalies,
       faceMatchScore: Number(faceVerification.score.toFixed(4)),
       faceMatchThreshold: faceVerification.threshold,
+      faceDistance: Number(faceVerification.distance.toFixed(4)),
+      faceMaxDistance: Number(faceVerification.maxDistance.toFixed(4)),
       faceQualityScore: faceVerification.qualityScore,
       faceModel: faceVerification.model,
       rejected: false,
@@ -902,6 +898,8 @@ export async function checkOut(
       anomalies: skewAnomalies,
       faceMatchScore: Number(faceVerification.score.toFixed(4)),
       faceMatchThreshold: faceVerification.threshold,
+      faceDistance: Number(faceVerification.distance.toFixed(4)),
+      faceMaxDistance: Number(faceVerification.maxDistance.toFixed(4)),
       faceQualityScore: faceVerification.qualityScore,
       faceModel: faceVerification.model,
       rejected: false,

@@ -55,8 +55,9 @@ class _FaceVerificationScreenState
   int _current = 0;
   final Set<_Challenge> _passed = {};
   bool _awaitingNeutralCapture = false;
-  int _neutralFrames = 0;
-  static const _requiredNeutralFrames = 5;
+  String? _neutralCaptureHint;
+  Timer? _neutralCaptureTimer;
+  static const _neutralCaptureDelay = Duration(seconds: 2);
 
   // Blink state machine: need open → closed → open again.
   bool _sawOpen = false;
@@ -240,7 +241,18 @@ class _FaceVerificationScreenState
 
   void _beginNeutralCapture() {
     if (_submitting || _awaitingNeutralCapture) return;
-    setState(() => _awaitingNeutralCapture = true);
+    _neutralCaptureTimer?.cancel();
+    setState(() {
+      _awaitingNeutralCapture = true;
+      _neutralCaptureHint = 'Hadapkan wajah lurus dan tatap kamera sebentar';
+    });
+    // Liveness is already complete. Give the user a short moment to face the
+    // camera, then let the server-side face model authoritatively validate the
+    // still image instead of depending on jittery ML Kit frame probabilities.
+    _neutralCaptureTimer = Timer(_neutralCaptureDelay, () {
+      if (!mounted || !_awaitingNeutralCapture || _submitting) return;
+      unawaited(_captureAndSubmit());
+    });
   }
 
   void _evaluateNeutralCapture(Face face, CameraImage image) {
@@ -249,22 +261,26 @@ class _FaceVerificationScreenState
     final leftEye = face.leftEyeOpenProbability;
     final rightEye = face.rightEyeOpenProbability;
     final faceWidthRatio = face.boundingBox.width / image.width;
-    final isNeutral =
-        yaw.abs() <= 12 &&
-        roll.abs() <= 12 &&
-        faceWidthRatio >= 0.18 &&
-        faceWidthRatio <= 0.80 &&
-        (leftEye == null || leftEye >= 0.5) &&
-        (rightEye == null || rightEye >= 0.5);
-
-    _neutralFrames = isNeutral ? _neutralFrames + 1 : 0;
-    if (_neutralFrames >= _requiredNeutralFrames) {
-      _captureAndSubmit();
+    String? hint;
+    if (faceWidthRatio < 0.18) {
+      hint = 'Dekatkan wajah sedikit ke kamera';
+    } else if (faceWidthRatio > 0.80) {
+      hint = 'Jauhkan wajah sedikit dari kamera';
+    } else if (yaw.abs() > 15 || roll.abs() > 15) {
+      hint = 'Hadapkan wajah lurus ke kamera';
+    } else if ((leftEye != null && leftEye < 0.4) ||
+        (rightEye != null && rightEye < 0.4)) {
+      hint = 'Buka mata dan tatap kamera';
+    }
+    final nextHint = hint ?? 'Tahan posisi, sedang mengambil foto wajah';
+    if (_neutralCaptureHint != nextHint && mounted) {
+      setState(() => _neutralCaptureHint = nextHint);
     }
   }
 
   Future<void> _captureAndSubmit() async {
     if (_submitting) return;
+    _neutralCaptureTimer?.cancel();
     setState(() => _submitting = true);
 
     // Stop the stream before navigating away.
@@ -320,6 +336,7 @@ class _FaceVerificationScreenState
 
   @override
   void dispose() {
+    _neutralCaptureTimer?.cancel();
     _restoreBrightness();
     final controller = _controller;
     _controller = null;
@@ -339,10 +356,12 @@ class _FaceVerificationScreenState
 
   String get _instruction {
     if (_submitting) return 'Memproses absensi...';
-    if (!_faceDetected) return 'Posisikan wajah di dalam bingkai';
     if (_awaitingNeutralCapture) {
-      return 'Hadapkan wajah lurus dan tatap kamera sebentar';
+      if (!_faceDetected) return 'Posisikan wajah di dalam bingkai';
+      return _neutralCaptureHint ??
+          'Hadapkan wajah lurus dan tatap kamera sebentar';
     }
+    if (!_faceDetected) return 'Posisikan wajah di dalam bingkai';
     if (_current >= _order.length) return 'Verifikasi selesai';
     return switch (_order[_current]) {
       _Challenge.blink => 'Kedipkan mata perlahan',
@@ -464,7 +483,9 @@ class _FaceVerificationScreenState
                       ),
                       const SizedBox(height: AppSpacing.sm),
                       Text(
-                        'Tantangan $done dari $total',
+                        _awaitingNeutralCapture
+                            ? 'Menyelesaikan verifikasi wajah'
+                            : 'Tantangan $done dari $total',
                         style: AppTypography.labelSm.copyWith(
                           color: AppColors.onSurfaceVariant,
                         ),
@@ -509,6 +530,7 @@ class _FaceVerificationScreenState
   }
 
   Future<void> _retry() async {
+    _neutralCaptureTimer?.cancel();
     final oldController = _controller;
     _controller = null;
     try {
@@ -530,7 +552,7 @@ class _FaceVerificationScreenState
       _sawOpen = false;
       _sawClosed = false;
       _awaitingNeutralCapture = false;
-      _neutralFrames = 0;
+      _neutralCaptureHint = null;
     });
     await _initCamera();
   }

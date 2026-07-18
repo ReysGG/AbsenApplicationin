@@ -31,6 +31,7 @@ class _LocationValidationScreenState
   double? _distance;
   bool _withinRadius = false;
   bool _mocked = false;
+  double? _accuracy;
   String? _error;
   double? _myLat;
   double? _myLng;
@@ -65,6 +66,7 @@ class _LocationValidationScreenState
       final myLat = position.latitude;
       final myLng = position.longitude;
       final mocked = position.isMocked;
+      final accuracy = position.accuracy;
 
       // Pick the nearest assigned location to validate against.
       WorkLocation nearest = locations.first;
@@ -77,19 +79,27 @@ class _LocationValidationScreenState
         }
       }
 
-      final within = nearest.isWithinGeofence(myLat, myLng);
+      final accuracyOk = accuracy <= 100;
+      final within = accuracyOk && nearest.isWithinGeofence(myLat, myLng);
       if (!mounted) return;
       setState(() {
         _location = nearest;
         _distance = nearestDist;
         _withinRadius = within;
         _mocked = mocked;
+        _accuracy = accuracy;
         _myLat = myLat;
         _myLng = myLng;
         _locating = false;
+        _error = accuracyOk
+            ? null
+            : 'Akurasi GPS masih rendah (±${accuracy.toStringAsFixed(0)} m). '
+                  'Pindah ke area terbuka lalu coba lagi.';
       });
 
-      ref.read(checkinFlowProvider.notifier).setLocation(
+      ref
+          .read(checkinFlowProvider.notifier)
+          .setLocation(
             lat: myLat,
             lng: myLng,
             verified: within,
@@ -118,9 +128,12 @@ class _LocationValidationScreenState
       body: ListView(
         padding: const EdgeInsets.all(AppSpacing.md),
         children: [
-          Text('Memastikan kamu berada di lokasi kerja yang sah',
-              style: AppTypography.bodyMd
-                  .copyWith(color: AppColors.onSurfaceVariant)),
+          Text(
+            'Memastikan kamu berada di lokasi kerja yang sah',
+            style: AppTypography.bodyMd.copyWith(
+              color: AppColors.onSurfaceVariant,
+            ),
+          ),
           const SizedBox(height: AppSpacing.md),
 
           // Map area — real OpenStreetMap with geofence circle + my position.
@@ -138,6 +151,8 @@ class _LocationValidationScreenState
             OsmMiniMap(
               latitude: _myLat!,
               longitude: _myLng!,
+              geofenceLatitude: _location?.latitude,
+              geofenceLongitude: _location?.longitude,
               geofenceRadiusMeters: _location?.radiusMeters.toDouble(),
               height: 240,
               borderRadius: AppRadius.xl,
@@ -151,8 +166,11 @@ class _LocationValidationScreenState
                 border: Border.all(color: AppColors.surfaceContainerHigh),
               ),
               child: Center(
-                child: Icon(Icons.location_off,
-                    color: AppColors.onSurfaceVariant, size: 36),
+                child: Icon(
+                  Icons.location_off,
+                  color: AppColors.onSurfaceVariant,
+                  size: 36,
+                ),
               ),
             ),
           const SizedBox(height: AppSpacing.md),
@@ -165,12 +183,16 @@ class _LocationValidationScreenState
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Expanded(
-                      child: Text(_location?.name ?? 'Mencari lokasi...',
-                          style: AppTypography.labelMd),
+                      child: Text(
+                        _location?.name ?? 'Mencari lokasi...',
+                        style: AppTypography.labelMd,
+                      ),
                     ),
                     if (!_locating && _error == null)
                       StatusBadge(
-                        label: _withinRadius ? 'Dalam Radius' : 'Di Luar Radius',
+                        label: _withinRadius
+                            ? 'Dalam Radius'
+                            : 'Di Luar Radius',
                         color: _withinRadius
                             ? AppColors.success
                             : AppColors.error,
@@ -182,9 +204,12 @@ class _LocationValidationScreenState
                 ),
                 if (_location?.address != null) ...[
                   const SizedBox(height: 4),
-                  Text(_location!.address!,
-                      style: AppTypography.bodyMd
-                          .copyWith(color: AppColors.onSurfaceVariant)),
+                  Text(
+                    _location!.address!,
+                    style: AppTypography.bodyMd.copyWith(
+                      color: AppColors.onSurfaceVariant,
+                    ),
+                  ),
                 ],
                 if (_distance != null) ...[
                   const SizedBox(height: AppSpacing.sm),
@@ -192,7 +217,19 @@ class _LocationValidationScreenState
                     'Jarak: ${_distance!.toStringAsFixed(0)} m '
                     '(radius ${_location!.radiusMeters.toStringAsFixed(0)} m)',
                     style: AppTypography.labelSm.copyWith(
-                        color: AppColors.onSurfaceVariant, letterSpacing: 0),
+                      color: AppColors.onSurfaceVariant,
+                      letterSpacing: 0,
+                    ),
+                  ),
+                ],
+                if (_accuracy != null) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    'Akurasi GPS: ±${_accuracy!.toStringAsFixed(0)} m',
+                    style: AppTypography.labelSm.copyWith(
+                      color: AppColors.onSurfaceVariant,
+                      letterSpacing: 0,
+                    ),
                   ),
                 ],
               ],
@@ -204,10 +241,7 @@ class _LocationValidationScreenState
           ],
           if (!_locating && _error != null) ...[
             const SizedBox(height: AppSpacing.md),
-            _WarningCard(
-              message: _error!,
-              onRetry: _acquire,
-            ),
+            _WarningCard(message: _error!, onRetry: _acquire),
           ] else if (!_locating && !_withinRadius) ...[
             const SizedBox(height: AppSpacing.md),
             _WarningCard(
@@ -225,7 +259,9 @@ class _LocationValidationScreenState
             onPressed: (!_locating && _withinRadius && _error == null)
                 ? () => context.push(AppRoutes.faceVerification)
                 : null,
-            style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(52)),
+            style: FilledButton.styleFrom(
+              minimumSize: const Size.fromHeight(52),
+            ),
             child: const Text('Lanjut ke Verifikasi Wajah'),
           ),
         ),
@@ -249,14 +285,14 @@ class _WarningCard extends StatelessWidget {
       ),
       child: Row(
         children: [
-          Icon(Icons.warning_amber_rounded,
-              color: AppColors.onErrorContainer),
+          Icon(Icons.warning_amber_rounded, color: AppColors.onErrorContainer),
           const SizedBox(width: AppSpacing.sm),
           Expanded(
             child: Text(
               message,
-              style: AppTypography.bodyMd
-                  .copyWith(color: AppColors.onErrorContainer),
+              style: AppTypography.bodyMd.copyWith(
+                color: AppColors.onErrorContainer,
+              ),
             ),
           ),
           TextButton(onPressed: onRetry, child: const Text('Ulangi')),
@@ -285,8 +321,9 @@ class _MockWarningCard extends StatelessWidget {
             child: Text(
               'Lokasi palsu (mock GPS) terdeteksi. Absen dapat ditolak server. '
               'Matikan aplikasi pemalsu lokasi lalu coba lagi.',
-              style: AppTypography.bodyMd
-                  .copyWith(color: AppColors.onErrorContainer),
+              style: AppTypography.bodyMd.copyWith(
+                color: AppColors.onErrorContainer,
+              ),
             ),
           ),
         ],
